@@ -93,6 +93,12 @@ class IntroPage extends StatelessWidget {
                                   child: Text(L10n.of(context).signIn),
                                 ),
                                 const SizedBox(height: 8),
+                                // Вход по QR-коду от администратора
+                                TextButton.icon(
+                                  onPressed: () => scanAndLogin(context),
+                                  icon: const Icon(Icons.qr_code_scanner),
+                                  label: const Text('Сканировать QR'),
+                                ),
                                 // Вход по ссылке из буфера обмена
                                 TextButton.icon(
                                   onPressed: () => pasteAndLogin(context),

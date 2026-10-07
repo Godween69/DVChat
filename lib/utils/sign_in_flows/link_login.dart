@@ -1,8 +1,11 @@
 // DVChat: вход по ссылке dvchat://login#<base64url(JSON {"u":..,"p":..})>
+// Источники ссылки: буфер обмена, QR-код (системный intent добавим позже)
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fluffychat/config/app_config.dart';
+import 'package:fluffychat/pages/new_private_chat/qr_scanner_modal.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/matrix.dart';
@@ -72,5 +75,26 @@ Future<void> loginByLink(BuildContext context, String raw) async {
 Future<void> pasteAndLogin(BuildContext context) async {
   final data = await Clipboard.getData(Clipboard.kTextPlain);
   if (!context.mounted) return;
-  await loginByLink(context, data?.text ?? '');
+  final text = data?.text ?? '';
+  await loginByLink(context, text);
+  // Пароль не должен оставаться в буфере обмена после входа
+  if (parseLoginLink(text) != null) {
+    await Clipboard.setData(const ClipboardData(text: ''));
+  }
+}
+
+/// Открывает сканер QR, строку из кода отдаёт в loginByLink.
+Future<void> scanAndLogin(BuildContext context) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => QrScannerModal(
+        onScan: (code) {
+          // Сканер закрывается сам до вызова onScan, контекст страницы жив
+          if (!context.mounted) return;
+          unawaited(loginByLink(context, code));
+        },
+      ),
+    ),
+  );
 }
