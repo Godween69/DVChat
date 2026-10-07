@@ -10,9 +10,20 @@ abstract class AppConfig {
 
   static const Color chatColor = primaryColor;
   static const double messageFontSize = 16.0;
-  static const bool allowOtherHomeservers = true;
-  static const bool enableRegistration = true;
+
+  // DVChat: единственный разрешённый сервер, выбор другого запрещён
+  static const bool allowOtherHomeservers = false;
+  // DVChat: регистрацию отключаем, аккаунты выдаёт админ
+  static const bool enableRegistration = false;
   static const bool hideTypingUsernames = false;
+
+  // DVChat: захардкоженный homeserver (без схемы https://)
+  static const String defaultHomeserver = 'chat.dvbstudio.online';
+
+  // DVChat: формат ссылки/QR для входа: dvchat://login#<base64url(JSON)>
+  // JSON: {"u":"логин","p":"пароль"}. Фрагмент после # по сети не уходит.
+  static const String loginLinkScheme = 'dvchat';
+  static const String loginLinkHost = 'login';
 
   static const String inviteLinkPrefix = 'https://matrix.to/#/';
   static const String deepLinkPrefix = 'im.fluffychat://chat/';
