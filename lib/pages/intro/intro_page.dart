@@ -87,12 +87,6 @@ class IntroPage extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Обычный вход: форма логин/пароль
-                                ElevatedButton(
-                                  onPressed: login,
-                                  child: Text(L10n.of(context).signIn),
-                                ),
-                                const SizedBox(height: 8),
                                 // Вход по QR-коду от администратора
                                 TextButton.icon(
                                   onPressed: () => scanAndLogin(context),
