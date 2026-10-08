@@ -17,7 +17,13 @@ import 'package:matrix/matrix.dart';
 class LoginLinkData {
   final String username;
   final String password;
-  const LoginLinkData({required this.username, required this.password});
+  // Кодовая фраза шифрования из поля k (может отсутствовать)
+  final String? cryptoPassphrase;
+  const LoginLinkData({
+    required this.username,
+    required this.password,
+    this.cryptoPassphrase,
+  });
 }
 
 /// Разбирает строку-ссылку. Возвращает null, если формат неверный.
@@ -37,7 +43,12 @@ LoginLinkData? parseLoginLink(String raw) {
     final u = json['u'];
     final p = json['p'];
     if (u is! String || p is! String || u.isEmpty || p.isEmpty) return null;
-    return LoginLinkData(username: u, password: p);
+    final k = json['k'];
+    return LoginLinkData(
+      username: u,
+      password: p,
+      cryptoPassphrase: k is String && k.isNotEmpty ? k : null,
+    );
   } catch (_) {
     return null;
   }
@@ -53,6 +64,9 @@ Future<void> loginByLink(BuildContext context, String raw) async {
     return;
   }
   final matrix = Matrix.of(context);
+  // Фразу кладём в память ДО входа: после входа роутер сам откроет /backup
+  final phrase = data.cryptoPassphrase;
+  if (phrase != null) PendingCryptoPassphrase.set(phrase);
   final result = await showFutureLoadingDialog(
     context: context,
     future: () async {
@@ -68,6 +82,7 @@ Future<void> loginByLink(BuildContext context, String raw) async {
     },
   );
   // Ошибку (неверный пароль, нет сети) диалог показывает сам
+  if (result.error != null) PendingCryptoPassphrase.clear();
   if (result.error == null && context.mounted) context.go('/backup');
 }
 
@@ -117,5 +132,32 @@ class PendingLoginLink {
       return null;
     }
     return value.link;
+  }
+}
+
+/// Кодовая фраза шифрования из ссылки входа. Живёт только в памяти и
+/// отдаётся один раз экрану /backup, который сам настраивает шифрование.
+class PendingCryptoPassphrase {
+  static String? _value;
+  static DateTime? _at;
+
+  static void set(String value) {
+    _value = value;
+    _at = DateTime.now();
+  }
+
+  static void clear() {
+    _value = null;
+    _at = null;
+  }
+
+  /// Отдаёт фразу один раз и очищает хранилище. Старше 2 минут считается устаревшей.
+  static String? take() {
+    final value = _value;
+    final at = _at;
+    clear();
+    if (value == null || at == null) return null;
+    if (DateTime.now().difference(at) > const Duration(minutes: 2)) return null;
+    return value;
   }
 }
