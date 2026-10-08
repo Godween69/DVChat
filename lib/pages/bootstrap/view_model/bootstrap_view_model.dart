@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -65,6 +66,31 @@ class BootstrapViewModel extends ValueNotifier<BootstrapViewModelState> {
     notifyListeners();
   }
 
+  /// DVChat: настройка шифрования фразой из ссылки входа, без экранов.
+  /// Возвращает true, если крипто-идентичность подключена.
+  Future<bool> _autoSetupCrypto({
+    required bool initialized,
+    required bool connected,
+    required String passphrase,
+  }) async {
+    if (connected) return true;
+    try {
+      if (!initialized) {
+        // Первый вход: создаём крипто-идентичность с фразой из ссылки
+        await client.initCryptoIdentity(passphrase: passphrase);
+      } else {
+        // Повторный вход: открываем существующую той же фразой
+        await client.restoreCryptoIdentity(passphrase);
+      }
+      value.cryptoIdentityState = await client.getCryptoIdentityState();
+      return value.cryptoIdentityState?.connected == true;
+    } catch (e, s) {
+      // Не вышло: пользователь увидит обычные экраны (запасной путь)
+      Logs().w('DVChat: автонастройка шифрования не удалась', e, s);
+      return false;
+    }
+  }
+
   Future<void> _init() async {
     final state = value.cryptoIdentityState = await client
         .getCryptoIdentityState();
@@ -73,6 +99,18 @@ class BootstrapViewModel extends ValueNotifier<BootstrapViewModelState> {
     enterPassphraseOrRecovController.addListener(
       _passphraseOrRecoveryKeyEntered,
     );
+    // DVChat: если вход был по ссылке с кодовой фразой, настраиваем шифрование сами
+    if (!reset) {
+      final autoPassphrase = PendingCryptoPassphrase.take();
+      if (autoPassphrase != null &&
+          await _autoSetupCrypto(
+            initialized: state.initialized,
+            connected: state.connected,
+            passphrase: autoPassphrase,
+          )) {
+        return notifyListeners();
+      }
+    }
     if (state.initialized) {
       if (state.connected) return notifyListeners();
 
