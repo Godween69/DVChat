@@ -67,6 +67,9 @@ Future<void> loginByLink(BuildContext context, String raw) async {
   // Фразу кладём в память ДО входа: после входа роутер сам откроет /backup
   final phrase = data.cryptoPassphrase;
   if (phrase != null) PendingCryptoPassphrase.set(phrase);
+  // Пароль нужен серверу при первой настройке шифрования (запрос UIA)
+  matrix.cachedPassword = data.password;
+  Timer(const Duration(minutes: 2), () => matrix.cachedPassword = null);
   final result = await showFutureLoadingDialog(
     context: context,
     future: () async {
@@ -82,7 +85,10 @@ Future<void> loginByLink(BuildContext context, String raw) async {
     },
   );
   // Ошибку (неверный пароль, нет сети) диалог показывает сам
-  if (result.error != null) PendingCryptoPassphrase.clear();
+  if (result.error != null) {
+    PendingCryptoPassphrase.clear();
+    matrix.cachedPassword = null;
+  }
   if (result.error == null && context.mounted) context.go('/backup');
 }
 
