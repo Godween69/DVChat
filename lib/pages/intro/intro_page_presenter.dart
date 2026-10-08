@@ -11,8 +11,10 @@ import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/oidc_session_json_extension.dart';
 import 'package:fluffychat/utils/sign_in_flows/check_homeserver.dart';
+import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
@@ -36,6 +38,23 @@ class _IntroPagePresenterState extends State<IntroPagePresenter> {
     super.initState();
 
     if (kIsWeb) _finishOidcLogin();
+
+    // DVChat: ссылка входа от системы. Слушатель ловит ссылку при открытом
+    // приложении, проверка после первого кадра ловит холодный старт.
+    PendingLoginLink.notifier.addListener(_onPendingLink);
+    SchedulerBinding.instance.addPostFrameCallback((_) => _onPendingLink());
+  }
+
+  @override
+  void dispose() {
+    PendingLoginLink.notifier.removeListener(_onPendingLink);
+    super.dispose();
+  }
+
+  void _onPendingLink() {
+    if (!mounted) return;
+    final link = PendingLoginLink.take();
+    if (link != null) loginByLink(context, link);
   }
 
   Future<void> _finishOidcLogin() async {

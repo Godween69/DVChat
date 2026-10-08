@@ -74,6 +74,14 @@
                <data android:scheme="matrix" />
             </intent-filter>
 
+            <!-- DVChat: вход по ссылке dvchat://login#... -->
+            <intent-filter>
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="dvchat" android:host="login" />
+            </intent-filter>
+
             <!-- App can open im.fluffychat:// uris -->
             <intent-filter>
                <action android:name="android.intent.action.VIEW" />

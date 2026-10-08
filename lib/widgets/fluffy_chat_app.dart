@@ -9,6 +9,7 @@ import 'package:fluffychat/config/routes.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
 import 'package:fluffychat/widgets/app_lock.dart';
 import 'package:fluffychat/widgets/layouts/call_overlay.dart';
 import 'package:fluffychat/widgets/theme_builder.dart';
@@ -43,7 +44,8 @@ class FluffyChatApp extends StatelessWidget {
   // the current path.
   static final GoRouter router = GoRouter(
     routes: AppRoutes.routes,
-    debugLogDiagnostics: true,
+    // DVChat: логирование выключено, иначе пароль из ссылки попадёт в лог
+    debugLogDiagnostics: false,
     redirect: (context, state) {
       // Workaround for content sharings passed to go router:
       if ({
@@ -51,6 +53,12 @@ class FluffyChatApp extends StatelessWidget {
         'sharemedia-im.fluffychat.app',
       }.contains(state.uri.scheme)) {
         Logs().d('Ignore content sharing handling in go router', state.uri);
+        return '/';
+      }
+
+      // DVChat: ссылка входа dvchat://login#... (URI не логируем!)
+      if (state.uri.scheme == AppConfig.loginLinkScheme) {
+        PendingLoginLink.set(state.uri.toString());
         return '/';
       }
 

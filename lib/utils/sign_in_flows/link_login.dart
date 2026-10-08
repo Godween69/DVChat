@@ -98,3 +98,24 @@ Future<void> scanAndLogin(BuildContext context) async {
     ),
   );
 }
+
+/// Ссылка, пришедшая от системы (dvchat://...), ждёт, пока стартовый экран её заберёт.
+/// Хранится с временем получения: старше 30 секунд считается устаревшей.
+class PendingLoginLink {
+  static final ValueNotifier<({String link, DateTime at})?> notifier =
+      ValueNotifier(null);
+
+  static void set(String link) =>
+      notifier.value = (link: link, at: DateTime.now());
+
+  /// Отдаёт ссылку один раз и очищает хранилище.
+  static String? take() {
+    final value = notifier.value;
+    if (value == null) return null;
+    notifier.value = null;
+    if (DateTime.now().difference(value.at) > const Duration(seconds: 30)) {
+      return null;
+    }
+    return value.link;
+  }
+}
