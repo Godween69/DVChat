@@ -49,7 +49,7 @@ android {
             keyAlias = "dummyAlias"
             keyPassword = "dummyPassword"
             storeFile = file("dummy.keystore")
-            storePassword = "dummyStorePassword"
+            storePassword = "dummyPassword"
         }
     }
 
