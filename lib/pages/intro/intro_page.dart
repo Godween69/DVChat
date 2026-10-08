@@ -6,12 +6,13 @@
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
+import 'package:fluffychat/widgets/dv_logo.dart';
 import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 
 class IntroPage extends StatelessWidget {
-  // Сигнатуру не меняем, чтобы не трогать intro_page_presenter.dart
+  // Сигнатуру пока не меняем, чтобы не трогать intro_page_presenter.dart
   final bool isLoading, hasPresetHomeserver;
   final String? loggingInToHomeserver, welcomeText;
   final VoidCallback login;
@@ -63,22 +64,15 @@ class IntroPage extends StatelessWidget {
                           Container(
                             alignment: Alignment.center,
                             padding: const EdgeInsets.all(32.0),
-                            child: Hero(
-                              tag: 'info-logo',
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(128),
-                                child: Image.asset(
-                                  './assets/logo/mini/logo_mini.png',
-                                  width: 128,
-                                  height: 128,
-                                ),
-                              ),
-                            ),
+                            child: const DvLogo(size: 128),
                           ),
-                          Text(
-                            AppSettings.applicationName.value,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 28),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'Приветствую вас в семейном мессенджере',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 22),
+                            ),
                           ),
                           const Spacer(),
                           Padding(
