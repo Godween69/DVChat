@@ -314,23 +314,7 @@ class BackgroundPush {
   }
 
   Future<void> _noFcmWarning() async {
-    if (matrix == null) {
-      return;
-    }
-    if (AppSettings.showNoGoogle.value) {
-      return;
-    }
-    await loadLocale();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (PlatformInfos.isAndroid) {
-        onFcmError?.call(
-          l10n!.noGoogleServicesWarning,
-          link: Uri.parse(AppConfig.enablePushTutorial),
-        );
-        return;
-      }
-      onFcmError?.call(l10n!.oopsPushError);
-    });
+    // DVChat: предупреждение об отсутствии Google-сервисов клиентам не показываем
   }
 
   Future<void> setupFirebase(Client client) async {
