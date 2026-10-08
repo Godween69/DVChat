@@ -3,239 +3,56 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:async/async.dart';
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart' hide Result;
-import 'package:url_launcher/url_launcher_string.dart';
 
-import '../../utils/fluffy_share.dart';
 import 'chat_list.dart';
 
+/// DVChat: шестерёнка справа вверху с меню из трёх пунктов.
 class ClientChooserButton extends StatelessWidget {
   final ChatListController controller;
 
   const ClientChooserButton(this.controller, {super.key});
 
-  List<PopupMenuEntry<Object>> _bundleMenuItems(BuildContext context) {
-    final matrix = Matrix.of(context);
-    final bundles = matrix.accountBundles.keys.toList()
-      ..sort(
-        (a, b) => a!.isValidMatrixIdStrict() == b!.isValidMatrixIdStrict()
-            ? 0
-            : a.isValidMatrixIdStrict() && !b.isValidMatrixIdStrict()
-            ? -1
-            : 1,
-      );
-    return <PopupMenuEntry<Object>>[
-      PopupMenuItem(
-        value: SettingsAction.newGroup,
-        child: Row(
-          children: [
-            const Icon(Icons.group_add_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).createGroup),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: SettingsAction.setStatus,
-        child: Row(
-          children: [
-            const Icon(Icons.edit_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).setStatus),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: SettingsAction.invite,
-        child: Row(
-          children: [
-            Icon(Icons.adaptive.share_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).inviteContact),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: SettingsAction.archive,
-        child: Row(
-          children: [
-            const Icon(Icons.archive_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).archive),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: SettingsAction.settings,
-        child: Row(
-          children: [
-            const Icon(Icons.settings_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).settings),
-          ],
-        ),
-      ),
-      PopupMenuItem(
-        value: SettingsAction.support,
-        child: Row(
-          children: [
-            Icon(Icons.favorite, color: Colors.red),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).supportFluffyChat),
-          ],
-        ),
-      ),
-      const PopupMenuDivider(),
-      for (final bundle in bundles) ...[
-        if (matrix.accountBundles[bundle]!.length != 1 ||
-            matrix.accountBundles[bundle]!.single!.userID != bundle)
-          PopupMenuItem(
-            value: null,
-            child: Column(
-              crossAxisAlignment: .start,
-              mainAxisSize: .min,
-              children: [
-                Text(
-                  bundle!,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.titleMedium!.color,
-                    fontSize: 14,
-                  ),
-                ),
-                const Divider(height: 1),
-              ],
-            ),
-          ),
-        ...matrix.accountBundles[bundle]!
-            .whereType<Client>()
-            .where((client) => client.isLogged())
-            .map(
-              (client) => PopupMenuItem(
-                value: client,
-                child: FutureBuilder<Profile?>(
-                  future: client.fetchOwnProfile(),
-                  builder: (context, snapshot) {
-                    final displayname =
-                        snapshot.data?.displayName ?? client.userID!.localpart!;
-                    return Row(
-                      key: ValueKey('switch_account_$displayname'),
-                      children: [
-                        Avatar(
-                          mxContent: snapshot.data?.avatarUrl,
-                          name: displayname,
-                          size: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            displayname,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => controller.editBundlesForAccount(
-                            client.userID,
-                            bundle,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-      ],
-      PopupMenuItem(
-        value: SettingsAction.addAccount,
-        child: Row(
-          children: [
-            const Icon(Icons.person_add_outlined),
-            const SizedBox(width: 18),
-            Text(L10n.of(context).addAccount),
-          ],
-        ),
-      ),
-    ];
-  }
+  PopupMenuItem<SettingsAction> _item(
+    SettingsAction action,
+    IconData icon,
+    String title,
+  ) => PopupMenuItem(
+    value: action,
+    child: Row(children: [Icon(icon), const SizedBox(width: 18), Text(title)]),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final matrix = Matrix.of(context);
-    final client = Result(() => matrix.client).asValue?.value;
-
-    var clientCount = 0;
-    matrix.accountBundles.forEach((key, value) => clientCount += value.length);
-    return FutureBuilder<Profile>(
-      future: client?.isLogged() == true ? client?.fetchOwnProfile() : null,
-      builder: (context, snapshot) => Material(
-        clipBehavior: Clip.hardEdge,
-        borderRadius: BorderRadius.circular(99),
-        color: Colors.transparent,
-        child: PopupMenuButton<Object>(
-          key: Key('accounts_and_settings_buttons'),
-          tooltip: L10n.of(context).accountsAndSettings,
-          onSelected: (o) => _clientSelected(o, context),
-          itemBuilder: _bundleMenuItems,
-          icon: Avatar(
-            mxContent: snapshot.data?.avatarUrl,
-            name: snapshot.data?.displayName ?? client?.userID?.localpart,
-            size: 32,
-          ),
-        ),
-      ),
+    final l10n = L10n.of(context);
+    return PopupMenuButton<SettingsAction>(
+      key: const Key('accounts_and_settings_buttons'),
+      tooltip: l10n.settings,
+      icon: const Icon(Icons.settings_outlined),
+      onSelected: (action) => _selected(action, context),
+      itemBuilder: (context) => [
+        _item(SettingsAction.setStatus, Icons.edit_outlined, l10n.setStatus),
+        _item(SettingsAction.archive, Icons.archive_outlined, l10n.archive),
+        _item(SettingsAction.settings, Icons.settings_outlined, l10n.settings),
+      ],
     );
   }
 
-  Future<void> _clientSelected(Object object, BuildContext context) async {
-    if (object is Client) {
-      controller.setActiveClient(object);
-    } else if (object is String) {
-      controller.setActiveBundle(object);
-    } else if (object is SettingsAction) {
-      switch (object) {
-        case SettingsAction.addAccount:
-          if (!context.mounted) return;
-          context.go('/rooms/settings/addaccount');
-          break;
-        case SettingsAction.newGroup:
-          context.go('/rooms/newgroup');
-          break;
-        case SettingsAction.invite:
-          FluffyShare.shareInviteLink(context);
-          break;
-        case SettingsAction.support:
-          launchUrlString(
-            'https://ko-fi.com/post/How-can-I-support-FluffyChat-J2G325WE6I',
-          );
-          break;
-        case SettingsAction.settings:
-          context.go('/rooms/settings');
-          break;
-        case SettingsAction.archive:
-          context.go('/rooms/archive');
-          break;
-        case SettingsAction.setStatus:
-          controller.setStatus();
-          break;
-      }
+  void _selected(SettingsAction action, BuildContext context) {
+    switch (action) {
+      case SettingsAction.setStatus:
+        controller.setStatus();
+        break;
+      case SettingsAction.archive:
+        context.go('/rooms/archive');
+        break;
+      case SettingsAction.settings:
+        context.go('/rooms/settings');
+        break;
     }
   }
 }
 
-enum SettingsAction {
-  addAccount,
-  newGroup,
-  setStatus,
-  invite,
-  support,
-  settings,
-  archive,
-}
+enum SettingsAction { setStatus, archive, settings }
