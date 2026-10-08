@@ -1,5 +1,5 @@
-// DVChat: вход по ссылке dvchat://login#<base64url(JSON {"u":..,"p":..})>
-// Источники ссылки: буфер обмена, QR-код (системный intent добавим позже)
+// DVChat: вход по ссылке dvchat://login#<base64url(JSON {"u":..,"p":..,"k":..})>
+// Источники ссылки: буфер обмена, QR-код, системная ссылка (intent)
 
 import 'dart:async';
 import 'dart:convert';
@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/pages/new_private_chat/qr_scanner_modal.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/sign_in_flows/crypto_autosetup.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
@@ -54,7 +55,8 @@ LoginLinkData? parseLoginLink(String raw) {
   }
 }
 
-/// Логинится на наш сервер по данным из ссылки и открывает чаты.
+/// Логинится на наш сервер по данным из ссылки, открывает чаты,
+/// шифрование настраивает в фоне.
 Future<void> loginByLink(BuildContext context, String raw) async {
   final data = parseLoginLink(raw);
   if (data == null) {
@@ -64,12 +66,9 @@ Future<void> loginByLink(BuildContext context, String raw) async {
     return;
   }
   final matrix = Matrix.of(context);
-  // Фразу кладём в память ДО входа: после входа роутер сам откроет /backup
-  final phrase = data.cryptoPassphrase;
-  if (phrase != null) PendingCryptoPassphrase.set(phrase);
   // Пароль нужен серверу при первой настройке шифрования (запрос UIA)
   matrix.cachedPassword = data.password;
-  Timer(const Duration(minutes: 2), () => matrix.cachedPassword = null);
+  Client? loggedClient;
   final result = await showFutureLoadingDialog(
     context: context,
     future: () async {
@@ -82,14 +81,28 @@ Future<void> loginByLink(BuildContext context, String raw) async {
         password: data.password,
         initialDeviceDisplayName: PlatformInfos.appDisplayName,
       );
+      loggedClient = client;
     },
   );
   // Ошибку (неверный пароль, нет сети) диалог показывает сам
   if (result.error != null) {
-    PendingCryptoPassphrase.clear();
+    matrix.cachedPassword = null;
+    return;
+  }
+  final client = loggedClient;
+  final phrase = data.cryptoPassphrase;
+  if (client != null && phrase != null) {
+    // Шифрование настраивается в фоне, пароль забываем по завершении
+    unawaited(
+      setupCryptoSilently(
+        client,
+        phrase,
+      ).whenComplete(() => matrix.cachedPassword = null),
+    );
+  } else {
     matrix.cachedPassword = null;
   }
-  if (result.error == null && context.mounted) context.go('/backup');
+  if (context.mounted) context.go('/rooms');
 }
 
 /// Читает ссылку из буфера обмена и логинится.
@@ -141,29 +154,7 @@ class PendingLoginLink {
   }
 }
 
-/// Кодовая фраза шифрования из ссылки входа. Живёт только в памяти и
-/// отдаётся один раз экрану /backup, который сам настраивает шифрование.
+/// Остаток прежней схемы (страница /backup): удалим вместе со страницей.
 class PendingCryptoPassphrase {
-  static String? _value;
-  static DateTime? _at;
-
-  static void set(String value) {
-    _value = value;
-    _at = DateTime.now();
-  }
-
-  static void clear() {
-    _value = null;
-    _at = null;
-  }
-
-  /// Отдаёт фразу один раз и очищает хранилище. Старше 2 минут считается устаревшей.
-  static String? take() {
-    final value = _value;
-    final at = _at;
-    clear();
-    if (value == null || at == null) return null;
-    if (DateTime.now().difference(at) > const Duration(minutes: 2)) return null;
-    return value;
-  }
+  static String? take() => null;
 }

@@ -165,7 +165,7 @@ class MatrixState extends State<Matrix> {
                 _registerSubs(_loginClientCandidate!.clientName);
                 setActiveClient(_loginClientCandidate);
                 _loginClientCandidate = null;
-                FluffyChatApp.router.go('/backup');
+                FluffyChatApp.router.go('/rooms');
               });
     if (widget.clients.isEmpty) widget.clients.add(candidate);
     return candidate;
