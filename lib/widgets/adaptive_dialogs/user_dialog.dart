@@ -6,9 +6,7 @@
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/presence_builder.dart';
 import 'package:flutter/services.dart';
@@ -193,58 +191,6 @@ class UserDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-              Row(
-                mainAxisAlignment: .spaceBetween,
-                spacing: 4,
-                children: [
-                  AdaptiveIconTextButton(
-                    label: L10n.of(context).block,
-                    icon: Icons.block_outlined,
-                    onTap: client.userID == profile.userId
-                        ? null
-                        : () {
-                            final router = GoRouter.of(context);
-                            Navigator.of(context).pop();
-                            router.go(
-                              '/rooms/settings/security/ignorelist',
-                              extra: profile.userId,
-                            );
-                          },
-                  ),
-                  AdaptiveIconTextButton(
-                    label: L10n.of(context).report,
-                    icon: Icons.gavel_outlined,
-                    onTap: client.userID == profile.userId
-                        ? null
-                        : () async {
-                            Navigator.of(context).pop();
-                            final reason = await showTextInputDialog(
-                              context: context,
-                              title: L10n.of(context).whyDoYouWantToReportThis,
-                              okLabel: L10n.of(context).report,
-                              cancelLabel: L10n.of(context).cancel,
-                              hintText: L10n.of(context).reason,
-                            );
-                            if (reason == null || reason.isEmpty) return;
-                            if (!context.mounted) return;
-                            await showFutureLoadingDialog(
-                              context: context,
-                              future: () => Matrix.of(
-                                context,
-                              ).client.reportUser(profile.userId, reason),
-                            );
-                          },
-                  ),
-                  AdaptiveIconTextButton(
-                    label: L10n.of(context).share,
-                    icon: Icons.adaptive.share,
-                    onTap: () => FluffyShare.share(
-                      'https://matrix.to/#/${profile.userId}',
-                      context,
-                    ),
-                  ),
-                ],
-              ),
               AdaptiveDialogInkWell(
                 onTap: client.userID == profile.userId
                     ? null
