@@ -1,6 +1,6 @@
 {
   "applicationName": "FluffyChat",
-  "defaultHomeserver": "matrix.org",
+  "defaultHomeserver": "chat.dvbstudio.online",
   "presetHomeserver": "",
   "welcomeText": "",
   "privacyUrl": "https://github.com/krille-chan/fluffychat/blob/main/PRIVACY.md",
