@@ -3,15 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat_details/chat_details.dart';
 import 'package:fluffychat/pages/chat_details/participant_list_item.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/verified_room_extension.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/chat_settings_popup_menu.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/layouts/max_width_body.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
@@ -21,7 +18,6 @@ import 'package:matrix/matrix.dart';
 
 import '../../utils/url_launcher.dart';
 import '../../widgets/mxc_image_viewer.dart';
-import '../../widgets/qr_code_viewer.dart';
 
 class ChatDetailsView extends StatelessWidget {
   final ChatDetailsController controller;
@@ -42,7 +38,6 @@ class ChatDetailsView extends StatelessWidget {
       );
     }
 
-    final directChatMatrixID = room.directChatMatrixID;
     final roomAvatar = room.avatar;
 
     return StreamBuilder(
@@ -57,7 +52,6 @@ class ChatDetailsView extends StatelessWidget {
             (room.summary.mInvitedMemberCount ?? 0) +
             (room.summary.mJoinedMemberCount ?? 0);
         final canRequestMoreMembers = members.length < actualMembersCount;
-        final iconColor = theme.textTheme.bodyLarge!.color;
         final displayname = room.getLocalizedDisplayname(
           MatrixLocals(L10n.of(context)),
         );
@@ -68,20 +62,6 @@ class ChatDetailsView extends StatelessWidget {
                 const Center(child: BackButton()),
             elevation: theme.appBarTheme.elevation,
             actions: <Widget>[
-              if (room.canonicalAlias.isNotEmpty)
-                IconButton(
-                  tooltip: L10n.of(context).share,
-                  icon: const Icon(Icons.qr_code_rounded),
-                  onPressed: () =>
-                      showQrCodeViewer(context, room.canonicalAlias),
-                )
-              else if (directChatMatrixID != null)
-                IconButton(
-                  tooltip: L10n.of(context).share,
-                  icon: const Icon(Icons.qr_code_rounded),
-                  onPressed: () =>
-                      showQrCodeViewer(context, directChatMatrixID),
-                ),
               if (controller.widget.embeddedCloseButton == null)
                 ChatSettingsPopupMenu(room, false),
             ],
@@ -95,7 +75,7 @@ class ChatDetailsView extends StatelessWidget {
               itemCount: members.length + 1 + (canRequestMoreMembers ? 1 : 0),
               itemBuilder: (BuildContext context, int i) => i == 0
                   ? Column(
-                      crossAxisAlignment: .stretch,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
                         Center(
                           child: Stack(
@@ -155,88 +135,22 @@ class ChatDetailsView extends StatelessWidget {
                                       )
                                   ? null
                                   : Icon(Icons.edit_outlined, size: 16),
-
                               style: TextButton.styleFrom(
                                 foregroundColor: theme.colorScheme.onSurface,
                                 iconColor: theme.colorScheme.onSurface,
                                 disabledForegroundColor:
                                     theme.colorScheme.onSurface,
                               ),
-                              label: Row(
-                                mainAxisSize: .min,
-                                spacing: 4,
-                                children: [
-                                  if (room.allUsersVerified)
-                                    Icon(
-                                      Icons.verified,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                      size: 18,
-                                    ),
-                                  Text(
-                                    displayname,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
+                              label: Text(
+                                displayname,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.normal,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        StreamBuilder(
-                          stream: room.client.onSync.stream.where(
-                            (s) =>
-                                s.accountData?.any(
-                                  (data) => data.type == 'm.push_rules',
-                                ) ??
-                                false,
-                          ),
-                          builder: (context, _) => Wrap(
-                            alignment: .center,
-                            spacing: 16,
-                            runSpacing: 16,
-                            children: [
-                              _MainChatDetailsButton(
-                                onPressed: () =>
-                                    context.go('/rooms/${room.id}/search'),
-                                label: L10n.of(context).search,
-                                icon: Icons.search,
-                              ),
-                              _MainChatDetailsButton(
-                                onPressed: () => context.push(
-                                  '/rooms/${room.id}/details/emotes',
-                                ),
-                                label: L10n.of(context).stickers,
-                                icon: Icons.emoji_emotions_outlined,
-                              ),
-                              if (room.pushRuleState == PushRuleState.notify)
-                                _MainChatDetailsButton(
-                                  onPressed: () => showFutureLoadingDialog(
-                                    context: context,
-                                    future: () => room.setPushRuleState(
-                                      PushRuleState.mentionsOnly,
-                                    ),
-                                  ),
-                                  label: L10n.of(context).mute,
-                                  icon: Icons.notifications_on_outlined,
-                                )
-                              else
-                                _MainChatDetailsButton(
-                                  onPressed: () => showFutureLoadingDialog(
-                                    context: context,
-                                    future: () => room.setPushRuleState(
-                                      PushRuleState.notify,
-                                    ),
-                                  ),
-                                  label: L10n.of(context).unmuteChat,
-                                  icon: Icons.notifications_off_outlined,
-                                ),
-                            ],
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -292,43 +206,6 @@ class ChatDetailsView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                         ],
-                        if (!room.isDirectChat) ...[
-                          Divider(color: theme.dividerColor),
-                          ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainer,
-                              foregroundColor: iconColor,
-                              child: const Icon(
-                                Icons.admin_panel_settings_outlined,
-                              ),
-                            ),
-                            title: Text(L10n.of(context).accessAndVisibility),
-                            subtitle: Text(
-                              L10n.of(context).accessAndVisibilityDescription,
-                            ),
-                            onTap: () => context.push(
-                              '/rooms/${room.id}/details/access',
-                            ),
-                            trailing: const Icon(Icons.chevron_right_outlined),
-                          ),
-                          ListTile(
-                            title: Text(L10n.of(context).chatPermissions),
-                            subtitle: Text(
-                              L10n.of(context).whoCanPerformWhichAction,
-                            ),
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainer,
-                              foregroundColor: iconColor,
-                              child: const Icon(Icons.tune_outlined),
-                            ),
-                            trailing: const Icon(Icons.chevron_right_outlined),
-                            onTap: () => context.push(
-                              '/rooms/${room.id}/details/permissions',
-                            ),
-                          ),
-                        ],
                         Divider(color: theme.dividerColor),
                         ListTile(
                           title: Text(
@@ -340,14 +217,6 @@ class ChatDetailsView extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          trailing: !room.isDirectChat && room.canInvite
-                              ? TextButton.icon(
-                                  icon: Icon(Icons.add),
-                                  label: Text(L10n.of(context).invite),
-                                  onPressed: () =>
-                                      context.go('/rooms/${room.id}/invite'),
-                                )
-                              : null,
                         ),
                       ],
                     )
@@ -368,51 +237,6 @@ class ChatDetailsView extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _MainChatDetailsButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  final String label;
-  final IconData icon;
-
-  const _MainChatDetailsButton({
-    required this.onPressed,
-    required this.label,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: .center,
-            mainAxisSize: .min,
-            children: [
-              Icon(icon, color: theme.colorScheme.secondary),
-              SizedBox(
-                width: 64,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  textAlign: .center,
-                  style: TextStyle(color: theme.colorScheme.secondary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
