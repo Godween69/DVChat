@@ -16,7 +16,6 @@ import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/utils/show_scaffold_dialog.dart';
-import 'package:fluffychat/utils/show_update_snackbar.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
@@ -24,12 +23,9 @@ import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_callkit_incoming/entities/entities.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_shortcuts_new/flutter_shortcuts_new.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart' as sdk;
 import 'package:matrix/matrix.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
@@ -79,8 +75,6 @@ class ChatListController extends State<ChatList>
 
   StreamSubscription? _intentFileStreamSubscription;
 
-  StreamSubscription? _callEventSubscription;
-
   late ActiveFilter activeFilter;
   String? activeTag;
 
@@ -104,23 +98,6 @@ class ChatListController extends State<ChatList>
   void clearActiveSpace() => setState(() {
     _activeSpaceId = null;
   });
-
-  void _onCallEvent(CallEvent? event) {
-    switch (event) {
-      case CallEventActionCallAccept():
-        _joinCallWith(event.callKitParams);
-        break;
-      case CallEventActionCallEnded():
-        final roomId = event.callKitParams.extra?.tryGet<String>('roomId');
-        if (roomId != null &&
-            Matrix.of(context).activeCallRoomId.value == roomId) {
-          Matrix.of(context).activeCallRoomId.value = null;
-        }
-        break;
-      default:
-        break;
-    }
-  }
 
   Future<void> onChatTap(Room room) async {
     final l10n = L10n.of(context);
@@ -180,146 +157,6 @@ class ChatListController extends State<ChatList>
   List<Room> get filteredRooms => Matrix.of(
     context,
   ).client.rooms.where(getRoomFilterByActiveFilter(activeFilter)).toList();
-
-  bool isSearchMode = false;
-  Future<QueryPublicRoomsResponse>? publicRoomsResponse;
-  String? searchServer;
-  Timer? _coolDown;
-  SearchUserDirectoryResponse? userSearchResult;
-  QueryPublicRoomsResponse? roomSearchResult;
-
-  bool isSearching = false;
-  static const String _serverStoreNamespace = 'im.fluffychat.search.server';
-
-  Future<void> setServer() async {
-    final matrix = Matrix.of(context);
-    final l10n = L10n.of(context);
-    final newServer = await showTextInputDialog(
-      useRootNavigator: false,
-      title: l10n.changeTheHomeserver,
-      context: context,
-      okLabel: l10n.ok,
-      cancelLabel: l10n.cancel,
-      prefixText: 'https://',
-      hintText: matrix.client.homeserver?.host,
-      initialText: searchServer,
-      keyboardType: TextInputType.url,
-      autocorrect: false,
-      validator: (server) =>
-          server.contains('.') == true ? null : l10n.invalidServerName,
-    );
-    if (newServer == null) return;
-    if (!mounted) return;
-    matrix.store.setString(_serverStoreNamespace, newServer);
-    setState(() {
-      searchServer = newServer;
-    });
-    _coolDown?.cancel();
-    _coolDown = Timer(const Duration(milliseconds: 500), _search);
-  }
-
-  final TextEditingController searchController = TextEditingController();
-  final FocusNode searchFocusNode = FocusNode();
-
-  Future<void> _search() async {
-    final client = Matrix.of(context).client;
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    if (!isSearching) {
-      setState(() {
-        isSearching = true;
-      });
-    }
-    SearchUserDirectoryResponse? userSearchResult;
-    QueryPublicRoomsResponse? roomSearchResult;
-    final searchQuery = searchController.text.trim();
-    try {
-      roomSearchResult = await client.queryPublicRooms(
-        server: searchServer,
-        filter: PublicRoomQueryFilter(genericSearchTerm: searchQuery),
-        limit: 20,
-      );
-
-      if (searchQuery.isValidMatrixIdStrict() &&
-          searchQuery.sigil == '#' &&
-          roomSearchResult.chunk.any(
-                (room) => room.canonicalAlias == searchQuery,
-              ) ==
-              false) {
-        final response = await client.getRoomIdByAlias(searchQuery);
-        final roomId = response.roomId;
-        if (roomId != null) {
-          roomSearchResult.chunk.add(
-            PublishedRoomsChunk(
-              name: searchQuery,
-              guestCanJoin: false,
-              numJoinedMembers: 0,
-              roomId: roomId,
-              worldReadable: false,
-              canonicalAlias: searchQuery,
-            ),
-          );
-        }
-      }
-      userSearchResult = await client.searchUserDirectory(
-        searchController.text,
-        limit: 20,
-      );
-    } catch (e, s) {
-      Logs().w('Searching has crashed', e, s);
-      if (!mounted) return;
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(e.toLocalizedString(context))),
-      );
-    }
-    if (!isSearchMode) return;
-    setState(() {
-      isSearching = false;
-      this.roomSearchResult = roomSearchResult;
-      this.userSearchResult = userSearchResult;
-    });
-  }
-
-  void onSearchEnter(String text, {bool globalSearch = true}) {
-    if (text.isEmpty) {
-      cancelSearch(unfocus: false);
-      return;
-    }
-
-    setState(() {
-      isSearchMode = true;
-    });
-    _coolDown?.cancel();
-    if (globalSearch) {
-      _coolDown = Timer(const Duration(milliseconds: 500), _search);
-    }
-  }
-
-  void openNavrail() {
-    setState(() {
-      AppSettings.displayNavigationRail.setItem(
-        !AppSettings.displayNavigationRail.value,
-      );
-    });
-  }
-
-  void startSearch() {
-    setState(() {
-      isSearchMode = true;
-    });
-    searchFocusNode.requestFocus();
-    _coolDown?.cancel();
-    _coolDown = Timer(const Duration(milliseconds: 500), _search);
-  }
-
-  void cancelSearch({bool unfocus = true}) {
-    setState(() {
-      searchController.clear();
-      isSearchMode = false;
-      roomSearchResult = userSearchResult = null;
-      isSearching = false;
-    });
-    if (unfocus) searchFocusNode.unfocus();
-  }
 
   BoxConstraints? snappingSheetContainerSize;
 
@@ -399,14 +236,6 @@ class ChatListController extends State<ChatList>
     }
   }
 
-  void _joinCallWith(CallKitParams params) {
-    final roomId = params.extra?.tryGet<String>('roomId');
-    final clientName = params.extra?.tryGet<String>('clientName');
-    if (roomId != null) {
-      context.go('/rooms/$roomId?client=$clientName&action=call');
-    }
-  }
-
   StreamSubscription? _onRoomTagUpdate;
 
   @override
@@ -416,25 +245,10 @@ class ChatListController extends State<ChatList>
 
     scrollController.addListener(_onScroll);
     _waitForFirstSync();
-    if (PlatformInfos.isMobile) {
-      _callEventSubscription = FlutterCallkitIncoming.onEvent.listen(
-        _onCallEvent,
-      );
-      FlutterCallkitIncoming.activeCalls().then((calls) {
-        final params = calls.firstOrNull;
-        if (params == null) return;
-        _joinCallWith(params);
-      });
-    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        searchServer = Matrix.of(
-          context,
-        ).store.getString(_serverStoreNamespace);
         Matrix.of(context).backgroundPush?.setupPush(context);
-        UpdateNotifier.showUpdateDialog(context);
-        UpdateNotifier.showUpdateAvailableBanner(context);
       }
 
       // Workaround for system UI overlay style not applied on app start
@@ -478,11 +292,8 @@ class ChatListController extends State<ChatList>
   void dispose() {
     _intentDataStreamSubscription?.cancel();
     _intentFileStreamSubscription?.cancel();
-    _callEventSubscription?.cancel();
     _onRoomTagUpdate?.cancel();
     scrollController.removeListener(_onScroll);
-    searchController.dispose();
-    searchFocusNode.dispose();
     scrollController.dispose();
     scrolledToTop.dispose();
     _clientStream.close();
