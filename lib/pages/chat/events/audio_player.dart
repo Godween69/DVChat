@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:fluffychat/config/app_config.dart';
+import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/file_description.dart';
@@ -219,6 +220,12 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
     }
     if (!mounted) return;
 
+    // DVChat: скорость воспроизведения запоминается между сообщениями
+    await audioPlayer.setSpeed(
+      AppSettings.voiceMessageSpeedPercent.value / 100,
+    );
+    if (!mounted) return;
+
     audioPlayer.play().onError(
       ErrorReporter(context, 'Unable to play audio message').onErrorCallback,
     );
@@ -245,6 +252,10 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
         await audioPlayer.setSpeed(1.0);
         break;
     }
+    // DVChat: выбранную скорость сохраняем для всех следующих сообщений
+    await AppSettings.voiceMessageSpeedPercent.setItem(
+      (audioPlayer.speed * 100).round(),
+    );
     setState(() {});
   }
 
