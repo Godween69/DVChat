@@ -1,0 +1,70 @@
+// DVChat: архив личных чатов. Чат помечается тегом и скрывается из списка,
+// из комнаты никто не выходит, поэтому собеседник ничего не видит.
+// Возврат в список определяется по времени сообщений, а не по счётчику непрочитанных.
+
+import 'package:fluffychat/config/app_config.dart';
+import 'package:matrix/matrix.dart';
+
+/// Тип данных комнаты: время последнего сообщения в момент архивации (серверное)
+const String _archiveStampType = 'online.dvbstudio.dvchat.archived_at';
+
+/// Комнаты, которые прямо сейчас возвращаются в список (защита от повторных вызовов)
+final Set<String> _returningRooms = {};
+
+extension RoomArchiveExtension on Room {
+  /// Чат лежит в архиве (виден только на экране «Архив»)
+  bool get isInArchive => tags.containsKey(AppConfig.archiveTag);
+
+  /// Чат удалён из архива: скрыт, вернётся при новом сообщении
+  bool get isHiddenByUser => tags.containsKey(AppConfig.hiddenTag);
+
+  int? get _archivedAtMs {
+    final value = roomAccountData[_archiveStampType]?.content['ts'];
+    return value is int ? value : null;
+  }
+
+  /// Пришло приглашение или чужое сообщение новее метки архивации
+  bool get hasNewMessages {
+    if (membership == Membership.invite) return true;
+    final since = _archivedAtMs;
+    final last = lastEvent;
+    if (since == null || last == null) return false;
+    return last.senderId != client.userID &&
+        last.originServerTs.millisecondsSinceEpoch > since;
+  }
+
+  Future<void> _stamp() => client.setAccountDataPerRoom(
+    client.userID!,
+    id,
+    _archiveStampType,
+    {
+      'ts':
+          (lastEvent?.originServerTs ?? DateTime.now()).millisecondsSinceEpoch,
+    },
+  );
+
+  Future<void> moveToArchive() async {
+    await _stamp();
+    await addTag(AppConfig.archiveTag);
+  }
+
+  Future<void> restoreFromArchive() => removeTag(AppConfig.archiveTag);
+
+  /// Удалить из архива: ставим скрытый тег, тег архива снимаем
+  Future<void> hideForever() async {
+    await _stamp();
+    await addTag(AppConfig.hiddenTag);
+    if (isInArchive) await removeTag(AppConfig.archiveTag);
+  }
+
+  /// Новое сообщение вернуло чат в список: снимаем оба тега
+  Future<void> returnToList() async {
+    if (!_returningRooms.add(id)) return;
+    try {
+      if (isInArchive) await removeTag(AppConfig.archiveTag);
+      if (isHiddenByUser) await removeTag(AppConfig.hiddenTag);
+    } finally {
+      _returningRooms.remove(id);
+    }
+  }
+}

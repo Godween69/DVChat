@@ -10,6 +10,7 @@ import 'package:fluffychat/pages/chat_list/chat_list.dart';
 import 'package:fluffychat/pages/chat_list/chat_list_item.dart';
 import 'package:fluffychat/pages/chat_list/dummy_chat_list_item.dart';
 import 'package:fluffychat/pages/chat_list/space_view.dart';
+import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/utils/stream_extension.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -55,11 +56,29 @@ class ChatListViewBody extends StatelessWidget {
           .where((s) => s.hasRoomUpdate)
           .rateLimit(const Duration(seconds: 1)),
       builder: (context, _) {
-        final rooms = controller.filteredRooms
+        final allRooms = controller.filteredRooms;
+        // DVChat: новое сообщение возвращает чат из архива в список
+        final returning = allRooms
             .where(
               (room) =>
-                  !AppSettings.hideRoomsInSpaces.value ||
-                  spaceDelegateCandidates[room.id] == null,
+                  (room.isInArchive || room.isHiddenByUser) &&
+                  room.hasNewMessages,
+            )
+            .toList();
+        if (returning.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            for (final room in returning) {
+              room.returnToList();
+            }
+          });
+        }
+        final rooms = allRooms
+            .where(
+              (room) =>
+                  (!(room.isInArchive || room.isHiddenByUser) ||
+                      room.hasNewMessages) &&
+                  (!AppSettings.hideRoomsInSpaces.value ||
+                      spaceDelegateCandidates[room.id] == null),
             )
             .toList();
 

@@ -41,6 +41,7 @@ enum AppSettings<T> {
   hideUnknownEvents<bool>('chat.fluffy.hideUnknownEvents', true),
   autoplayImages<bool>('chat.fluffy.autoplay_images', true),
   voiceMessageSpeedPercent<int>('chat.fluffy.voice_message_speed', 100),
+  archiveDeleteConfirm<bool>('chat.fluffy.archive_delete_confirm', true),
   sendTypingNotifications<bool>('chat.fluffy.send_typing_notifications', true),
   sendPublicReadReceipts<bool>('chat.fluffy.send_public_read_receipts', true),
   swipeRightToLeftToReply<bool>('chat.fluffy.swipeRightToLeftToReply', true),

@@ -15,6 +15,7 @@ import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/utils/show_scaffold_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
@@ -427,13 +428,17 @@ class ChatListController extends State<ChatList>
             mainAxisSize: .min,
             children: [
               Icon(
-                Icons.delete_outlined,
+                room.isDirectChat
+                    ? Icons.archive_outlined
+                    : Icons.delete_outlined,
                 color: Theme.of(context).colorScheme.onErrorContainer,
               ),
               const SizedBox(width: 12),
               Text(
                 room.membership == Membership.invite
                     ? L10n.of(context).delete
+                    : room.isDirectChat
+                    ? 'В архив'
                     : L10n.of(context).leave,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onErrorContainer,
@@ -581,6 +586,14 @@ class ChatListController extends State<ChatList>
           extra: inviteEvent?.senderId,
         );
       case ChatContextAction.leave:
+        // DVChat: личный чат нельзя покинуть, его отправляют в архив
+        if (room.isDirectChat && room.membership == Membership.join) {
+          await showFutureLoadingDialog(
+            context: context,
+            future: room.moveToArchive,
+          );
+          return;
+        }
         final confirmed = await showOkCancelAlertDialog(
           context: context,
           title: L10n.of(context).areYouSure,

@@ -29,7 +29,7 @@ abstract class AppConfig {
   static const String deepLinkPrefix = 'im.fluffychat://chat/';
   static const String schemePrefix = 'matrix:';
   static const String pushNotificationsChannelId = 'fluffychat_push';
-  static const String pushNotificationsAppId = 'chat.fluffy.fluffychat';
+  static const String pushNotificationsAppId = 'online.dvbstudio.dvchat';
   static const double borderRadius = 18.0;
   static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
@@ -74,4 +74,8 @@ abstract class AppConfig {
   static const String pushHelperCrashReportKey = 'push_helper_crash_report';
 
   static const String vodozemacVersion = '0.8.1';
+
+  // DVChat: пометки комнат для архива (из чата никто не выходит)
+  static const String archiveTag = 'u.dvchat.archive';
+  static const String hiddenTag = 'u.dvchat.hidden';
 }
