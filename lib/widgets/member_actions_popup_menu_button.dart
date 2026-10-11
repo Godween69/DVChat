@@ -9,7 +9,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
 import 'adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'adaptive_dialogs/show_text_input_dialog.dart';
 import 'adaptive_dialogs/user_dialog.dart';
 import 'avatar.dart';
 import 'future_loading_dialog.dart';
@@ -20,10 +19,8 @@ Future<void> showMemberActionsPopupMenu({
   void Function()? onMention,
 }) async {
   final l10n = L10n.of(context);
-  final scaffoldMessenger = ScaffoldMessenger.of(context);
   final theme = Theme.of(context);
   final displayname = user.calcDisplayname();
-  final isMe = user.room.client.userID == user.id;
 
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
@@ -195,23 +192,6 @@ Future<void> showMemberActionsPopupMenu({
             ],
           ),
         ),
-      if (!isMe)
-        PopupMenuItem(
-          value: _MemberActions.report,
-          child: Row(
-            children: [
-              Icon(
-                Icons.gavel_outlined,
-                color: theme.colorScheme.onErrorContainer,
-              ),
-              const SizedBox(width: 18),
-              Text(
-                L10n.of(context).reportUser,
-                style: TextStyle(color: theme.colorScheme.onErrorContainer),
-              ),
-            ],
-          ),
-        ),
     ],
   );
   if (action == null) return;
@@ -280,27 +260,6 @@ Future<void> showMemberActionsPopupMenu({
           future: () => user.ban(),
         );
       }
-      return;
-    case _MemberActions.report:
-      final reason = await showTextInputDialog(
-        context: context,
-        title: l10n.whyDoYouWantToReportThis,
-        okLabel: l10n.report,
-        cancelLabel: l10n.cancel,
-        hintText: l10n.reason,
-      );
-      if (reason == null || reason.isEmpty) return;
-      if (!context.mounted) return;
-
-      final result = await showFutureLoadingDialog(
-        context: context,
-        future: () => user.room.client.reportUser(user.id, reason),
-      );
-      if (result.error != null) return;
-      if (!context.mounted) return;
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.contentHasBeenReported)),
-      );
       return;
     case _MemberActions.info:
       await UserDialog.show(
@@ -373,5 +332,4 @@ enum _MemberActions {
   ban,
   approve,
   unban,
-  report,
 }
