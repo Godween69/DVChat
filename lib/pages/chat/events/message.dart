@@ -15,11 +15,13 @@ import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
 import 'package:fluffychat/utils/file_description.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:fluffychat/utils/show_scaffold_dialog.dart';
 import 'package:fluffychat/utils/single_reaction_extension.dart';
 import 'package:fluffychat/utils/string_color.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:fluffychat/widgets/member_actions_popup_menu_button.dart';
+import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -465,6 +467,17 @@ class Message extends StatelessWidget {
                                     show: hasTail,
                                     own: ownMessage,
                                     color: color,
+                                    onForward:
+                                        ({
+                                              MessageTypes.Image,
+                                              MessageTypes.Video,
+                                            }.contains(event.messageType) &&
+                                            !event.redacted &&
+                                            event.status.isSent &&
+                                            !longPressSelect)
+                                        ? () =>
+                                              _forwardOne(context, displayEvent)
+                                        : null,
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: noBubble
@@ -1091,6 +1104,7 @@ class _BubbleTail extends StatelessWidget {
     required this.own,
     required this.color,
     required this.child,
+    this.onForward,
   });
 
   final bool show;
@@ -1098,26 +1112,61 @@ class _BubbleTail extends StatelessWidget {
   final Color color;
   final Widget child;
 
+  /// DVChat: если задано — рядом с пузырём рисуется круглая кнопка «переслать».
+  final VoidCallback? onForward;
+
   static const double _w = 8;
   static const double _h = 12;
 
   @override
   Widget build(BuildContext context) {
-    if (!show) return child;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        child,
-        Positioned(
-          bottom: 0,
-          right: own ? -(_w - 1) : null,
-          left: own ? null : -(_w - 1),
-          child: CustomPaint(
-            size: const Size(_w, _h),
-            painter: _TailPainter(color: color, own: own),
+    final bubble = !show
+        ? child
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child,
+              Positioned(
+                bottom: 0,
+                right: own ? -(_w - 1) : null,
+                left: own ? null : -(_w - 1),
+                child: CustomPaint(
+                  size: const Size(_w, _h),
+                  painter: _TailPainter(color: color, own: own),
+                ),
+              ),
+            ],
+          );
+    final forward = onForward;
+    if (forward == null) return bubble;
+
+    final theme = Theme.of(context);
+    final button = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest.withAlpha(220),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: forward,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(
+              Icons.shortcut_rounded,
+              size: 20,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
-      ],
+      ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: own
+          ? [button, Flexible(child: bubble)]
+          : [Flexible(child: bubble), button],
     );
   }
 }
@@ -1145,4 +1194,13 @@ class _TailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TailPainter old) => old.color != color || old.own != own;
+}
+
+/// DVChat: переслать одно сообщение (кнопка рядом с фото/видео).
+Future<void> _forwardOne(BuildContext context, Event event) async {
+  await showScaffoldDialog(
+    context: context,
+    builder: (context) =>
+        ShareScaffoldDialog(items: [ContentShareItem(event.content.copy())]),
+  );
 }
