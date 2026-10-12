@@ -147,14 +147,6 @@ class Message extends StatelessWidget {
     final displayEvent = event.getDisplayEvent(timeline);
     const hardCorner = Radius.circular(3);
     const roundedCorner = Radius.circular(AppConfig.borderRadius);
-    final borderRadius = BorderRadius.only(
-      topLeft: !ownMessage ? hardCorner : roundedCorner,
-      topRight: ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
-      bottomLeft: !ownMessage && previousEventSameSender
-          ? hardCorner
-          : roundedCorner,
-      bottomRight: ownMessage ? hardCorner : roundedCorner,
-    );
     const avatarSize = Avatar.defaultSize;
     final noBubble =
         ({
@@ -164,6 +156,18 @@ class Message extends StatelessWidget {
         }.contains(event.messageType) &&
         event.fileDescription == null &&
         !event.redacted);
+    // DVChat: «носик» как в Telegram — у нижнего сообщения серии
+    final hasTail = !noBubble && !previousEventSameSender;
+    final borderRadius = BorderRadius.only(
+      topLeft: !ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
+      topRight: ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
+      bottomLeft: !ownMessage
+          ? (hasTail ? Radius.zero : hardCorner)
+          : roundedCorner,
+      bottomRight: ownMessage
+          ? (hasTail ? Radius.zero : hardCorner)
+          : roundedCorner,
+    );
 
     if (ownMessage) {
       color = displayEvent.status.isError
@@ -457,111 +461,124 @@ class Message extends StatelessWidget {
                                     event.transactionId ?? event.eventId,
                                   ),
                                   animateIn: animateIn,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: noBubble
-                                          ? Colors.transparent
-                                          : color,
-                                      borderRadius: borderRadius,
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: BubbleBackground(
-                                      colors: colors,
-                                      ignore:
-                                          noBubble ||
-                                          !ownMessage ||
-                                          MediaQuery.highContrastOf(context),
-                                      scrollController: scrollController,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.borderRadius,
-                                          ),
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          maxWidth:
-                                              FluffyThemes.columnWidth * 1.5,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: .min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            if (event.inReplyToEventId(
-                                                  includingFallback: false,
-                                                ) !=
-                                                null)
-                                              FutureBuilder<Event?>(
-                                                future: event.getReplyEvent(
-                                                  timeline,
-                                                ),
-                                                builder: (BuildContext context, snapshot) {
-                                                  final replyEvent =
-                                                      snapshot.hasData
-                                                      ? snapshot.data!
-                                                      : Event(
-                                                          eventId:
-                                                              event
-                                                                  .inReplyToEventId() ??
-                                                              '\$fake_event_id',
-                                                          content: {
-                                                            'msgtype': 'm.text',
-                                                            'body': '...',
-                                                          },
-                                                          senderId:
-                                                              event.senderId,
-                                                          type:
-                                                              'm.room.message',
-                                                          room: event.room,
-                                                          status:
-                                                              EventStatus.sent,
-                                                          originServerTs:
-                                                              DateTime.now(),
-                                                        );
-                                                  return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          left: 16,
-                                                          right: 16,
-                                                          top: 8,
-                                                        ),
-                                                    child: Material(
-                                                      color: Colors.transparent,
-                                                      borderRadius: ReplyContent
-                                                          .borderRadius,
-                                                      child: InkWell(
-                                                        borderRadius:
-                                                            ReplyContent
-                                                                .borderRadius,
-                                                        onTap: () =>
-                                                            scrollToEventId(
-                                                              replyEvent
-                                                                  .eventId,
-                                                            ),
-                                                        child: AbsorbPointer(
-                                                          child: ReplyContent(
-                                                            replyEvent,
-                                                            ownMessage:
-                                                                ownMessage,
-                                                            timeline: timeline,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            MessageContent(
-                                              displayEvent,
-                                              textColor: textColor,
-                                              linkColor: linkColor,
-                                              onInfoTab: onInfoTab,
-                                              borderRadius: borderRadius,
-                                              timeline: timeline,
-                                              selected: selected,
-                                              bigEmojis: bigEmojis,
+                                  child: _BubbleTail(
+                                    show: hasTail,
+                                    own: ownMessage,
+                                    color: color,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: noBubble
+                                            ? Colors.transparent
+                                            : color,
+                                        borderRadius: borderRadius,
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: BubbleBackground(
+                                        colors: colors,
+                                        // DVChat: сплошной цвет, чтобы носик совпадал
+                                        ignore: true,
+                                        scrollController: scrollController,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              AppConfig.borderRadius,
                                             ),
-                                          ],
+                                          ),
+                                          constraints: const BoxConstraints(
+                                            maxWidth:
+                                                FluffyThemes.columnWidth * 1.5,
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: .min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              if (event.inReplyToEventId(
+                                                    includingFallback: false,
+                                                  ) !=
+                                                  null)
+                                                FutureBuilder<Event?>(
+                                                  future: event.getReplyEvent(
+                                                    timeline,
+                                                  ),
+                                                  builder:
+                                                      (
+                                                        BuildContext context,
+                                                        snapshot,
+                                                      ) {
+                                                        final replyEvent =
+                                                            snapshot.hasData
+                                                            ? snapshot.data!
+                                                            : Event(
+                                                                eventId:
+                                                                    event
+                                                                        .inReplyToEventId() ??
+                                                                    '\$fake_event_id',
+                                                                content: {
+                                                                  'msgtype':
+                                                                      'm.text',
+                                                                  'body': '...',
+                                                                },
+                                                                senderId: event
+                                                                    .senderId,
+                                                                type:
+                                                                    'm.room.message',
+                                                                room:
+                                                                    event.room,
+                                                                status:
+                                                                    EventStatus
+                                                                        .sent,
+                                                                originServerTs:
+                                                                    DateTime.now(),
+                                                              );
+                                                        return Padding(
+                                                          padding:
+                                                              const EdgeInsets.only(
+                                                                left: 16,
+                                                                right: 16,
+                                                                top: 8,
+                                                              ),
+                                                          child: Material(
+                                                            color: Colors
+                                                                .transparent,
+                                                            borderRadius:
+                                                                ReplyContent
+                                                                    .borderRadius,
+                                                            child: InkWell(
+                                                              borderRadius:
+                                                                  ReplyContent
+                                                                      .borderRadius,
+                                                              onTap: () =>
+                                                                  scrollToEventId(
+                                                                    replyEvent
+                                                                        .eventId,
+                                                                  ),
+                                                              child: AbsorbPointer(
+                                                                child: ReplyContent(
+                                                                  replyEvent,
+                                                                  ownMessage:
+                                                                      ownMessage,
+                                                                  timeline:
+                                                                      timeline,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                ),
+                                              MessageContent(
+                                                displayEvent,
+                                                textColor: textColor,
+                                                linkColor: linkColor,
+                                                onInfoTab: onInfoTab,
+                                                borderRadius: borderRadius,
+                                                timeline: timeline,
+                                                selected: selected,
+                                                bigEmojis: bigEmojis,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1065,4 +1082,67 @@ class __AnimateInState extends State<_AnimateIn> {
       child: _animationFinished ? widget.child : const SizedBox.shrink(),
     );
   }
+}
+
+/// DVChat: «носик» пузыря сообщения (как в Telegram).
+class _BubbleTail extends StatelessWidget {
+  const _BubbleTail({
+    required this.show,
+    required this.own,
+    required this.color,
+    required this.child,
+  });
+
+  final bool show;
+  final bool own;
+  final Color color;
+  final Widget child;
+
+  static const double _w = 8;
+  static const double _h = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!show) return child;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          bottom: 0,
+          right: own ? -(_w - 1) : null,
+          left: own ? null : -(_w - 1),
+          child: CustomPaint(
+            size: const Size(_w, _h),
+            painter: _TailPainter(color: color, own: own),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TailPainter extends CustomPainter {
+  _TailPainter({required this.color, required this.own});
+
+  final Color color;
+  final bool own;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    // для чужих сообщений рисуем зеркально
+    double x(double v) => own ? v : w - v;
+    final path = Path()
+      ..moveTo(x(0), 0)
+      ..lineTo(x(0), h)
+      ..lineTo(x(w), h)
+      ..quadraticBezierTo(x(w * 0.35), h * 0.85, x(0), 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_TailPainter old) => old.color != color || old.own != own;
 }
