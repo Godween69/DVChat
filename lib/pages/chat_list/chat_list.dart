@@ -431,6 +431,27 @@ class ChatListController extends State<ChatList>
             ],
           ),
         ),
+        // DVChat: полное удаление чата мимо архива (с подтверждением)
+        if (room.membership == Membership.join)
+          PopupMenuItem(
+            value: ChatContextAction.delete,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Удалить',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (room.membership == Membership.invite)
           PopupMenuItem(
             value: ChatContextAction.block,
@@ -514,6 +535,26 @@ class ChatListController extends State<ChatList>
 
         await showFutureLoadingDialog(context: context, future: room.leave);
 
+        return;
+      case ChatContextAction.delete:
+        // DVChat: удалить чат у себя: выйти из комнаты и убрать её из списка
+        final confirmedDelete = await showOkCancelAlertDialog(
+          context: context,
+          title: 'Удалить чат?',
+          message: 'Вы действительно хотите удалить чат?',
+          okLabel: 'Удалить',
+          cancelLabel: L10n.of(context).cancel,
+          isDestructive: true,
+        );
+        if (confirmedDelete != OkCancelResult.ok) return;
+        if (!mounted) return;
+        await showFutureLoadingDialog(
+          context: context,
+          future: () async {
+            await room.leave();
+            await room.forget();
+          },
+        );
         return;
       case ChatContextAction.addToSpace:
         final space = await showModalActionPopup(
@@ -784,6 +825,7 @@ enum ChatContextAction {
   markUnread,
   mute,
   leave,
+  delete,
   addToSpace,
   block,
   showMore,
