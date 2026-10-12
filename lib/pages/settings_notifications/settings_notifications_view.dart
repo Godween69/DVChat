@@ -7,7 +7,6 @@ import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/settings_switch_list_tile.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -44,6 +43,14 @@ class SettingsNotificationsView extends StatelessWidget {
                     .where((rule) => rule.ruleId == '.m.rule.master')
                     .firstOrNull;
             final muted = master?.enabled ?? false;
+            // Правило .m.rule.reaction включено = сервер не шлёт уведомления о реакциях
+            final reactionRule =
+                (client.globalPushRules?.override ?? const <PushRule>[])
+                    .where((rule) => rule.ruleId == '.m.rule.reaction')
+                    .firstOrNull;
+            final reactionsOn =
+                !(reactionRule?.enabled ?? false) &&
+                AppSettings.notifyAboutReactions.value;
             return Column(
               children: [
                 ListTile(
@@ -61,9 +68,14 @@ class SettingsNotificationsView extends StatelessWidget {
                           ),
                   ),
                 ),
-                SettingsSwitchListTile.adaptive(
-                  title: 'Уведомления о реакциях',
-                  setting: AppSettings.notifyAboutReactions,
+                ListTile(
+                  title: const Text('Уведомления о реакциях'),
+                  trailing: Switch.adaptive(
+                    value: reactionsOn,
+                    onChanged: controller.isLoading
+                        ? null
+                        : controller.setReactionNotifications,
+                  ),
                 ),
               ],
             );

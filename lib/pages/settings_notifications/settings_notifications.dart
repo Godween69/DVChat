@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -42,6 +43,40 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
       await updateFromSync;
     } catch (e, s) {
       Logs().w('Unable to toggle push rule', e, s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toLocalizedString(context))));
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  // DVChat: уведомления о реакциях — локальная настройка плюс серверное правило.
+  // Правило .m.rule.reaction включено = реакции не пушатся, поэтому при «вкл» его отключаем.
+  Future<void> setReactionNotifications(bool on) async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      final client = Matrix.of(context).client;
+      await AppSettings.notifyAboutReactions.setItem(on);
+      final rule = (client.globalPushRules?.override ?? const <PushRule>[])
+          .where((r) => r.ruleId == '.m.rule.reaction')
+          .firstOrNull;
+      if (rule != null && rule.enabled == on) {
+        await client.setPushRuleEnabled(
+          PushRuleKind.override,
+          '.m.rule.reaction',
+          !on,
+        );
+      }
+    } catch (e, s) {
+      Logs().w('Unable to toggle reaction notifications', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
