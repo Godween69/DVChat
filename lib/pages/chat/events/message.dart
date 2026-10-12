@@ -20,7 +20,6 @@ import 'package:fluffychat/utils/single_reaction_extension.dart';
 import 'package:fluffychat/utils/string_color.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/member_actions_popup_menu_button.dart';
 import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -325,11 +324,7 @@ class Message extends StatelessWidget {
                             return Avatar(
                               mxContent: user.avatarUrl,
                               name: user.calcDisplayname(),
-                              onTap: () => showMemberActionsPopupMenu(
-                                context: context,
-                                user: user,
-                                onMention: onMention,
-                              ),
+
                               size: avatarSize,
                               presenceUserId: user.stateKey,
                               presenceBackgroundColor: wallpaperMode
