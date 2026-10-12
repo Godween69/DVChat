@@ -73,6 +73,7 @@ class ChatListViewBody extends StatelessWidget {
           });
         }
         final rooms = allRooms
+            .where((room) => !room.isNewcomerPlaceholder)
             .where(
               (room) =>
                   (!(room.isInArchive || room.isHiddenByUser) ||

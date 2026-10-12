@@ -23,6 +23,13 @@ extension RoomArchiveExtension on Room {
     return value is int ? value : null;
   }
 
+  /// Чат создан для меня как для новичка: в нём пока только приветствие «X теперь в DVChat»
+  /// с моей пометкой. Такой чат скрыт, пока мне не напишут (последним станет другое сообщение).
+  bool get isNewcomerPlaceholder {
+    final marker = lastEvent?.content['online.dvbstudio.dvchat.newcomer'];
+    return marker is String && marker == client.userID;
+  }
+
   /// Пришло приглашение или чужое сообщение новее метки архивации
   bool get hasNewMessages {
     if (membership == Membership.invite) return true;
