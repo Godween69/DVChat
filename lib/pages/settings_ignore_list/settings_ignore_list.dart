@@ -50,7 +50,7 @@ class SettingsIgnoreListController extends State<SettingsIgnoreList> {
     final client = Matrix.of(context).client;
     showFutureLoadingDialog(
       context: context,
-      future: () => client.ignoreUser(userId),
+      future: () => client.ignoreUser(userId, leaveRooms: false),
     );
     setState(() {});
     controller.clear();

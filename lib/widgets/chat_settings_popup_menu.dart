@@ -95,7 +95,8 @@ class ChatSettingsPopupMenu extends StatelessWidget {
               if (!context.mounted) return;
               await showFutureLoadingDialog(
                 context: context,
-                future: () => room.client.ignoreUser(partnerId),
+                future: () =>
+                    room.client.ignoreUser(partnerId, leaveRooms: false),
               );
               break;
             }
