@@ -11,13 +11,24 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
-enum ChatPopupMenuActions { details, search, archive, restore, leave }
+enum ChatPopupMenuActions {
+  details,
+  search,
+  archive,
+  restore,
+  leave,
+  block,
+  unblock,
+}
 
 class ChatSettingsPopupMenu extends StatelessWidget {
   final Room room;
   final bool displayChatDetails;
 
   const ChatSettingsPopupMenu(this.room, this.displayChatDetails, {super.key});
+
+  /// DVChat: собеседник в личном чате (null — не личный чат)
+  String? get _partnerId => room.isDirectChat ? room.directChatMatrixID : null;
 
   PopupMenuItem<ChatPopupMenuActions> _item(
     ChatPopupMenuActions action,
@@ -66,6 +77,38 @@ class ChatSettingsPopupMenu extends StatelessWidget {
               future: room.restoreFromArchive,
             );
             break;
+          case ChatPopupMenuActions.block:
+            {
+              final partnerId = room.directChatMatrixID;
+              if (partnerId == null) return;
+              final ok = await showOkCancelAlertDialog(
+                context: context,
+                title: 'Заблокировать собеседника?',
+                message:
+                    'Его сообщения перестанут показываться вам. Он об этом не узнает. '
+                    'Разблокировать можно в этом же меню.',
+                okLabel: 'Заблокировать',
+                cancelLabel: L10n.of(context).cancel,
+                isDestructive: true,
+              );
+              if (ok != OkCancelResult.ok) return;
+              if (!context.mounted) return;
+              await showFutureLoadingDialog(
+                context: context,
+                future: () => room.client.ignoreUser(partnerId),
+              );
+              break;
+            }
+          case ChatPopupMenuActions.unblock:
+            {
+              final partnerId = room.directChatMatrixID;
+              if (partnerId == null) return;
+              await showFutureLoadingDialog(
+                context: context,
+                future: () => room.client.unignoreUser(partnerId),
+              );
+              break;
+            }
           case ChatPopupMenuActions.details:
             _showChatDetails(context);
             break;
@@ -108,6 +151,20 @@ class ChatSettingsPopupMenu extends StatelessWidget {
               Icons.delete_outlined,
               l10n.leave,
             ),
+          // DVChat: блокировка собеседника в личном чате (администратора заблокировать нельзя)
+          if (_partnerId != null && _partnerId!.localpart != 'dima')
+            if (room.client.ignoredUsers.contains(_partnerId))
+              _item(
+                ChatPopupMenuActions.unblock,
+                Icons.lock_open_outlined,
+                'Разблокировать',
+              )
+            else
+              _item(
+                ChatPopupMenuActions.block,
+                Icons.block_outlined,
+                'Заблокировать',
+              ),
         ];
       },
     );
