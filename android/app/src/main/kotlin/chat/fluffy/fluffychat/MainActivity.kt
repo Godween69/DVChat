@@ -6,8 +6,19 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint
 
 import android.content.Context
+import android.os.Bundle
+import android.view.WindowManager
 
 class MainActivity : FlutterFragmentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // DVChat: запрет скриншотов и записи экрана, содержимое скрыто в списке недавних
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+    }
+
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
