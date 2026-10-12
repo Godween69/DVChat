@@ -16,6 +16,7 @@ import 'package:fluffychat/pages/chat/pinned_events.dart';
 import 'package:fluffychat/pages/chat/reply_display.dart';
 import 'package:fluffychat/utils/account_config.dart';
 import 'package:fluffychat/utils/chat_background.dart';
+import 'package:fluffychat/utils/dv_admin.dart';
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/widgets/chat_settings_popup_menu.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
@@ -131,16 +132,7 @@ class ChatView extends StatelessWidget {
                         tooltip: L10n.of(context).edit,
                         onPressed: controller.editSelectedEventAction,
                       ),
-                    if (controller.selectedEvents.length == 1 &&
-                        controller.activeThreadId == null &&
-                        controller.room.canSendDefaultMessages)
-                      IconButton(
-                        icon: const Icon(Icons.message_outlined),
-                        tooltip: L10n.of(context).replyInThread,
-                        onPressed: () => controller.enterThread(
-                          controller.selectedEvents.single.eventId,
-                        ),
-                      ),
+
                     IconButton(
                       icon: const Icon(Icons.copy_outlined),
                       tooltip: L10n.of(context).copyToClipboard,
@@ -194,17 +186,18 @@ class ChatView extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          PopupMenuItem(
-                            value: _EventContextAction.info,
-                            child: Row(
-                              mainAxisSize: .min,
-                              children: [
-                                const Icon(Icons.info_outlined),
-                                const SizedBox(width: 12),
-                                Text(L10n.of(context).messageInfo),
-                              ],
+                          if (isDvAdmin(controller.room.client))
+                            PopupMenuItem(
+                              value: _EventContextAction.info,
+                              child: Row(
+                                mainAxisSize: .min,
+                                children: [
+                                  const Icon(Icons.info_outlined),
+                                  const SizedBox(width: 12),
+                                  Text(L10n.of(context).messageInfo),
+                                ],
+                              ),
                             ),
-                          ),
                           if (controller.selectedEvents.single.status.isSent)
                             PopupMenuItem(
                               value: _EventContextAction.report,

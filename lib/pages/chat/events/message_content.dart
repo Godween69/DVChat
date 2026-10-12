@@ -268,24 +268,13 @@ class RedactionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<User?>(
-      future: event.redactedBecause?.fetchSenderUser(),
-      builder: (context, snapshot) {
-        final reason = event.redactedBecause?.content.tryGet<String>('reason');
-        final redactedBy =
-            snapshot.data?.calcDisplayname() ??
-            event.redactedBecause?.senderId.localpart ??
-            L10n.of(context).user;
-        return _ButtonContent(
-          label: reason == null
-              ? L10n.of(context).redactedBy(redactedBy)
-              : L10n.of(context).redactedByBecause(redactedBy, reason),
-          icon: '🗑️',
-          textColor: buttonTextColor.withAlpha(128),
-          onPressed: () => onInfoTab!(event),
-          fontSize: fontSize,
-        );
-      },
+    // DVChat: как в WhatsApp — просто «Сообщение удалено», без имени и причины
+    return _ButtonContent(
+      label: 'Сообщение удалено',
+      icon: '🚫',
+      textColor: buttonTextColor.withAlpha(128),
+      onPressed: () => onInfoTab?.call(event),
+      fontSize: fontSize,
     );
   }
 }

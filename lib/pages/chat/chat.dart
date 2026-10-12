@@ -20,6 +20,7 @@ import 'package:fluffychat/pages/chat/trust_user_key_dialog.dart';
 import 'package:fluffychat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:fluffychat/pages/chat_details/chat_details.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
+import 'package:fluffychat/utils/dv_admin.dart';
 import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/file_selector.dart';
 import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call.dart';
@@ -1096,22 +1097,17 @@ class ChatController extends State<ChatPageWithRoom>
   }
 
   Future<void> redactEventsAction() async {
-    final reasonInput = selectedEvents.any((event) => event.status.isSent)
-        ? await showTextInputDialog(
-            context: context,
-            title: L10n.of(context).redactMessage,
-            message: L10n.of(context).redactMessageDescription,
-            isDestructive: true,
-            hintText: L10n.of(context).optionalRedactReason,
-            maxLength: 255,
-            maxLines: 3,
-            minLines: 1,
-            okLabel: L10n.of(context).remove,
-            cancelLabel: L10n.of(context).cancel,
-          )
-        : null;
-    if (reasonInput == null) return;
-    final reason = reasonInput.isEmpty ? null : reasonInput;
+    // DVChat: простое подтверждение, без причины
+    if (selectedEvents.any((event) => event.status.isSent)) {
+      final confirm = await showOkCancelAlertDialog(
+        context: context,
+        title: 'Удалить сообщение?',
+        message: 'Сообщение будет удалено для всех участников.',
+        okLabel: L10n.of(context).remove,
+        cancelLabel: L10n.of(context).cancel,
+      );
+      if (confirm != OkCancelResult.ok) return;
+    }
     if (!mounted) return;
     await showFutureLoadingDialog(
       context: context,
@@ -1121,7 +1117,7 @@ class ChatController extends State<ChatPageWithRoom>
           onProgress(i / count);
           if (event.status.isSent) {
             if (event.canRedact) {
-              await event.redactEvent(reason: reason);
+              await event.redactEvent();
             } else {
               final client = currentRoomBundle.firstWhere(
                 (cl) => selectedEvents.first.senderId == cl!.userID,
@@ -1131,10 +1127,7 @@ class ChatController extends State<ChatPageWithRoom>
                 return;
               }
               final room = client.getRoomById(roomId)!;
-              await Event.fromJson(
-                event.toJson(),
-                room,
-              ).redactEvent(reason: reason);
+              await Event.fromJson(event.toJson(), room).redactEvent();
             }
           } else {
             await event.cancelSend();
@@ -1181,6 +1174,7 @@ class ChatController extends State<ChatPageWithRoom>
   bool get canEditSelectedEvents {
     if (isArchived ||
         selectedEvents.length != 1 ||
+        selectedEvents.first.messageType != MessageTypes.Text ||
         !selectedEvents.first.status.isSent) {
       return false;
     }
@@ -1610,8 +1604,11 @@ class ChatController extends State<ChatPageWithRoom>
   bool get isArchived =>
       {Membership.leave, Membership.ban}.contains(room.membership);
 
-  void showEventInfo([Event? event]) =>
-      (event ?? selectedEvents.single).showInfoDialog(context);
+  void showEventInfo([Event? event]) {
+    // DVChat: служебные сведения (исходный код события) — только администратору
+    if (!isDvAdmin(Matrix.of(context).client)) return;
+    (event ?? selectedEvents.single).showInfoDialog(context);
+  }
 
   void cancelReplyEventAction() => setState(() {
     if (editEvent != null) {

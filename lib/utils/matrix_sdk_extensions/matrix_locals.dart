@@ -185,11 +185,7 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String redactedAnEvent(Event redactedEvent) {
-    return l10n.redactedAnEvent(
-      redactedEvent.redactedBecause?.senderFromMemoryOrFallback
-              .calcDisplayname() ??
-          l10n.user,
-    );
+    return 'Сообщение удалено';
   }
 
   @override
@@ -199,9 +195,7 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String removedBy(Event redactedEvent) {
-    return l10n.redactedBy(
-      redactedEvent.senderFromMemoryOrFallback.calcDisplayname(),
-    );
+    return 'Сообщение удалено';
   }
 
   @override
