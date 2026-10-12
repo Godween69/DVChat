@@ -4,11 +4,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/update_checker.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../widgets/mxc_image_viewer.dart';
 import 'settings.dart';
@@ -121,6 +124,21 @@ class SettingsView extends StatelessWidget {
                   ? theme.colorScheme.surfaceContainerHigh
                   : null,
             ),
+            if (PlatformInfos.isAndroid)
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  final info = snapshot.data;
+                  return ListTile(
+                    leading: const Icon(Icons.system_update_outlined),
+                    title: const Text('Проверить обновление'),
+                    subtitle: info == null
+                        ? null
+                        : Text('Версия ${info.version} (${info.buildNumber})'),
+                    onTap: () => DvUpdateChecker.check(context, manual: true),
+                  );
+                },
+              ),
             Divider(color: theme.dividerColor),
             ListTile(
               leading: const Icon(Icons.logout_outlined),

@@ -1,5 +1,6 @@
-// DVChat: проверка обновлений. Приложение не чаще раза в несколько часов читает
-// version.json на нашем сервере и предлагает скачать новую версию.
+// DVChat: проверка обновлений. Приложение сверяется с version.json на нашем сервере
+// (автоматически не чаще раза в час, по кнопке в настройках сразу) и предлагает
+// скачать новую версию.
 
 import 'dart:convert';
 import 'dart:io';
@@ -17,14 +18,25 @@ abstract class DvUpdateChecker {
   static const Duration _interval = Duration(hours: 1);
   static bool _checking = false;
 
-  static Future<void> check(BuildContext context) async {
+  static void _say(BuildContext context, String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// [manual]: проверка по кнопке, без ограничения по времени и с сообщением о результате.
+  static Future<void> check(BuildContext context, {bool manual = false}) async {
     if (!Platform.isAndroid) return;
-    if (_checking) return;
-    if (AppConfig.updateBaseUrl.isEmpty) return;
+    if (_checking) {
+      if (manual) _say(context, 'Проверка уже идёт');
+      return;
+    }
+    if (AppConfig.updateBaseUrl.isEmpty) {
+      if (manual) _say(context, 'В этой сборке не задан адрес обновлений');
+      return;
+    }
     final store = Matrix.of(context).store;
     final now = DateTime.now().millisecondsSinceEpoch;
     final last = store.getInt(_lastCheckKey) ?? 0;
-    if (now - last < _interval.inMilliseconds) return;
+    if (!manual && now - last < _interval.inMilliseconds) return;
     _checking = true;
     final http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
@@ -34,19 +46,45 @@ abstract class DvUpdateChecker {
       final response = await request.close().timeout(
         const Duration(seconds: 15),
       );
-      if (response.statusCode != 200) return;
+      if (response.statusCode != 200) {
+        if (manual && context.mounted) {
+          _say(
+            context,
+            'Сервер обновлений ответил ошибкой ${response.statusCode}',
+          );
+        }
+        return;
+      }
       final body = await response.transform(utf8.decoder).join();
       final data = jsonDecode(body);
-      if (data is! Map) return;
+      if (data is! Map) {
+        if (manual && context.mounted) {
+          _say(context, 'Сервер обновлений вернул непонятный ответ');
+        }
+        return;
+      }
       final remoteCode = data['versionCode'];
-      if (remoteCode is! int) return;
+      if (remoteCode is! int) {
+        if (manual && context.mounted) {
+          _say(context, 'Сервер обновлений вернул непонятный ответ');
+        }
+        return;
+      }
       final info = await PackageInfo.fromPlatform();
       final localCode = int.tryParse(info.buildNumber) ?? 0;
       final minCode = data['minVersionCode'];
       final forced = minCode is int && localCode < minCode;
       // Для обязательного обновления не откладываем следующую проверку
       if (!forced) await store.setInt(_lastCheckKey, now);
-      if (remoteCode <= localCode) return;
+      if (remoteCode <= localCode) {
+        if (manual && context.mounted) {
+          _say(
+            context,
+            'У вас последняя версия (${info.version}, сборка ${info.buildNumber})',
+          );
+        }
+        return;
+      }
       final notes = data['notes'];
       if (!context.mounted) return;
       await _showDialog(
@@ -56,6 +94,9 @@ abstract class DvUpdateChecker {
       );
     } catch (e, s) {
       Logs().w('DVChat: не удалось проверить обновления', e, s);
+      if (manual && context.mounted) {
+        _say(context, 'Не удалось проверить обновление: нет связи с сервером');
+      }
     } finally {
       http.close();
       _checking = false;
