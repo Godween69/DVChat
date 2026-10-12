@@ -326,9 +326,9 @@ class _ChatListItemBody extends StatelessWidget {
                                     plaintextBody: true,
                                     removeMarkdown: true,
                                     withSenderNamePrefix:
-                                        (!isDirectChat ||
-                                        directChatMatrixId !=
-                                            room.lastEvent?.senderId),
+    // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+    !(room.lastEvent?.content.containsKey('online.dvbstudio.dvchat.newcomer') ?? false) &&
+    (!isDirectChat || directChatMatrixId != room.lastEvent?.senderId),
                                   )
                                 : null,
                             initialData: lastEvent?.calcLocalizedBodyFallback(
@@ -338,9 +338,9 @@ class _ChatListItemBody extends StatelessWidget {
                               plaintextBody: true,
                               removeMarkdown: true,
                               withSenderNamePrefix:
-                                  (!isDirectChat ||
-                                  directChatMatrixId !=
-                                      room.lastEvent?.senderId),
+    // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+    !(room.lastEvent?.content.containsKey('online.dvbstudio.dvchat.newcomer') ?? false) &&
+    (!isDirectChat || directChatMatrixId != room.lastEvent?.senderId),
                             ),
                             builder: (context, snapshot) => Text(
                               room.membership == Membership.invite

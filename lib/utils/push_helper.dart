@@ -235,7 +235,13 @@ Future<void> _tryPushHelper(
 
   final id = '${client.clientName}_${notification.roomId}'.hashCode;
 
-  final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
+  // DVChat: служебное приветствие («X теперь в DVChat») приходит без имени администратора
+  final isServiceNotice = event.content.containsKey(
+    'online.dvbstudio.dvchat.newcomer',
+  );
+  final senderName = isServiceNotice
+      ? 'DVChat'
+      : event.senderFromMemoryOrFallback.calcDisplayname();
   // Show notification
 
   final newMessage = Message(
