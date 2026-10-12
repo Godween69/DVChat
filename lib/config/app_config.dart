@@ -79,7 +79,9 @@ abstract class AppConfig {
   static const String archiveTag = 'u.dvchat.archive';
   static const String hiddenTag = 'u.dvchat.hidden';
 
-  // DVChat: канал обновлений на московском сервере (путь с секретом знает только приложение)
-  static const String updateBaseUrl =
-      'https://chat.dvbstudio.online/u/29d3584b75b3d01bbee7ee0a/';
+  // DVChat: канал обновлений на московском сервере. Адрес (с секретом) подставляет сборка
+  // через --dart-define=DVCHAT_UPDATE_URL=..., в репозитории его нет
+  static const String updateBaseUrl = String.fromEnvironment(
+    'DVCHAT_UPDATE_URL',
+  );
 }

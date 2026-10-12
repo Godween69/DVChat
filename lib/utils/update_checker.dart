@@ -20,6 +20,7 @@ abstract class DvUpdateChecker {
   static Future<void> check(BuildContext context) async {
     if (!Platform.isAndroid) return;
     if (_checking) return;
+    if (AppConfig.updateBaseUrl.isEmpty) return;
     final store = Matrix.of(context).store;
     final now = DateTime.now().millisecondsSinceEpoch;
     final last = store.getInt(_lastCheckKey) ?? 0;
