@@ -13,6 +13,7 @@ import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:fluffychat/widgets/avatar_crop_dialog.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -155,6 +156,12 @@ class SettingsController extends State<Settings> {
         name: pickedFile.name,
       );
     }
+    if (!mounted) return;
+    // DVChat: обрезка аватара перед загрузкой
+    if (!mounted) return;
+    final croppedAvatar = await cropAvatar(context, file.bytes);
+    if (croppedAvatar == null) return;
+    file = MatrixFile(bytes: croppedAvatar, name: 'avatar.png');
     if (!mounted) return;
     final success = await showFutureLoadingDialog(
       context: context,
