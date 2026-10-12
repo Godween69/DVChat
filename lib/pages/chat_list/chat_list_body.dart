@@ -85,12 +85,21 @@ class ChatListViewBody extends StatelessWidget {
 
         // Сначала группы, потом личные чаты; порядок внутри раздела прежний
         final groups = rooms.where((room) => !room.isDirectChat).toList();
-        final directs = rooms.where((room) => room.isDirectChat).toList();
+        // DVChat: личные чаты с заблокированным собеседником уходят в отдельный раздел внизу
+        final ignoredIds = client.ignoredUsers;
+        bool isBlocked(Room room) =>
+            room.isDirectChat && ignoredIds.contains(room.directChatMatrixID);
+        final directs = rooms
+            .where((room) => room.isDirectChat && !isBlocked(room))
+            .toList();
+        final blocked = rooms.where(isBlocked).toList();
         final entries = <Object>[
           if (groups.isNotEmpty) 'Группы',
           ...groups,
           if (directs.isNotEmpty) 'Личные чаты',
           ...directs,
+          if (blocked.isNotEmpty) 'Заблокированные',
+          ...blocked,
         ];
 
         return CustomScrollView(
@@ -158,14 +167,16 @@ class ChatListViewBody extends StatelessWidget {
                         child: Text(
                           entry,
                           style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
+                            color: entry == 'Заблокированные'
+                                ? theme.colorScheme.outline
+                                : theme.colorScheme.primary,
                           ),
                         ),
                       );
                     }
                     final room = entry as Room;
                     final space = spaceDelegateCandidates[room.id];
-                    return ChatListItem(
+                    final item = ChatListItem(
                       room,
                       space: space,
                       key: Key('chat_list_item_${room.id}'),
@@ -175,6 +186,9 @@ class ChatListViewBody extends StatelessWidget {
                           controller.chatContextAction(room, context, space),
                       activeChat: controller.activeChat == room.id,
                     );
+                    return isBlocked(room)
+                        ? Opacity(opacity: 0.45, child: item)
+                        : item;
                   },
                 ),
               ),
