@@ -86,6 +86,8 @@ enum AppSettings<T> {
   hideRoomsInSpaces<bool>('chat.fluffy.hideRoomsInSpaces', false),
   showThumbnailsInTimeline<bool>('chat.fluffy.showThumbnailsInTimeline', true),
   doubleTapToReact<bool>('chat.fluffy.double_tap_to_react', false),
+  // DVChat: цвет фона чата (ARGB, 0 = по умолчанию)
+  chatBackgroundColorInt<int>('chat.fluffy.chat_background_color', 0),
   doubleTapReaction<String>('chat.fluffy.double_tap_reaction', '❤️'),
   benchmarksInLogs<bool>('chat.fluffy.benchmarks_in_logs', false),
   autoSendErrorReports<bool?>('chat.fluffy.auto_send_eror_reports', null),

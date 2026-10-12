@@ -139,6 +139,67 @@ class SettingsStyleView extends StatelessWidget {
             Divider(color: theme.dividerColor),
             ListTile(
               title: Text(
+                'Цвет фона чата',
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final c in <int>[
+                    0,
+                    0xFFFFFFFF,
+                    0xFFF5F0E6,
+                    0xFFE3EEF9,
+                    0xFFE4F2E7,
+                    0xFFF6E3EC,
+                    0xFFECE6F7,
+                    0xFF2B2B30,
+                    0xFF1B1B1F,
+                    0xFF0F1A2B,
+                    0xFF14231A,
+                    0xFF2A1A24,
+                    0xFF000000,
+                  ])
+                    InkWell(
+                      borderRadius: BorderRadius.circular(colorPickerSize),
+                      onTap: () => controller.setChatBackground(c),
+                      child: Container(
+                        width: colorPickerSize,
+                        height: colorPickerSize,
+                        decoration: BoxDecoration(
+                          color: c == 0 ? theme.colorScheme.surface : Color(c),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppSettings.chatBackgroundColorInt.value == c
+                                ? theme.colorScheme.primary
+                                : theme.dividerColor,
+                            width: AppSettings.chatBackgroundColorInt.value == c
+                                ? 3
+                                : 1,
+                          ),
+                        ),
+                        child: c == 0
+                            ? Icon(
+                                Icons.format_color_reset_outlined,
+                                size: 16,
+                                color: theme.colorScheme.onSurface,
+                              )
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Divider(color: theme.dividerColor),
+            ListTile(
+              title: Text(
                 L10n.of(context).messagesStyle,
                 style: TextStyle(
                   color: theme.colorScheme.secondary,
@@ -171,7 +232,11 @@ class SettingsStyleView extends StatelessWidget {
                       child: AnimatedContainer(
                         duration: FluffyThemes.animationDuration,
                         curve: FluffyThemes.animationCurve,
-                        decoration: const BoxDecoration(),
+                        decoration: BoxDecoration(
+                          color: AppSettings.chatBackgroundColorInt.value == 0
+                              ? null
+                              : Color(AppSettings.chatBackgroundColorInt.value),
+                        ),
                         clipBehavior: Clip.hardEdge,
                         child: Stack(
                           alignment: Alignment.center,

@@ -112,6 +112,12 @@ class SettingsStyleController extends State<SettingsStyle> {
     ),
   );
 
+  // DVChat: выбор цвета фона чата
+  Future<void> setChatBackground(int value) async {
+    await AppSettings.chatBackgroundColorInt.setItem(value);
+    setState(() {});
+  }
+
   ThemeMode get currentTheme => ThemeController.of(context).themeMode;
   Color? get currentColor => ThemeController.of(context).primaryColor;
 

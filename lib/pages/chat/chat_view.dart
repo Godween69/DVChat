@@ -15,6 +15,7 @@ import 'package:fluffychat/pages/chat/chat_event_list.dart';
 import 'package:fluffychat/pages/chat/pinned_events.dart';
 import 'package:fluffychat/pages/chat/reply_display.dart';
 import 'package:fluffychat/utils/account_config.dart';
+import 'package:fluffychat/utils/chat_background.dart';
 import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/widgets/chat_settings_popup_menu.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
@@ -307,6 +308,10 @@ class ChatView extends StatelessWidget {
                     top: false,
                     child: Stack(
                       children: <Widget>[
+                        if (dvChatBackground != null)
+                          Positioned.fill(
+                            child: ColoredBox(color: dvChatBackground!),
+                          ),
                         if (accountConfig.wallpaperUrl != null)
                           Opacity(
                             opacity: accountConfig.wallpaperOpacity ?? 0.5,
@@ -340,9 +345,13 @@ class ChatView extends StatelessWidget {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    theme.colorScheme.surface.withAlpha(0),
-                                    theme.colorScheme.surface,
-                                    theme.colorScheme.surface,
+                                    (dvChatBackground ??
+                                            theme.colorScheme.surface)
+                                        .withAlpha(0),
+                                    dvChatBackground ??
+                                        theme.colorScheme.surface,
+                                    dvChatBackground ??
+                                        theme.colorScheme.surface,
                                   ],
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
