@@ -49,7 +49,7 @@ class AudioPlayerWidget extends StatefulWidget {
 enum AudioPlayerStatus { notDownloaded, downloading, downloaded }
 
 class AudioPlayerState extends State<AudioPlayerWidget> {
-  static const double buttonSize = 36;
+  static const double buttonSize = 44;
 
   AudioPlayerStatus status = AudioPlayerStatus.notDownloaded;
   double? _downloadProgress;
@@ -314,6 +314,10 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
     }
   }
 
+  // DVChat: доля закраски палочки шкалы (0..1)
+  double _barFill(double wavePosition, int i) =>
+      (wavePosition - i).clamp(0.0, 1.0);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -332,7 +336,12 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
           stream: audioPlayer == null
               ? null
               : StreamGroup.merge([
-                  audioPlayer.positionStream.asBroadcastStream(),
+                  audioPlayer
+                      .createPositionStream(
+                        minPeriod: const Duration(milliseconds: 30),
+                        maxPeriod: const Duration(milliseconds: 60),
+                      )
+                      .asBroadcastStream(),
                   audioPlayer.playerStateStream.asBroadcastStream(),
                 ]),
           builder: (context, _) {
@@ -349,7 +358,7 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                 ? _durationString ?? '00:00'
                 : audioPlayer.position.minuteSecondString;
             return Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Column(
                 mainAxisSize: .min,
                 crossAxisAlignment: .start,
@@ -385,6 +394,7 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                                           ? Icons.pause_outlined
                                           : Icons.play_arrow_outlined,
                                       color: widget.color,
+                                      size: 28,
                                     ),
                                   ),
                                 ),
@@ -419,10 +429,30 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                                                         horizontal: 1,
                                                       ),
                                                   decoration: BoxDecoration(
-                                                    color: i < wavePosition
-                                                        ? widget.color
-                                                        : widget.color
-                                                              .withAlpha(128),
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        widget.color,
+                                                        widget.color,
+                                                        widget.color.withAlpha(
+                                                          128,
+                                                        ),
+                                                        widget.color.withAlpha(
+                                                          128,
+                                                        ),
+                                                      ],
+                                                      stops: [
+                                                        0.0,
+                                                        _barFill(
+                                                          wavePosition,
+                                                          i,
+                                                        ),
+                                                        _barFill(
+                                                          wavePosition,
+                                                          i,
+                                                        ),
+                                                        1.0,
+                                                      ],
+                                                    ),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                           64,
@@ -500,14 +530,14 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                               ),
                               onTap: _toggleSpeed,
                               child: SizedBox(
-                                width: 32,
-                                height: 20,
+                                width: 44,
+                                height: 28,
                                 child: Center(
                                   child: Text(
                                     '${audioPlayer?.speed}x',
                                     style: TextStyle(
                                       color: widget.color,
-                                      fontSize: 9,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ),
