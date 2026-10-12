@@ -28,6 +28,7 @@ dependencies:
   device_info_plus: ^13.3.0
   dynamic_color: ^2.1.0
   emoji_picker_flutter: ^4.5.4
+  fcm_shared_isolate: ^3.0.0
   file_picker: ^13.1.0
   file_selector: ^1.1.0
   flutter:
