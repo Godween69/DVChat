@@ -33,7 +33,6 @@ class ClientChooserButton extends StatelessWidget {
       icon: const Icon(Icons.settings_outlined),
       onSelected: (action) => _selected(action, context),
       itemBuilder: (context) => [
-        _item(SettingsAction.setStatus, Icons.edit_outlined, l10n.setStatus),
         _item(SettingsAction.archive, Icons.archive_outlined, l10n.archive),
         _item(SettingsAction.settings, Icons.settings_outlined, l10n.settings),
       ],
@@ -42,9 +41,6 @@ class ClientChooserButton extends StatelessWidget {
 
   void _selected(SettingsAction action, BuildContext context) {
     switch (action) {
-      case SettingsAction.setStatus:
-        controller.setStatus();
-        break;
       case SettingsAction.archive:
         context.go('/rooms/archive');
         break;
@@ -55,4 +51,4 @@ class ClientChooserButton extends StatelessWidget {
   }
 }
 
-enum SettingsAction { setStatus, archive, settings }
+enum SettingsAction { archive, settings }

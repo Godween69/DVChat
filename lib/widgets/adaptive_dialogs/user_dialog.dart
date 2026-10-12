@@ -3,27 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/utils/room_archive_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
 import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/presence_builder.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_linkify/flutter_linkify.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
-import '../../utils/url_launcher.dart';
-import '../future_loading_dialog.dart';
-import '../hover_builder.dart';
-import '../matrix.dart';
 import '../mxc_image_viewer.dart';
 
-// ignore: unused_import
-
+/// DVChat: окно профиля пользователя. Показывает только аватар и имя.
+/// Ссылка на профиль, статус присутствия и кнопки «Написать» / «Новый чат»
+/// убраны намеренно: из этого окна нельзя выйти на других пользователей.
 class UserDialog extends StatelessWidget {
   static Future<void> show({
     required BuildContext context,
@@ -43,185 +32,36 @@ class UserDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final client = Matrix.of(context).client;
-    final directChatRoomId = client.getDirectChatFromUserId(profile.userId);
-    // DVChat: скрытый (ещё не начатый) чат новичка кнопкой «Написать» не открываем
-    final hiddenDirectChat =
-        directChatRoomId != null &&
-        (client.getRoomById(directChatRoomId)?.isNewcomerPlaceholder ?? false);
     final displayname =
         profile.displayName ??
         profile.userId.localpart ??
         L10n.of(context).user;
-    var copied = false;
-    final theme = Theme.of(context);
     final avatar = profile.avatarUrl;
     return AlertDialog.adaptive(
-      content: PresenceBuilder(
-        userId: profile.userId,
-        client: Matrix.of(context).client,
-        builder: (context, presence) {
-          if (presence == null) return const SizedBox.shrink();
-          final statusMsg = presence.statusMsg;
-          final lastActiveTimestamp = presence.lastActiveTimestamp;
-          final presenceText = presence.currentlyActive == true
-              ? L10n.of(context).currentlyActive
-              : lastActiveTimestamp != null
-              ? L10n.of(
-                  context,
-                ).lastActiveAgo(lastActiveTimestamp.localizedTimeShort(context))
-              : null;
-          return Column(
-            spacing: 8,
-            mainAxisSize: .min,
-            crossAxisAlignment: .stretch,
-            children: [
-              Row(
-                spacing: 12,
-                children: [
-                  Avatar(
-                    mxContent: avatar,
-                    name: displayname,
-                    size: Avatar.defaultSize * 1.5,
-                    onTap: avatar != null
-                        ? () => showDialog(
-                            context: context,
-                            builder: (_) => MxcImageViewer(avatar),
-                          )
-                        : null,
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
-                      children: [
-                        Text(
-                          displayname,
-                          maxLines: 1,
-                          overflow: .ellipsis,
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        HoverBuilder(
-                          builder: (context, hovered) => StatefulBuilder(
-                            builder: (context, setState) => MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: GestureDetector(
-                                onTap: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: profile.userId),
-                                  );
-                                  setState(() {
-                                    copied = true;
-                                  });
-                                },
-                                child: RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      WidgetSpan(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 4.0,
-                                          ),
-                                          child: AnimatedScale(
-                                            duration:
-                                                FluffyThemes.animationDuration,
-                                            curve: FluffyThemes.animationCurve,
-                                            scale: hovered
-                                                ? 1.33
-                                                : copied
-                                                ? 1.25
-                                                : 1.0,
-                                            child: Icon(
-                                              copied
-                                                  ? Icons.check_circle
-                                                  : Icons.copy,
-                                              size: 12,
-                                              color: copied
-                                                  ? Colors.green
-                                                  : null,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      TextSpan(text: profile.userId),
-                                    ],
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: .ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (presenceText != null)
-                          Text(
-                            presenceText,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: 10,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              if (statusMsg != null)
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: 200),
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    trackVisibility: true,
-                    child: SingleChildScrollView(
-                      child: SelectableLinkify(
-                        text: statusMsg,
-                        textScaleFactor: MediaQuery.textScalerOf(
-                          context,
-                        ).scale(1),
-                        textAlign: TextAlign.start,
-                        options: const LinkifyOptions(humanize: false),
-                        style: TextStyle(color: theme.colorScheme.onSurface),
-                        linkStyle: TextStyle(
-                          color: theme.colorScheme.primary,
-                          decoration: TextDecoration.underline,
-                          decorationColor: theme.colorScheme.primary,
-                        ),
-                        onOpen: (url) =>
-                            UrlLauncher(context, url.url).launchUrl(),
-                      ),
-                    ),
-                  ),
-                ),
-              if (!hiddenDirectChat)
-                AdaptiveDialogInkWell(
-                  onTap: client.userID == profile.userId
-                      ? null
-                      : () async {
-                          final router = GoRouter.of(context);
-                          final roomIdResult = await showFutureLoadingDialog(
-                            context: context,
-                            future: () =>
-                                client.startDirectChat(profile.userId),
-                          );
-                          final roomId = roomIdResult.result;
-                          if (roomId == null) return;
-                          if (context.mounted) Navigator.of(context).pop();
-                          router.go('/rooms/$roomId');
-                        },
-                  child: Text(
-                    directChatRoomId == null
-                        ? L10n.of(context).createNewChat
-                        : L10n.of(context).sendAMessage,
-                    style: TextStyle(color: theme.colorScheme.secondary),
-                  ),
-                ),
-            ],
-          );
-        },
+      content: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Avatar(
+            mxContent: avatar,
+            name: displayname,
+            size: Avatar.defaultSize * 1.5,
+            onTap: avatar != null
+                ? () => showDialog(
+                    context: context,
+                    builder: (_) => MxcImageViewer(avatar),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              displayname,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
       ),
     );
   }

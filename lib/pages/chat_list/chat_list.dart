@@ -606,36 +606,6 @@ class ChatListController extends State<ChatList>
     });
   }
 
-  Future<void> setStatus() async {
-    final l10n = L10n.of(context);
-    final client = Matrix.of(context).client;
-    final currentPresence = await client.fetchCurrentPresence(client.userID!);
-    if (!mounted) return;
-    final input = await showTextInputDialog(
-      useRootNavigator: false,
-      context: context,
-      title: l10n.setStatus,
-      message: l10n.leaveEmptyToClearStatus,
-      okLabel: l10n.ok,
-      cancelLabel: l10n.cancel,
-      hintText: l10n.statusExampleMessage,
-      maxLines: 6,
-      minLines: 1,
-      maxLength: 255,
-      initialText: currentPresence.statusMsg,
-    );
-    if (input == null) return;
-    if (!mounted) return;
-    await showFutureLoadingDialog(
-      context: context,
-      future: () => client.setPresence(
-        client.userID!,
-        PresenceType.online,
-        statusMsg: input,
-      ),
-    );
-  }
-
   bool waitForFirstSync = false;
 
   Future<void> _waitForFirstSync() async {

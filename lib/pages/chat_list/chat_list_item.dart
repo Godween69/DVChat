@@ -21,7 +21,7 @@ import '../../config/themes.dart';
 import '../../utils/date_time_extension.dart';
 import '../../widgets/avatar.dart';
 
-class ChatListItem extends StatelessWidget {
+class _ChatListItemBody extends StatelessWidget {
   final Room room;
   final Room? space;
   final bool activeChat;
@@ -30,7 +30,7 @@ class ChatListItem extends StatelessWidget {
   final void Function() onTap;
   final String? filter;
 
-  const ChatListItem(
+  const _ChatListItemBody(
     this.room, {
     this.activeChat = false,
     required this.onTap,
@@ -38,7 +38,6 @@ class ChatListItem extends StatelessWidget {
     this.onForget,
     this.filter,
     this.space,
-    super.key,
   });
 
   @override
@@ -406,6 +405,46 @@ class ChatListItem extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// DVChat: обёртка, которая догружает участников личного чата и ПОСЛЕ этого
+/// заново строит всю строку списка. Раньше имя считалось до загрузки и оставалось
+/// логином («dima»), пока чат не откроют.
+class ChatListItem extends StatelessWidget {
+  final Room room;
+  final Room? space;
+  final bool activeChat;
+  final void Function(BuildContext context)? onLongPress;
+  final void Function()? onForget;
+  final void Function() onTap;
+  final String? filter;
+
+  const ChatListItem(
+    this.room, {
+    this.activeChat = false,
+    required this.onTap,
+    this.onLongPress,
+    this.onForget,
+    this.filter,
+    this.space,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Object?>(
+      future: room.name.isEmpty ? room.loadHeroUsers() : null,
+      builder: (context, _) => _ChatListItemBody(
+        room,
+        space: space,
+        activeChat: activeChat,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        onForget: onForget,
+        filter: filter,
       ),
     );
   }
