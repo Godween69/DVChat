@@ -17,6 +17,7 @@ import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/utils/show_scaffold_dialog.dart';
+import 'package:fluffychat/utils/update_checker.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
@@ -250,6 +251,7 @@ class ChatListController extends State<ChatList>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Matrix.of(context).backgroundPush?.setupPush(context);
+        DvUpdateChecker.check(context);
       }
 
       // Workaround for system UI overlay style not applied on app start

@@ -78,4 +78,8 @@ abstract class AppConfig {
   // DVChat: пометки комнат для архива (из чата никто не выходит)
   static const String archiveTag = 'u.dvchat.archive';
   static const String hiddenTag = 'u.dvchat.hidden';
+
+  // DVChat: канал обновлений на московском сервере (путь с секретом знает только приложение)
+  static const String updateBaseUrl =
+      'https://chat.dvbstudio.online/u/29d3584b75b3d01bbee7ee0a/';
 }
