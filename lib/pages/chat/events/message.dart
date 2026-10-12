@@ -10,6 +10,7 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/pages/chat/events/message_ticks.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
 import 'package:fluffychat/utils/file_description.dart';
@@ -612,6 +613,15 @@ class Message extends StatelessWidget {
                                       fontSize: 11,
                                       shadows: wallpaperTextShadow,
                                     ),
+                                  ),
+                                ],
+                                // DVChat: галочки статуса у своих сообщений
+                                if (ownMessage && event.status.isSent) ...[
+                                  const SizedBox(width: 4),
+                                  MessageTicks(
+                                    event: event,
+                                    timeline: timeline,
+                                    color: eventStateTextColor,
                                   ),
                                 ],
                                 if (event.status == EventStatus.error) ...[
