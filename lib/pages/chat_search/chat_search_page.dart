@@ -32,6 +32,10 @@ class ChatSearchController extends State<ChatSearchPage>
   bool filesEndReached = false;
   bool isLoading = false;
   DateTime? searchedUntil;
+  // DVChat: поиск по вкладке запускается один раз (слушатель вкладок вызывается несколько раз)
+  bool _imagesStarted = false;
+  bool _filesStarted = false;
+  int _lastTabIndex = 0;
 
   void restartSearch() {
     setState(() {
@@ -41,6 +45,7 @@ class ChatSearchController extends State<ChatSearchPage>
       messagesNextBatch = imagesNextBatch = filesNextBatch = searchedUntil =
           null;
       messagesEndReached = imagesEndReached = filesEndReached = false;
+      _imagesStarted = _filesStarted = false;
     });
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       startSearch();
@@ -111,9 +116,18 @@ class ChatSearchController extends State<ChatSearchPage>
   }
 
   void _onTabChanged() {
+    // Слушатель вызывается несколько раз за одно переключение: реагируем только на смену вкладки
+    if (tabController.index == _lastTabIndex) return;
+    _lastTabIndex = tabController.index;
     switch (tabController.index) {
       case 1:
+        if (_imagesStarted) break;
+        _imagesStarted = true;
+        startSearch();
+        break;
       case 2:
+        if (_filesStarted) break;
+        _filesStarted = true;
         startSearch();
         break;
       case 0:

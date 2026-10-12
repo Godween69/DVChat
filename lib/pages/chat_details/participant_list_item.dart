@@ -100,7 +100,6 @@ class ParticipantListItem extends StatelessWidget {
                 ),
         ],
       ),
-      subtitle: Text(user.id, maxLines: 1, overflow: TextOverflow.ellipsis),
       leading: Opacity(
         opacity: user.membership == Membership.join ? 1 : 0.5,
         child: Avatar(

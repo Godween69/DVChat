@@ -3,22 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:async/async.dart';
-import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart' hide Result;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:url_launcher/url_launcher_string.dart';
+import 'package:matrix/matrix.dart';
 
 import '../../widgets/mxc_image_viewer.dart';
 import 'settings.dart';
 
+/// DVChat: настройки пользователя: профиль, персонализация, уведомления, чат, выход.
 class SettingsView extends StatelessWidget {
   final SettingsController controller;
 
@@ -53,8 +48,8 @@ class SettingsView extends StatelessWidget {
                 final displayname =
                     profile?.displayName ?? mxid.localpart ?? mxid;
                 return Column(
-                  crossAxisAlignment: .center,
-                  mainAxisSize: .min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Stack(
                       children: [
@@ -97,48 +92,8 @@ class SettingsView extends StatelessWidget {
                         style: const TextStyle(fontSize: 18),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => FluffyShare.share(mxid, context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: theme.colorScheme.secondary,
-                        iconColor: theme.colorScheme.secondary,
-                      ),
-                      child: Text(
-                        mxid,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
                     const SizedBox(height: 8),
                   ],
-                );
-              },
-            ),
-            SwitchListTile.adaptive(
-              controlAffinity: ListTileControlAffinity.trailing,
-              value: controller.cryptoIdentityConnected == true,
-              secondary: const Icon(Icons.backup_outlined),
-              title: Text(L10n.of(context).chatBackup),
-              onChanged: controller.firstRunBootstrapAction,
-              contentPadding: EdgeInsets.only(left: 16, right: 8),
-            ),
-            FutureBuilder(
-              future: Result.capture(
-                Matrix.of(context).client.getAuthMetadata(),
-              ).then((result) => result.asValue?.value),
-              builder: (context, snapshot) {
-                final accountManageUrl = snapshot.data?.accountManagementUri;
-                if (accountManageUrl == null) {
-                  return const SizedBox.shrink();
-                }
-                return ListTile(
-                  leading: const Icon(Icons.account_circle_outlined),
-                  title: Text(L10n.of(context).manageAccount),
-                  trailing: const Icon(Icons.open_in_new_outlined),
-                  onTap: () => launchUrl(
-                    accountManageUrl,
-                    mode: LaunchMode.inAppBrowserView,
-                  ),
                 );
               },
             ),
@@ -159,51 +114,12 @@ class SettingsView extends StatelessWidget {
               onTap: () => context.go('/rooms/settings/notifications'),
             ),
             ListTile(
-              leading: const Icon(Icons.devices_outlined),
-              title: Text(L10n.of(context).devices),
-              onTap: () => context.go('/rooms/settings/devices'),
-              tileColor: activeRoute.startsWith('/rooms/settings/devices')
-                  ? theme.colorScheme.surfaceContainerHigh
-                  : null,
-            ),
-            ListTile(
               leading: const Icon(Icons.forum_outlined),
               title: Text(L10n.of(context).chat),
               onTap: () => context.go('/rooms/settings/chat'),
               tileColor: activeRoute.startsWith('/rooms/settings/chat')
                   ? theme.colorScheme.surfaceContainerHigh
                   : null,
-            ),
-            ListTile(
-              leading: const Icon(Icons.shield_outlined),
-              title: Text(L10n.of(context).security),
-              onTap: () => context.go('/rooms/settings/security'),
-              tileColor: activeRoute.startsWith('/rooms/settings/security')
-                  ? theme.colorScheme.surfaceContainerHigh
-                  : null,
-            ),
-            Divider(color: theme.dividerColor),
-            ListTile(
-              leading: const Icon(Icons.dns_outlined),
-              title: Text(
-                L10n.of(context).aboutHomeserver(
-                  Matrix.of(context).client.userID?.domain ?? 'homeserver',
-                ),
-              ),
-              onTap: () => context.go('/rooms/settings/homeserver'),
-              tileColor: activeRoute.startsWith('/rooms/settings/homeserver')
-                  ? theme.colorScheme.surfaceContainerHigh
-                  : null,
-            ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: Text(L10n.of(context).privacy),
-              onTap: () => launchUrlString(AppSettings.privacyPolicy.value),
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline_rounded),
-              title: Text(L10n.of(context).about),
-              onTap: () => PlatformInfos.showDialog(context),
             ),
             Divider(color: theme.dividerColor),
             ListTile(

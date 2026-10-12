@@ -181,6 +181,14 @@ Future<void> _tryPushHelper(
     return;
   }
 
+  // DVChat: уведомления о реакциях отключаются в настройках (в зашифрованных чатах
+  // сервер не отличает реакцию от сообщения, поэтому решаем здесь, после расшифровки)
+  if (event.type == EventTypes.Reaction &&
+      !AppSettings.notifyAboutReactions.value) {
+    Logs().i('Push helper: reaction notifications are turned off.');
+    return;
+  }
+
   if (event.type == RtcNotificationContent.eventType &&
       event.tryParseRtcNotificationContent()?.notificationType == .ring &&
       PlatformInfos.isMobile) {

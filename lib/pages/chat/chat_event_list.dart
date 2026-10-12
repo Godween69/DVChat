@@ -9,7 +9,6 @@ import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat/chat.dart';
-import 'package:fluffychat/pages/chat/encryption_info.dart';
 import 'package:fluffychat/pages/chat/events/message.dart';
 import 'package:fluffychat/pages/chat/seen_by_row.dart';
 import 'package:fluffychat/pages/chat/typing_indicators.dart';
@@ -41,9 +40,11 @@ class ChatEventList extends StatelessWidget {
 
     final horizontalPadding = FluffyThemes.isColumnMode(context) ? 8.0 : 0.0;
 
-    final events = timeline.events.filterByVisibleInGui(
-      threadId: controller.activeThreadId,
-    );
+    // DVChat: служебные события комнаты (создание, вход, выход, настройки) пользователям не показываются
+    final events = timeline.events
+        .filterByVisibleInGui(threadId: controller.activeThreadId)
+        .where((event) => event.stateKey == null)
+        .toList();
 
     // create a map of eventId --> index to greatly improve performance of
     // ListView's findChildIndexCallback
@@ -97,7 +98,6 @@ class ChatEventList extends StatelessWidget {
                   children: [
                     if (events.isNotEmpty) SeenByRow(event: events.first),
                     TypingIndicators(controller),
-                    EncryptionInfo(room: controller.room),
                   ],
                 );
               }
@@ -112,7 +112,9 @@ class ChatEventList extends StatelessWidget {
                   builder: (context) {
                     final visibleIndex = timeline.events.lastIndexWhere(
                       (event) =>
-                          !event.isCollapsedState && event.isVisibleInGui,
+                          event.stateKey == null &&
+                          !event.isCollapsedState &&
+                          event.isVisibleInGui,
                     );
                     if (visibleIndex > timeline.events.length - 50) {
                       WidgetsBinding.instance.addPostFrameCallback(

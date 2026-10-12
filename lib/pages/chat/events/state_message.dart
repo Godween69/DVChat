@@ -5,7 +5,6 @@
 
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/utd_dialog.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:flutter/gestures.dart';
@@ -14,6 +13,8 @@ import 'package:matrix/matrix.dart';
 
 import '../../../config/app_config.dart';
 
+/// DVChat: показывает только сообщения, которые не удалось расшифровать,
+/// без значка с подробностями и диалога про ключи.
 class StateMessage extends StatelessWidget {
   final Event event;
   final void Function()? onExpand;
@@ -75,21 +76,6 @@ class StateMessage extends StatelessWidget {
                               TextSpan(
                                 text: L10n.of(context).messageNotDecryptable,
                               ),
-                              if (!event.redacted)
-                                WidgetSpan(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(left: 4.0),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(7),
-                                      onTap: () =>
-                                          UtdDialog.show(context, event),
-                                      child: Icon(
-                                        Icons.info_outlined,
-                                        size: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                             ],
                             if (onExpand != null) ...[
                               const TextSpan(text: '\n'),

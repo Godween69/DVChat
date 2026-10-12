@@ -344,7 +344,8 @@ class ChatListController extends State<ChatList>
         )
         .toList();
 
-    var action = await showMenu<ChatContextAction>(
+    // DVChat: меню чата упрощено (закрепить, в архив, уведомления)
+    final action = await showMenu<ChatContextAction>(
       context: posContext,
       position: position,
       items: [
@@ -382,25 +383,6 @@ class ChatListController extends State<ChatList>
                   room.pushRuleState == PushRuleState.notify
                       ? L10n.of(context).muteChat
                       : L10n.of(context).unmuteChat,
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: ChatContextAction.markUnread,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  room.markedUnread
-                      ? Icons.mark_as_unread
-                      : Icons.mark_as_unread_outlined,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  room.markedUnread
-                      ? L10n.of(context).markAsRead
-                      : L10n.of(context).markAsUnread,
                 ),
               ],
             ),
@@ -469,86 +451,9 @@ class ChatListController extends State<ChatList>
               ],
             ),
           ),
-        if (room.membership == Membership.join)
-          PopupMenuItem(
-            value: ChatContextAction.showMore,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(Icons.adaptive.more_outlined),
-                const SizedBox(width: 12),
-                Text(L10n.of(context).more),
-              ],
-            ),
-          ),
       ],
     );
     if (!posContext.mounted || !mounted) return;
-    if (action == ChatContextAction.showMore) {
-      action = await showMenu<ChatContextAction>(
-        context: posContext,
-        position: position,
-        items: [
-          if (!room.isFavourite)
-            PopupMenuItem(
-              value: ChatContextAction.lowPriority,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(
-                    room.isLowPriority
-                        ? Icons.low_priority
-                        : Icons.low_priority_outlined,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    room.isLowPriority
-                        ? L10n.of(context).unsetLowPriority
-                        : L10n.of(context).setLowPriority,
-                  ),
-                ],
-              ),
-            ),
-          if (activeTag == null)
-            PopupMenuItem(
-              value: ChatContextAction.addTag,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(Icons.bookmark_add_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).addTag),
-                ],
-              ),
-            )
-          else
-            PopupMenuItem(
-              value: ChatContextAction.removeTag,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(Icons.bookmark_remove_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).removeTag),
-                ],
-              ),
-            ),
-          if (spacesWithPowerLevels.isNotEmpty)
-            PopupMenuItem(
-              value: ChatContextAction.addToSpace,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  const Icon(Icons.group_work_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).addToSpace),
-                ],
-              ),
-            ),
-        ],
-      );
-    }
-
     if (action == null) return;
     if (!mounted) return;
 

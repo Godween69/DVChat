@@ -3,10 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:collection/collection.dart' show IterableExtension;
 import 'package:fluffychat/config/app_config.dart';
+import 'package:fluffychat/utils/single_reaction_extension.dart';
 import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:fluffychat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
@@ -58,24 +57,8 @@ class MessageReactions extends StatelessWidget {
           (r) => _Reaction(
             reactionKey: r.key,
             count: r.count,
-            reacted: r.reacted,
-            onTap: () {
-              if (r.reacted) {
-                final evt = allReactionEvents.firstWhereOrNull(
-                  (e) =>
-                      e.senderId == e.room.client.userID &&
-                      e.content.tryGetMap('m.relates_to')?['key'] == r.key,
-                );
-                if (evt != null) {
-                  showFutureLoadingDialog(
-                    context: context,
-                    future: evt.redactEvent,
-                  );
-                }
-              } else {
-                event.room.sendReaction(event.eventId, r.key);
-              }
-            },
+            // DVChat: одна реакция на пользователя; нажатие переключает свою реакцию
+            onTap: () => event.room.setMyReaction(event, timeline, r.key),
             onLongPress: () async => await _AdaptableReactorsDialog(
               client: client,
               reactionEntry: r,
@@ -87,17 +70,16 @@ class MessageReactions extends StatelessWidget {
   }
 }
 
+/// DVChat: крупный смайлик без рамки и фона.
 class _Reaction extends StatelessWidget {
   final String reactionKey;
   final int count;
-  final bool? reacted;
   final void Function()? onTap;
   final void Function()? onLongPress;
 
   const _Reaction({
     required this.reactionKey,
     required this.count,
-    required this.reacted,
     required this.onTap,
     required this.onLongPress,
   });
@@ -110,8 +92,8 @@ class _Reaction extends StatelessWidget {
     if (reactionKey.startsWith('mxc://')) {
       content = MxcImage(
         uri: Uri.parse(reactionKey),
-        width: 20,
-        height: 20,
+        width: 28,
+        height: 28,
         animated: false,
         isThumbnail: false,
       );
@@ -120,7 +102,7 @@ class _Reaction extends StatelessWidget {
       if (renderKey.length > 10) {
         renderKey = renderKey.getRange(0, 9) + Characters('…');
       }
-      content = Text(renderKey.toString(), style: TextStyle(fontSize: 14));
+      content = Text(renderKey.toString(), style: TextStyle(fontSize: 24));
     }
     return Badge(
       isLabelVisible: count > 1,
@@ -132,19 +114,8 @@ class _Reaction extends StatelessWidget {
         onTap: () => onTap != null ? onTap!() : null,
         onLongPress: () => onLongPress != null ? onLongPress!() : null,
         borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            border: Border.all(
-              color: reacted == true
-                  ? theme.colorScheme.secondary
-                  : theme.colorScheme.secondaryContainer,
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-          ),
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: content,
         ),
       ),
