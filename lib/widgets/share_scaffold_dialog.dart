@@ -174,15 +174,17 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        room.directChatMatrixID ??
-                            L10n.of(context).countParticipants(
-                              (room.summary.mJoinedMemberCount ?? 0) +
-                                  (room.summary.mInvitedMemberCount ?? 0),
+                      // DVChat: адрес собеседника не показываем, только число участников группы
+                      subtitle: room.directChatMatrixID != null
+                          ? null
+                          : Text(
+                              L10n.of(context).countParticipants(
+                                (room.summary.mJoinedMemberCount ?? 0) +
+                                    (room.summary.mInvitedMemberCount ?? 0),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                       value: selectedRoomId == room.id,
                       onChanged: (_) => _toggleRoom(room.id),
                     ),
