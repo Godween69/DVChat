@@ -391,81 +391,93 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Stack(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (waveform != null)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      for (
-                                        var i = 0;
-                                        i < AudioPlayerWidget.wavesCount;
-                                        i++
-                                      )
-                                        Expanded(
-                                          child: Container(
-                                            height: 32,
-                                            alignment: Alignment.center,
-                                            child: Container(
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 1,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: i < wavePosition
-                                                    ? widget.color
-                                                    : widget.color.withAlpha(
-                                                        128,
+                              Stack(
+                                children: [
+                                  if (waveform != null)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          for (
+                                            var i = 0;
+                                            i < AudioPlayerWidget.wavesCount;
+                                            i++
+                                          )
+                                            Expanded(
+                                              child: Container(
+                                                height: 32,
+                                                alignment: Alignment.center,
+                                                child: Container(
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 1,
                                                       ),
-                                                borderRadius:
-                                                    BorderRadius.circular(64),
+                                                  decoration: BoxDecoration(
+                                                    color: i < wavePosition
+                                                        ? widget.color
+                                                        : widget.color
+                                                              .withAlpha(128),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          64,
+                                                        ),
+                                                  ),
+                                                  height:
+                                                      32 *
+                                                      (waveform[i] /
+                                                          _maxWaveForm),
+                                                ),
                                               ),
-                                              height:
-                                                  32 *
-                                                  (waveform[i] / _maxWaveForm),
                                             ),
-                                          ),
-                                        ),
-                                    ],
+                                        ],
+                                      ),
+                                    ),
+                                  SizedBox(
+                                    height: 32,
+                                    child: Slider(
+                                      thumbColor:
+                                          widget.event.senderId ==
+                                              widget.event.room.client.userID
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.colorScheme.primary,
+                                      activeColor: waveform == null
+                                          ? widget.color
+                                          : Colors.transparent,
+                                      inactiveColor: waveform == null
+                                          ? widget.color.withAlpha(128)
+                                          : Colors.transparent,
+                                      max: maxPosition,
+                                      value: currentPosition,
+                                      onChanged: (position) =>
+                                          audioPlayer == null
+                                          ? _onButtonTap()
+                                          : audioPlayer.seek(
+                                              Duration(
+                                                milliseconds: position.round(),
+                                              ),
+                                            ),
+                                    ),
                                   ),
-                                ),
-                              SizedBox(
-                                height: 32,
-                                child: Slider(
-                                  thumbColor:
-                                      widget.event.senderId ==
-                                          widget.event.room.client.userID
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.colorScheme.primary,
-                                  activeColor: waveform == null
-                                      ? widget.color
-                                      : Colors.transparent,
-                                  inactiveColor: waveform == null
-                                      ? widget.color.withAlpha(128)
-                                      : Colors.transparent,
-                                  max: maxPosition,
-                                  value: currentPosition,
-                                  onChanged: (position) => audioPlayer == null
-                                      ? _onButtonTap()
-                                      : audioPlayer.seek(
-                                          Duration(
-                                            milliseconds: position.round(),
-                                          ),
-                                        ),
+                                ],
+                              ),
+                              // DVChat: время под шкалой, у левого края
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    color: widget.color,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 36,
-                          child: Text(
-                            statusText,
-                            style: TextStyle(color: widget.color, fontSize: 12),
                           ),
                         ),
                         const SizedBox(width: 8),

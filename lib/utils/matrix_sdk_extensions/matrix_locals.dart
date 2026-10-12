@@ -209,27 +209,27 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String sentAFile(String senderName) {
-    return l10n.sentAFile(senderName);
+    return '📎 Файл';
   }
 
   @override
   String sentAPicture(String senderName) {
-    return l10n.sentAPicture(senderName);
+    return '📷 Фото';
   }
 
   @override
   String sentASticker(String senderName) {
-    return l10n.sentASticker(senderName);
+    return 'Стикер';
   }
 
   @override
   String sentAVideo(String senderName) {
-    return l10n.sentAVideo(senderName);
+    return '🎥 Видео';
   }
 
   @override
   String sentAnAudio(String senderName) {
-    return l10n.sentAnAudio(senderName);
+    return '🎵 Аудио';
   }
 
   @override
@@ -354,15 +354,9 @@ class MatrixLocals extends MatrixLocalizations {
   String get cancelledSend => l10n.sendCanceled;
 
   @override
-  String voiceMessage(
-    String senderName,
-    Duration? duration,
-  ) => l10n.sentVoiceMessage(
-    senderName,
-    duration == null
-        ? ''
-        : '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
-  );
+  String voiceMessage(String senderName, Duration? duration) => duration == null
+      ? '🎤 Голосовое сообщение'
+      : '🎤 ${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
   String get refreshingLastEvent => l10n.loadingPleaseWait;
