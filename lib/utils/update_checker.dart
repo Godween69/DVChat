@@ -14,7 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 abstract class DvUpdateChecker {
   static const String _lastCheckKey =
       'online.dvbstudio.dvchat.update_checked_at';
-  static const Duration _interval = Duration(hours: 6);
+  static const Duration _interval = Duration(hours: 1);
   static bool _checking = false;
 
   static Future<void> check(BuildContext context) async {
