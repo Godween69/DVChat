@@ -42,7 +42,7 @@ class LoginView extends StatelessWidget {
                   child: Hero(
                     tag: 'info-logo',
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(128),
+                      borderRadius: BorderRadius.circular(22),
                       child: Image.asset(
                         './assets/logo/mini/logo_mini.png',
                         width: 128,
