@@ -144,7 +144,10 @@ class ChatView extends StatelessWidget {
                         tooltip: L10n.of(context).redactMessage,
                         onPressed: controller.redactEventsAction,
                       ),
-                    if (controller.selectedEvents.length == 1)
+                    if (controller.selectedEvents.length == 1 &&
+                        (isDvAdmin(controller.room.client) ||
+                            controller.canPinSelectedEvents ||
+                            controller.canSaveSelectedEvent))
                       PopupMenuButton<_EventContextAction>(
                         useRootNavigator: true,
                         onSelected: (action) {
@@ -195,21 +198,6 @@ class ChatView extends StatelessWidget {
                                   const Icon(Icons.info_outlined),
                                   const SizedBox(width: 12),
                                   Text(L10n.of(context).messageInfo),
-                                ],
-                              ),
-                            ),
-                          if (controller.selectedEvents.single.status.isSent)
-                            PopupMenuItem(
-                              value: _EventContextAction.report,
-                              child: Row(
-                                mainAxisSize: .min,
-                                children: [
-                                  const Icon(
-                                    Icons.shield_outlined,
-                                    color: Colors.red,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(L10n.of(context).reportMessage),
                                 ],
                               ),
                             ),
