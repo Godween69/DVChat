@@ -36,13 +36,13 @@ class SettingsChatView extends StatelessWidget {
             children: [
               SettingsSwitchListTile.adaptive(
                 title: L10n.of(context).doubleTapToReact,
-                subtitle: L10n.of(context).doubleTapToReactDescription,
+                subtitle: 'Дважды кликни на сообщение',
                 setting: AppSettings.doubleTapToReact,
                 onChanged: (_) => controller.updateState(),
               ),
               if (AppSettings.doubleTapToReact.value)
                 ListTile(
-                  title: Text(L10n.of(context).doubleTapReaction),
+                  title: const Text('Выбрать смайлик по умолчанию'),
                   trailing: Text(
                     AppSettings.doubleTapReaction.value,
                     style: const TextStyle(fontSize: 24),
@@ -52,7 +52,7 @@ class SettingsChatView extends StatelessWidget {
                       context: context,
                       builder: (context) => Scaffold(
                         appBar: AppBar(
-                          title: Text(L10n.of(context).doubleTapReaction),
+                          title: const Text('Выбрать смайлик по умолчанию'),
                           leading: CloseButton(
                             onPressed: () => Navigator.of(context).pop(null),
                           ),

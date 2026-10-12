@@ -6,6 +6,7 @@
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
+import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/presence_builder.dart';
@@ -44,6 +45,10 @@ class UserDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = Matrix.of(context).client;
     final directChatRoomId = client.getDirectChatFromUserId(profile.userId);
+    // DVChat: скрытый (ещё не начатый) чат новичка кнопкой «Написать» не открываем
+    final hiddenDirectChat =
+        directChatRoomId != null &&
+        (client.getRoomById(directChatRoomId)?.isNewcomerPlaceholder ?? false);
     final displayname =
         profile.displayName ??
         profile.userId.localpart ??
@@ -191,27 +196,29 @@ class UserDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-              AdaptiveDialogInkWell(
-                onTap: client.userID == profile.userId
-                    ? null
-                    : () async {
-                        final router = GoRouter.of(context);
-                        final roomIdResult = await showFutureLoadingDialog(
-                          context: context,
-                          future: () => client.startDirectChat(profile.userId),
-                        );
-                        final roomId = roomIdResult.result;
-                        if (roomId == null) return;
-                        if (context.mounted) Navigator.of(context).pop();
-                        router.go('/rooms/$roomId');
-                      },
-                child: Text(
-                  directChatRoomId == null
-                      ? L10n.of(context).createNewChat
-                      : L10n.of(context).sendAMessage,
-                  style: TextStyle(color: theme.colorScheme.secondary),
+              if (!hiddenDirectChat)
+                AdaptiveDialogInkWell(
+                  onTap: client.userID == profile.userId
+                      ? null
+                      : () async {
+                          final router = GoRouter.of(context);
+                          final roomIdResult = await showFutureLoadingDialog(
+                            context: context,
+                            future: () =>
+                                client.startDirectChat(profile.userId),
+                          );
+                          final roomId = roomIdResult.result;
+                          if (roomId == null) return;
+                          if (context.mounted) Navigator.of(context).pop();
+                          router.go('/rooms/$roomId');
+                        },
+                  child: Text(
+                    directChatRoomId == null
+                        ? L10n.of(context).createNewChat
+                        : L10n.of(context).sendAMessage,
+                    style: TextStyle(color: theme.colorScheme.secondary),
+                  ),
                 ),
-              ),
             ],
           );
         },

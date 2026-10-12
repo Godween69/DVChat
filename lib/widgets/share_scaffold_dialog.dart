@@ -8,6 +8,7 @@ import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
@@ -85,6 +86,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final rooms = Matrix.of(context).client.rooms
+        .where((room) => !room.isNewcomerPlaceholder)
         .where(
           (room) =>
               room.canSendDefaultMessages &&
