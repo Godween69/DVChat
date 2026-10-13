@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: диалог-страница: на широком экране — окно по центру с закруглёнными углами,
+// на телефоне — на весь экран. Внутрь кладётся любой экран (builder).
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
