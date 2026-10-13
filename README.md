@@ -37,7 +37,7 @@ DVChat это изменённая версия [FluffyChat](https://github.com/
 
 ## Сборка
 
-Нужны [Flutter](https://flutter.dev) (версия указана в `.tool_versions.yaml`) и [Rust](https://www.rust-lang.org/tools/install)
+Нужны [Flutter](https://flutter.dev) (версия 3.47.4) и [Rust](https://www.rust-lang.org/tools/install)
 (для библиотеки шифрования), а также Android SDK.
 
 ```sh
