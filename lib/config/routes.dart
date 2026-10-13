@@ -20,7 +20,6 @@ import 'package:dvchat/pages/device_settings/device_settings.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/intro/intro_page_presenter.dart';
 import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
-import 'package:dvchat/pages/login/login.dart';
 import 'package:dvchat/pages/new_group/new_group.dart';
 import 'package:dvchat/pages/new_private_chat/new_private_chat.dart';
 import 'package:dvchat/pages/settings/settings.dart';
@@ -34,7 +33,6 @@ import 'package:dvchat/pages/settings_notifications/settings_notifications.dart'
 import 'package:dvchat/pages/settings_password/settings_password.dart';
 import 'package:dvchat/pages/settings_security/settings_security.dart';
 import 'package:dvchat/pages/settings_style/settings_style.dart';
-import 'package:dvchat/pages/sign_in/sign_in_page.dart';
 import 'package:dvchat/widgets/layouts/empty_page.dart';
 import 'package:dvchat/widgets/layouts/two_column_layout.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -73,29 +71,6 @@ abstract class AppRoutes {
       pageBuilder: (context, state) =>
           defaultPageBuilder(context, state, const IntroPagePresenter()),
       redirect: loggedInRedirect,
-      routes: [
-        GoRoute(
-          path: 'sign_in',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: false)),
-          redirect: loggedInRedirect,
-        ),
-        GoRoute(
-          path: 'sign_up',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: true)),
-          redirect: loggedInRedirect,
-        ),
-        GoRoute(
-          path: 'login',
-          pageBuilder: (context, state) => defaultPageBuilder(
-            context,
-            state,
-            Login(client: state.extra as Client),
-          ),
-          redirect: loggedInRedirect,
-        ),
-      ],
     ),
     GoRoute(
       path: '/backup',
@@ -282,44 +257,6 @@ abstract class AppRoutes {
                         ),
                       ],
                       redirect: loggedOutRedirect,
-                    ),
-                    GoRoute(
-                      path: 'addaccount',
-                      redirect: loggedOutRedirect,
-                      pageBuilder: (context, state) => defaultPageBuilder(
-                        context,
-                        state,
-                        const IntroPagePresenter(),
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: 'sign_in',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: false),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                        GoRoute(
-                          path: 'sign_up',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: true),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                        GoRoute(
-                          path: 'login',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            Login(client: state.extra as Client),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                      ],
                     ),
                     GoRoute(
                       path: 'homeserver',

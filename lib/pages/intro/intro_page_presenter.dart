@@ -3,24 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:convert';
+// DVChat: обёртка экрана приветствия.
+//
+// Следит за ссылкой входа, которую присылает система (Android App Link /
+// схема ссылок). Если ссылка пришла, пока открыт экран приветствия, или
+// была получена при холодном старте, сразу запускает вход по ней.
 
-import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/pages/intro/intro_page.dart';
-import 'package:dvchat/pages/sign_in/view_model/model/public_homeserver_data.dart';
-import 'package:dvchat/utils/localized_exception_extension.dart';
-import 'package:dvchat/utils/matrix_sdk_extensions/oidc_session_json_extension.dart';
-import 'package:dvchat/utils/sign_in_flows/check_homeserver.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
-import 'package:dvchat/widgets/matrix.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix_api_lite/utils/logs.dart';
-import 'package:matrix/msc_extensions/msc_2964_oidc_login_flow/msc_2964_oidc_login_flow.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:universal_html/universal_html.dart' as web;
 
 class IntroPagePresenter extends StatefulWidget {
   const IntroPagePresenter({super.key});
@@ -30,17 +22,11 @@ class IntroPagePresenter extends StatefulWidget {
 }
 
 class _IntroPagePresenterState extends State<IntroPagePresenter> {
-  bool isLoading = kIsWeb;
-  String? loggingInToHomeserver;
-
   @override
   void initState() {
     super.initState();
-
-    if (kIsWeb) _finishOidcLogin();
-
-    // DVChat: ссылка входа от системы. Слушатель ловит ссылку при открытом
-    // приложении, проверка после первого кадра ловит холодный старт.
+    // Слушатель ловит ссылку при открытом приложении, проверка после
+    // первого кадра ловит холодный старт.
     PendingLoginLink.notifier.addListener(_onPendingLink);
     SchedulerBinding.instance.addPostFrameCallback((_) => _onPendingLink());
   }
@@ -57,91 +43,6 @@ class _IntroPagePresenterState extends State<IntroPagePresenter> {
     if (link != null) loginByLink(context, link);
   }
 
-  Future<void> _finishOidcLogin() async {
-    final store = await SharedPreferences.getInstance();
-    final storedHomeserverString = store.getString(
-      OidcSessionJsonExtension.homeserverStoreKey,
-    );
-    final homeserverUrl = storedHomeserverString == null
-        ? null
-        : Uri.tryParse(storedHomeserverString);
-
-    final oidcSessionString = store.getString(
-      OidcSessionJsonExtension.storeKey,
-    );
-    final session = oidcSessionString == null
-        ? null
-        : OidcSessionJsonExtension.fromJson(jsonDecode(oidcSessionString));
-
-    await store.remove(OidcSessionJsonExtension.storeKey);
-    await store.remove(OidcSessionJsonExtension.homeserverStoreKey);
-    if (!mounted) return;
-
-    if (homeserverUrl == null || session == null) {
-      setState(() {
-        isLoading = false;
-      });
-
-      return;
-    }
-    setState(() {
-      loggingInToHomeserver = homeserverUrl.origin;
-    });
-
-    try {
-      final returnUrl = Uri.parse(web.window.location.href);
-      final queryParameters = returnUrl.hasFragment
-          ? Uri.parse(returnUrl.fragment).queryParameters
-          : returnUrl.queryParameters;
-      final code = queryParameters['code'] as String;
-      final state = queryParameters['state'] as String;
-
-      final client = await Matrix.of(context).getLoginClient();
-      await client.checkHomeserver(homeserverUrl);
-      await client.oidcLogin(session: session, code: code, state: state);
-      if (!mounted) return;
-      context.go('/backup');
-    } catch (e, s) {
-      Logs().w('Unable to login via OIDC', e, s);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toLocalizedString(context))));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _login() {
-    final presetHomeserver = AppSettings.presetHomeserver.value;
-    if (presetHomeserver.isEmpty) {
-      context.go('${GoRouterState.of(context).uri.path}/sign_in');
-      return;
-    }
-
-    connectToHomeserverFlow(
-      PublicHomeserverData(name: presetHomeserver),
-      context,
-      (snapshot) {},
-      false,
-    );
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return IntroPage(
-      isLoading: isLoading,
-      loggingInToHomeserver: loggingInToHomeserver,
-      hasPresetHomeserver: AppSettings.presetHomeserver.value.isNotEmpty,
-      welcomeText: AppSettings.welcomeText.value.isEmpty
-          ? null
-          : AppSettings.welcomeText.value,
-      login: _login,
-    );
-  }
+  Widget build(BuildContext context) => const IntroPage();
 }
