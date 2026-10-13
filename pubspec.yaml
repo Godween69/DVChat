@@ -49,7 +49,6 @@ dependencies:
   flutter_webrtc: ^1.6.2+hotfix.3
   geolocator: ^14.1.1
   go_router: ^18.0.2
-  handy_window: ^0.4.2
   highlight: ^0.7.0
   html: ^0.15.7
   http: ^1.6.0
@@ -69,8 +68,6 @@ dependencies:
     git:
       url: https://github.com/famedly/matrix-dart-sdk.git
       ref: main
-  media_kit_libs_linux: ^1.2.1
-  media_kit_libs_windows_audio: ^1.0.9
   mime: ^2.1.0
   native_imaging: ^1.0.0
   ogg_caf_converter: ^0.1.4
@@ -132,11 +129,6 @@ flutter_launcher_icons:
   adaptive_icon_foreground: assets/logo/img/logo_foreground.png
   adaptive_icon_background: assets/logo/img/logo_background.png
   adaptive_icon_monochrome: assets/logo/img/logo_mono.png
-  ios: true
-  macos:
-    generate: true
-  windows:
-    generate: true
   web:
     generate: true
     image_path: assets/logo/img/logo.png
