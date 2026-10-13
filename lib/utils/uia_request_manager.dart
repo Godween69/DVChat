@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Повторный запрос пароля, когда сервер требует подтверждения действия (UIA), например при смене пароля.
+
 import 'dart:async';
 
 import 'package:dvchat/l10n/l10n.dart';

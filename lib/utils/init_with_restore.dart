@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Сохранение и восстановление входа: копия сессии (токен, устройство) хранится в защищённом
+// хранилище, чтобы после сбоя базы не пришлось входить заново.
+
 import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';

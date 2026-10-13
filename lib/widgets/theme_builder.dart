@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Контроллер темы: цвет, яркость, размер шрифта; сохраняет выбор в настройках.
+
 import 'package:collection/collection.dart';
 import 'package:dvchat/utils/color_value.dart';
 import 'package:dynamic_color/dynamic_color.dart';

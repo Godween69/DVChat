@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение DateTime: подписи времени и даты в списке чатов и в переписке («сегодня», «вчера»).
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:intl/intl.dart';

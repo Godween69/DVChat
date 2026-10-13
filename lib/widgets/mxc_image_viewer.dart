@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Полноэкранный просмотр картинки с сервера.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 

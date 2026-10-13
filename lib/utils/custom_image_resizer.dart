@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Уменьшение картинок перед отправкой в чат (размер и качество), чтобы не слать оригиналы.
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';

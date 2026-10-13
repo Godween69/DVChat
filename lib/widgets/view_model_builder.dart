@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Вспомогательный виджет: пересобирает экран при изменении ValueNotifier-модели.
+
 import 'package:material_ui/material_ui.dart';
 
 class ViewModelBuilder<T extends ValueNotifier> extends StatefulWidget {

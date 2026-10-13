@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Запуск постоянного уведомления службы (foreground service) для работы приёма сообщений в фоне.
+
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';

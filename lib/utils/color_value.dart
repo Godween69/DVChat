@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение Color: перевод цвета в число/строку для хранения в настройках.
+
 import 'package:flutter/widgets.dart';
 
 extension ColorValue on Color {

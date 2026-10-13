@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран обрезки аватара перед загрузкой.
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 

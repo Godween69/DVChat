@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширения над потоками (Stream): сбор событий пачками и ожидание первого значения.
+
 import 'dart:async';
 
 extension StreamExtension on Stream {

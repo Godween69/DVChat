@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Блокировка приложения: следит за сворачиванием и показывает экран ввода PIN, когда он включён.
+
 import 'package:dvchat/widgets/lock_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Тексты статуса синхронизации («Подключение…», «Синхронизация…») на русском.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:material_ui/material_ui.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Обработка ошибок: пишет в лог, наружу ничего не отправляет.
+
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение String: стабильный цвет по имени (цвет аватара без картинки).
+
 import 'package:material_ui/material_ui.dart';
 
 extension StringColor on String {

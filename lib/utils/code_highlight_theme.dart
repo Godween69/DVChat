@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Цвета подсветки кода в сообщениях (светлая и тёмная темы).
+
 import 'package:flutter/widgets.dart';
 
 const hightlightTextColor = Color(0xffabb2bf);

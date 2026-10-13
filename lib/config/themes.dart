@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Темы оформления DVChat (светлая/тёмная, скругления, цвета пузырей сообщений).
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:flutter/services.dart';

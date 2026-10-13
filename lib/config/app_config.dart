@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Константы приложения: идентификатор, ссылки (код, обращения), цвета, имена каналов уведомлений.
+
 import 'dart:ui';
 
 abstract class AppConfig {

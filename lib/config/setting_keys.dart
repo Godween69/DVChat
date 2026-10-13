@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Все пользовательские настройки (ключи dvchat.*) с значениями по умолчанию и чтением/записью
+// через SharedPreferences. Старые ключи переносит legacy_migration.
+
 import 'package:async/async.dart';
 import 'package:dvchat/utils/legacy_migration.dart';
 import 'package:dvchat/utils/platform_infos.dart';

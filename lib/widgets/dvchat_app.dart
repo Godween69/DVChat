@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Корневой виджет приложения: тема, язык, роутер, блокировка. Вокруг него строится весь интерфейс.
+
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/routes.dart';

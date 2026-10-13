@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Показ нижней панели/диалога, подстраивающегося под размер экрана.
+
 import 'dart:math';
 
 import 'package:dvchat/config/app_config.dart';

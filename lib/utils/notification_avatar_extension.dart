@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Подготовка аватара отправителя для показа в уведомлении.
+
 import 'dart:io';
 import 'dart:typed_data';
 

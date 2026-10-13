@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Сведения о платформе (Android/web), версии приложения и ссылки на «О приложении».
+
 import 'dart:io';
 
 import 'package:dvchat/config/setting_keys.dart';

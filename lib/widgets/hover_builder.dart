@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Вспомогательный виджет: сообщает, наведён ли указатель (нужно вебу).
+
 import 'package:material_ui/material_ui.dart';
 
 class HoverBuilder extends StatefulWidget {

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Диалог с крутилкой на время долгой операции; закрывается сам и показывает ошибку, если она случилась.
+
 import 'dart:async';
 
 import 'package:async/async.dart';

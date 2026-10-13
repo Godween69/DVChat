@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Открытие ссылок: внутри приложения (matrix.to, ссылки на комнаты и пользователей) или во внешнем приложении.
+
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';

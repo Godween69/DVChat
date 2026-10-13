@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Аватар пользователя или чата: картинка либо цветная плашка с первой буквой.
+
 import 'package:dvchat/utils/string_color.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:dvchat/widgets/presence_builder.dart';

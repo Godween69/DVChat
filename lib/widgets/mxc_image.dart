@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Картинка с сервера Matrix (mxc://): загрузка, кеш, заглушка и обработка ошибок.
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';

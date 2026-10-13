@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Контекстное меню для выделенного текста в сообщениях и поле ввода (копировать, вставить и т.п.).
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:material_ui/material_ui.dart';

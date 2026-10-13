@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран блокировки: ввод PIN-кода.
+
 import 'dart:async';
 
 import 'package:dvchat/l10n/l10n.dart';

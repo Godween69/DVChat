@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно «Поделиться»: выбор чата, куда переслать текст, файл или сообщение.
+
 import 'package:cross_file/cross_file.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';

@@ -1,3 +1,5 @@
+// DVChat: Логотип DVChat как виджет.
+
 import 'package:material_ui/material_ui.dart';
 
 /// DVChat: логотип приложения (иконка с монограммой DV и чат-пузырём).

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Переключатель в настройках, связанный с ключом AppSettings.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:material_ui/material_ui.dart';
 

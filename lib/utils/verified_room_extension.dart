@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение Room: признак «все устройства собеседника проверены».
+
 import 'package:matrix/matrix.dart';
 
 extension VerifiedRoomExtension on Room {

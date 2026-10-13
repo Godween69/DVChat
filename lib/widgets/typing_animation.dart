@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Анимация «печатает…» из трёх точек.
+
 import 'dart:async';
 
 import 'package:dvchat/config/themes.dart';

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Заставка при запуске приложения.
+
 import 'package:dvchat/widgets/dv_logo.dart';
 import 'package:material_ui/material_ui.dart';
 
