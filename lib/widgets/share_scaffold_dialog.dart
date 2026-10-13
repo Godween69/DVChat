@@ -89,9 +89,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
         .where((room) => !room.isNewcomerPlaceholder)
         .where(
           (room) =>
-              room.canSendDefaultMessages &&
-              !room.isSpace &&
-              room.membership == Membership.join,
+              room.canSendDefaultMessages && room.membership == Membership.join,
         )
         .toList();
     final filter = _filterController.text.trim().toLowerCase();

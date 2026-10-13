@@ -29,16 +29,6 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
   bool historyVisibilityLoading = false;
   bool guestAccessLoading = false;
   Room get room => Matrix.of(context).client.getRoomById(widget.roomId)!;
-  Set<Room> get knownSpaceParents => {
-    ...room.client.rooms.where(
-      (space) =>
-          space.isSpace &&
-          space.spaceChildren.any((child) => child.roomId == room.id),
-    ),
-    ...room.spaceParents
-        .map((parent) => room.client.getRoomById(parent.roomId ?? ''))
-        .whereType<Room>(),
-  };
 
   String get roomVersion =>
       room
@@ -69,10 +59,9 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
       joinRules.remove(JoinRules.knockRestricted);
     }
 
-    if (knownSpaceParents.isEmpty) {
-      joinRules.remove(JoinRules.restricted);
-      joinRules.remove(JoinRules.knockRestricted);
-    }
+    // Ограниченный доступ (restricted) привязан к спейсам, в DVChat их нет
+    joinRules.remove(JoinRules.restricted);
+    joinRules.remove(JoinRules.knockRestricted);
 
     // If an unsupported join rule is the current join rule, display it:
     final currentJoinRule = room.joinRules;
@@ -88,16 +77,7 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
     });
 
     try {
-      await room.setJoinRules(
-        newJoinRules,
-        allowConditionRoomIds:
-            {
-              JoinRules.restricted,
-              JoinRules.knockRestricted,
-            }.contains(newJoinRules)
-            ? knownSpaceParents.map((parent) => parent.id).toList()
-            : null,
-      );
+      await room.setJoinRules(newJoinRules);
     } catch (e, s) {
       Logs().w('Unable to change join rules', e, s);
       if (mounted) {
