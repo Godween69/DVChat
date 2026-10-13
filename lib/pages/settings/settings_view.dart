@@ -140,6 +140,14 @@ class SettingsView extends StatelessWidget {
                   ? theme.colorScheme.surfaceContainerHigh
                   : null,
             ),
+            ListTile(
+              leading: const Icon(Icons.feedback_outlined),
+              title: const Text('Обратная связь'),
+              onTap: () => context.go('/rooms/settings/feedback'),
+              tileColor: activeRoute.startsWith('/rooms/settings/feedback')
+                  ? theme.colorScheme.surfaceContainerHigh
+                  : null,
+            ),
             if (PlatformInfos.isAndroid)
               FutureBuilder<PackageInfo>(
                 future: PackageInfo.fromPlatform(),
