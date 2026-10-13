@@ -16,7 +16,7 @@ import 'package:dvchat/main.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/push_helper.dart';
-import 'package:dvchat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
@@ -71,7 +71,7 @@ class BackgroundPush {
           await notificationTap(
             NotificationResponseJson.fromJsonString(message),
             clients: clients,
-            router: FluffyChatApp.router,
+            router: DvChatApp.router,
             l10n: l10n,
           );
         } catch (e, s) {
@@ -90,7 +90,7 @@ class BackgroundPush {
             await notificationTap(
               NotificationResponseJson.fromJsonString(message),
               clients: clients,
-              router: FluffyChatApp.router,
+              router: DvChatApp.router,
               l10n: l10n,
             );
           } catch (e, s) {
@@ -106,7 +106,7 @@ class BackgroundPush {
         onDidReceiveNotificationResponse: (response) => notificationTap(
           response,
           clients: clients,
-          router: FluffyChatApp.router,
+          router: DvChatApp.router,
           l10n: l10n,
         ),
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -307,7 +307,7 @@ class BackgroundPush {
         notificationTap(
           response,
           clients: clients,
-          router: FluffyChatApp.router,
+          router: DvChatApp.router,
           l10n: l10n,
         );
       }

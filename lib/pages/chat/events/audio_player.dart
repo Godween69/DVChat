@@ -23,7 +23,7 @@ import 'package:ogg_caf_converter/ogg_caf_converter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../utils/matrix_sdk_extensions/event_extension.dart';
-import '../../../widgets/fluffy_chat_app.dart';
+import '../../../widgets/dvchat_app.dart';
 import '../../../widgets/matrix.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
@@ -90,7 +90,7 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
               content: StreamBuilder(
                 stream: audioPlayer.positionStream.asBroadcastStream(),
                 builder: (context, _) => GestureDetector(
-                  onTap: () => FluffyChatApp.router.go(
+                  onTap: () => DvChatApp.router.go(
                     '/rooms/${widget.event.room.id}?event=${widget.event.eventId}',
                   ),
                   child: Text(
@@ -365,7 +365,7 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                 children: [
                   ConstrainedBox(
                     constraints: const BoxConstraints(
-                      maxWidth: FluffyThemes.columnWidth,
+                      maxWidth: DvThemes.columnWidth,
                     ),
                     child: Row(
                       mainAxisSize: .min,
@@ -548,7 +548,7 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                           crossFadeState: audioPlayer == null
                               ? CrossFadeState.showFirst
                               : CrossFadeState.showSecond,
-                          duration: FluffyThemes.animationDuration,
+                          duration: DvThemes.animationDuration,
                         ),
                       ],
                     ),

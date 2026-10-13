@@ -35,8 +35,8 @@ class SettingsStyleView extends StatelessWidget {
     final client = Matrix.of(context).client;
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: !FluffyThemes.isColumnMode(context),
-        centerTitle: FluffyThemes.isColumnMode(context),
+        automaticallyImplyLeading: !DvThemes.isColumnMode(context),
+        centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).changeTheme),
       ),
       backgroundColor: theme.colorScheme.surface,
@@ -229,8 +229,8 @@ class SettingsStyleView extends StatelessWidget {
                         ),
                       ),
                       child: AnimatedContainer(
-                        duration: FluffyThemes.animationDuration,
-                        curve: FluffyThemes.animationCurve,
+                        duration: DvThemes.animationDuration,
+                        curve: DvThemes.animationCurve,
                         decoration: BoxDecoration(
                           color: AppSettings.chatBackgroundColorInt.value == 0
                               ? null
@@ -253,7 +253,7 @@ class SettingsStyleView extends StatelessWidget {
                                     uri: accountConfig.wallpaperUrl,
                                     fit: BoxFit.cover,
                                     isThumbnail: true,
-                                    width: FluffyThemes.columnWidth * 2,
+                                    width: DvThemes.columnWidth * 2,
                                     height: 212,
                                   ),
                                 ),

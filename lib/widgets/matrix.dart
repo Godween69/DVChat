@@ -15,7 +15,7 @@ import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/uia_request_manager.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:dvchat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -67,7 +67,6 @@ class MatrixState extends State<Matrix> {
   SharedPreferences get store => widget.store;
 
   BackgroundPush? backgroundPush;
-
 
   Client get client {
     if (_activeClient < 0 || _activeClient >= widget.clients.length) {
@@ -161,7 +160,7 @@ class MatrixState extends State<Matrix> {
                 _registerSubs(_loginClientCandidate!.clientName);
                 setActiveClient(_loginClientCandidate);
                 _loginClientCandidate = null;
-                FluffyChatApp.router.go('/rooms');
+                DvChatApp.router.go('/rooms');
               });
     if (widget.clients.isEmpty) widget.clients.add(candidate);
     return candidate;
@@ -192,7 +191,7 @@ class MatrixState extends State<Matrix> {
   }
 
   String? get activeRoomId {
-    final route = FluffyChatApp.router.routeInformationProvider.value.uri.path;
+    final route = DvChatApp.router.routeInformationProvider.value.uri.path;
     if (!route.startsWith('/rooms/')) return null;
     return route.split('/')[2];
   }
@@ -237,14 +236,14 @@ class MatrixState extends State<Matrix> {
                   KeyVerificationState.done,
                   KeyVerificationState.error,
                 }.contains(request.state)) {
-              FluffyChatApp.router.pop('dialog');
+              DvChatApp.router.pop('dialog');
             }
             hidPopup = true;
           };
           request.onUpdate = null;
           hidPopup = true;
           await KeyVerificationDialog(request: request).show(
-            FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
+            DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
                 context,
           );
         });
@@ -260,11 +259,7 @@ class MatrixState extends State<Matrix> {
 
           if (loggedInWithMultipleClients) {
             final snackbarContext =
-                FluffyChatApp
-                    .router
-                    .routerDelegate
-                    .navigatorKey
-                    .currentContext ??
+                DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
                 context;
 
             if (!snackbarContext.mounted) return;
@@ -274,14 +269,14 @@ class MatrixState extends State<Matrix> {
             ).showSnackBar(SnackBar(content: Text(l10n.oneClientLoggedOut)));
             return;
           }
-          FluffyChatApp.router.go('/');
+          DvChatApp.router.go('/');
         });
     onUiaRequest[name] ??= c.onUiaRequest.stream.listen(uiaRequestHandler);
     if (PlatformInfos.isWeb || PlatformInfos.isDesktop) {
       FlutterLocalNotificationsPlugin().initialize(
         settings: InitializationSettings(
           linux: LinuxInitializationSettings(
-            defaultActionName: FluffyChatNotificationActions.open.name,
+            defaultActionName: DvChatNotificationActions.open.name,
           ),
           windows: ClientManager.windowsNotificationSettings,
           macOS: const DarwinInitializationSettings(),
@@ -289,7 +284,7 @@ class MatrixState extends State<Matrix> {
         onDidReceiveNotificationResponse: (response) => notificationTap(
           response,
           clients: widget.clients,
-          router: FluffyChatApp.router,
+          router: DvChatApp.router,
           l10n: null,
         ),
       );
@@ -323,7 +318,7 @@ class MatrixState extends State<Matrix> {
         this,
         onFcmError: (errorMsg, {Uri? link}) async {
           final context =
-              FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
+              DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
               this.context;
           if (!context.mounted) return;
           final result = await showOkCancelAlertDialog(

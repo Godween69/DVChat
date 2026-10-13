@@ -21,8 +21,8 @@ class ReplyDisplay extends StatelessWidget {
     final theme = Theme.of(context);
 
     return AnimatedSize(
-      duration: FluffyThemes.animationDuration,
-      curve: FluffyThemes.animationCurve,
+      duration: DvThemes.animationDuration,
+      curve: DvThemes.animationCurve,
       clipBehavior: Clip.hardEdge,
       child: controller.editEvent != null || controller.replyEvent != null
           ? Material(

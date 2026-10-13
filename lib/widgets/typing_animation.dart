@@ -53,7 +53,7 @@ class _TypingAnimationState extends State<TypingAnimation> {
         for (var i = 1; i <= 3; i++)
           AnimatedContainer(
             duration: animationDuration * 1.5,
-            curve: FluffyThemes.animationCurve,
+            curve: DvThemes.animationCurve,
             width: size,
             height: _tick == i ? size * 2 : size,
             margin: EdgeInsets.symmetric(

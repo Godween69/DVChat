@@ -3,7 +3,7 @@
 
 import 'dart:async';
 
-import 'package:dvchat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
@@ -68,8 +68,7 @@ Future<bool> setupCryptoSilently(Client client, String passphrase) async {
 
 // Временно показываем причину сбоя (потом заменим на короткое сообщение)
 void _showFailure(String reason) {
-  final context =
-      FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
+  final context = DvChatApp.router.routerDelegate.navigatorKey.currentContext;
   if (context == null || !context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(

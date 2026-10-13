@@ -9,9 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../widgets/matrix.dart';
-
-abstract class FluffyShare {
+abstract class DvShare {
   static Future<void> share(
     String text,
     BuildContext context, {
@@ -36,19 +34,5 @@ abstract class FluffyShare {
       );
     }
     return;
-  }
-
-  static Future<void> shareInviteLink(BuildContext context) async {
-    final l10n = L10n.of(context);
-    final client = Matrix.of(context).client;
-    final ownProfile = await client.fetchOwnProfile();
-    if (!context.mounted) return;
-    await FluffyShare.share(
-      l10n.inviteText(
-        ownProfile.displayName ?? client.userID!,
-        'https://matrix.to/#/${client.userID}?client=im.fluffychat',
-      ),
-      context,
-    );
   }
 }

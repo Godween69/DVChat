@@ -29,8 +29,8 @@ class TwoColumnLayout extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               decoration: const BoxDecoration(),
               width:
-                  FluffyThemes.columnWidth +
-                  (hasNavigationRail ? FluffyThemes.navRailWidth : 0),
+                  DvThemes.columnWidth +
+                  (hasNavigationRail ? DvThemes.navRailWidth : 0),
               child: mainView,
             ),
             Container(width: 1.0, color: theme.dividerColor),

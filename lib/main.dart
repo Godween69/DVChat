@@ -24,7 +24,7 @@ import 'package:universal_html/universal_html.dart' as web;
 
 import 'config/setting_keys.dart';
 import 'utils/background_push.dart';
-import 'widgets/fluffy_chat_app.dart';
+import 'widgets/dvchat_app.dart';
 
 ReceivePort? mainIsolateReceivePort;
 
@@ -135,7 +135,7 @@ Future<void> startGui(List<Client> clients, SharedPreferences store) async {
   await firstClient?.accountDataLoading;
 
   runApp(
-    FluffyChatApp(
+    DvChatApp(
       clients: clients,
       appLockSettings: (pincode: pin, useBiometrics: useBiometrics),
       store: store,

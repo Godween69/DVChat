@@ -254,7 +254,7 @@ class Message extends StatelessWidget {
         onSwipe: (_) => onSwipe(),
         child: Container(
           constraints: const BoxConstraints(
-            maxWidth: FluffyThemes.maxTimelineWidth,
+            maxWidth: DvThemes.maxTimelineWidth,
           ),
           padding: EdgeInsets.only(
             left: 8.0,
@@ -494,7 +494,7 @@ class Message extends StatelessWidget {
                                           ),
                                           constraints: const BoxConstraints(
                                             maxWidth:
-                                                FluffyThemes.columnWidth * 1.5,
+                                                DvThemes.columnWidth * 1.5,
                                           ),
                                           child: Column(
                                             mainAxisSize: .min,
@@ -596,8 +596,8 @@ class Message extends StatelessWidget {
                             ),
 
                             AnimatedSize(
-                              duration: FluffyThemes.animationDuration,
-                              curve: FluffyThemes.animationCurve,
+                              duration: DvThemes.animationDuration,
+                              curve: DvThemes.animationCurve,
                               alignment: Alignment.bottomCenter,
                               child: !hasReactions
                                   ? const SizedBox.shrink()
@@ -701,8 +701,8 @@ class Message extends StatelessWidget {
                                   ? Alignment.bottomRight
                                   : Alignment.bottomLeft,
                               child: AnimatedSize(
-                                duration: FluffyThemes.animationDuration,
-                                curve: FluffyThemes.animationCurve,
+                                duration: DvThemes.animationDuration,
+                                curve: DvThemes.animationCurve,
                                 child: showReactionPicker
                                     ? Padding(
                                         padding: const EdgeInsets.all(4.0),
@@ -911,8 +911,8 @@ class Message extends StatelessWidget {
               ),
               if (enterThread != null)
                 AnimatedSize(
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   alignment: Alignment.bottomCenter,
                   child: threadChildren.isEmpty
                       ? const SizedBox.shrink()
@@ -924,7 +924,7 @@ class Message extends StatelessWidget {
                           ),
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(
-                              maxWidth: FluffyThemes.columnWidth * 1.5,
+                              maxWidth: DvThemes.columnWidth * 1.5,
                             ),
                             child: TextButton.icon(
                               style: TextButton.styleFrom(
@@ -1085,8 +1085,8 @@ class __AnimateInState extends State<_AnimateIn> {
     }
 
     return AnimatedSize(
-      duration: FluffyThemes.animationDuration,
-      curve: FluffyThemes.animationCurve,
+      duration: DvThemes.animationDuration,
+      curve: DvThemes.animationCurve,
       child: _animationFinished ? widget.child : const SizedBox.shrink(),
     );
   }

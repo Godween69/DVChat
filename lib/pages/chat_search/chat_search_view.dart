@@ -49,8 +49,7 @@ class ChatSearchView extends StatelessWidget {
         withScrolling: false,
         child: Column(
           children: [
-            if (FluffyThemes.isThreeColumnMode(context))
-              const SizedBox(height: 16),
+            if (DvThemes.isThreeColumnMode(context)) const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(

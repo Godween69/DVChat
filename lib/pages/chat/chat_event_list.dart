@@ -37,7 +37,7 @@ class ChatEventList extends StatelessWidget {
 
     final colors = [theme.secondaryBubbleColor, theme.bubbleColor];
 
-    final horizontalPadding = FluffyThemes.isColumnMode(context) ? 8.0 : 0.0;
+    final horizontalPadding = DvThemes.isColumnMode(context) ? 8.0 : 0.0;
 
     // DVChat: служебные события комнаты (создание, вход, выход, настройки) пользователям не показываются
     final events = timeline.events
@@ -66,7 +66,7 @@ class ChatEventList extends StatelessWidget {
             bottom:
                 8 +
                 (controller.inputBarHeight ??
-                    (72 + (FluffyThemes.isColumnMode(context) ? 16 : 0))),
+                    (72 + (DvThemes.isColumnMode(context) ? 16 : 0))),
             left: horizontalPadding,
             right: horizontalPadding,
           ),
@@ -94,9 +94,7 @@ class ChatEventList extends StatelessWidget {
                 }
                 return Column(
                   mainAxisSize: .min,
-                  children: [
-                    TypingIndicators(controller),
-                  ],
+                  children: [TypingIndicators(controller)],
                 );
               }
 

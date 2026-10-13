@@ -53,7 +53,7 @@ class _SettingsFeedbackState extends State<SettingsFeedback> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: FluffyThemes.isColumnMode(context)
+        leading: DvThemes.isColumnMode(context)
             ? null
             : Center(
                 child: BackButton(

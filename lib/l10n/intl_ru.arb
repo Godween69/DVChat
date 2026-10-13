@@ -784,18 +784,6 @@
     "type": "String",
     "placeholders": {}
   },
-  "inviteText": "{username} пригласил(а) вас в FluffyChat. \n1. Посетите https://fluffychat.im и установите приложение \n2. Зарегистрируйтесь или войдите \n3. Откройте ссылку приглашения: \n {link}",
-  "@inviteText": {
-    "type": "String",
-    "placeholders": {
-      "username": {
-        "type": "String"
-      },
-      "link": {
-        "type": "String"
-      }
-    }
-  },
   "isTyping": "печатает…",
   "@isTyping": {
     "type": "String",
@@ -1752,7 +1740,6 @@
   "chatDescriptionHasBeenChanged": "Описание чата изменено",
   "noChatDescriptionYet": "Описание чата не создано.",
   "messagesStyle": "Сообщения:",
-  "shareInviteLink": "Поделиться приглашением",
   "setChatDescription": "Установить описание чата",
   "setColorTheme": "Цветовая тема:",
   "invite": "Пригласить",
@@ -1903,7 +1890,6 @@
   },
   "incomingMessages": "Входящие сообщения",
   "stickers": "Стикеры",
-  "discover": "Исследовать",
   "globalChatId": "ID глобального чата",
   "knocking": "Стучаться",
   "accessAndVisibility": "Доступность и видимость",
@@ -1975,7 +1961,6 @@
   "unread": "Непрочитанные",
   "space": "Пространство",
   "sendCanceled": "Отправка отменена",
-  "changelog": "Список изменений",
   "doesNotSeemToBeAValidHomeserver": "Этот домашний сервер выглядит несовместимым. Нет ли в ссылке опечаток?",
   "noMoreChatsFound": "Больше чатов не обнаружено...",
   "oneOfYourDevicesIsNotVerified": "Одно из ваших устройств не подтверждено",
@@ -2011,7 +1996,6 @@
   "supportPage": "Страница поддержки",
   "name": "Имя",
   "version": "Версия",
-  "website": "Сайт",
   "sendImages": "Отправить {count} изображение",
   "@sendImages": {
     "type": "String",
@@ -2328,7 +2312,7 @@
     "type": "String",
     "placeholders": {}
   },
-  "newPassphraseDescription": "FluffyChat защищает ваши сообщения сквозным шифрованием. Чтобы не потерять ваши сообщения, пожалуйста, придумайте сильную кодовую фразу, чтобы защитить вашу крипто-идентичность и легко восстанавливать зашифрованные сообщения.",
+  "newPassphraseDescription": "DVChat защищает ваши сообщения сквозным шифрованием. Чтобы не потерять ваши сообщения, пожалуйста, придумайте сильную кодовую фразу, чтобы защитить вашу крипто-идентичность и легко восстанавливать зашифрованные сообщения.",
   "@newPassphraseDescription": {
     "type": "String",
     "placeholders": {}

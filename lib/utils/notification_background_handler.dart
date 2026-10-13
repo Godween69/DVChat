@@ -83,7 +83,7 @@ Future<void> notificationTapBackground(
   }
   final store = await AppSettings.init();
 
-  final payload = FluffyChatPushPayload.fromString(
+  final payload = DvChatPushPayload.fromString(
     notificationResponse.payload ?? '',
   );
   final clientName = payload.clientName;
@@ -119,7 +119,7 @@ Future<void> notificationTap(
     'Notification action handler started',
     notificationResponse.notificationResponseType.name,
   );
-  final payload = FluffyChatPushPayload.fromString(
+  final payload = DvChatPushPayload.fromString(
     notificationResponse.payload ?? '',
   );
   final client =
@@ -157,7 +157,7 @@ Future<void> notificationTap(
             : '/rooms/$roomId?client=${client.clientName}',
       );
     case NotificationResponseType.selectedNotificationAction:
-      final actionType = FluffyChatNotificationActions.values.singleWhereOrNull(
+      final actionType = DvChatNotificationActions.values.singleWhereOrNull(
         (action) => action.name == notificationResponse.actionId,
       );
       if (actionType == null) {
@@ -177,13 +177,13 @@ Future<void> notificationTap(
         );
       }
       switch (actionType) {
-        case FluffyChatNotificationActions.markAsRead:
+        case DvChatNotificationActions.markAsRead:
           await room.setReadMarker(
             payload.eventId ?? room.lastEvent!.eventId,
             mRead: payload.eventId ?? room.lastEvent!.eventId,
             public: AppSettings.sendPublicReadReceipts.value,
           );
-        case FluffyChatNotificationActions.reply:
+        case DvChatNotificationActions.reply:
           final input = notificationResponse.input;
           if (input == null || input.isEmpty) {
             throw Exception(
@@ -196,9 +196,9 @@ Future<void> notificationTap(
             parseCommands: false,
             displayPendingEvent: false,
           );
-        case FluffyChatNotificationActions.mute:
+        case DvChatNotificationActions.mute:
           await room.setPushRuleState(PushRuleState.mentionsOnly);
-        case FluffyChatNotificationActions.open:
+        case DvChatNotificationActions.open:
           router?.go(
             client.getRoomById(roomId)?.membership == Membership.invite
                 ? '/rooms?client=${client.clientName}'
@@ -210,4 +210,4 @@ Future<void> notificationTap(
   }
 }
 
-enum FluffyChatNotificationActions { markAsRead, reply, mute, open }
+enum DvChatNotificationActions { markAsRead, reply, mute, open }

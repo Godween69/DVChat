@@ -47,9 +47,9 @@ class MxcImage extends StatefulWidget {
     this.placeholder,
     this.isThumbnail = true,
     this.animated = false,
-    this.animationDuration = FluffyThemes.animationDuration,
+    this.animationDuration = DvThemes.animationDuration,
     this.retryDuration = const Duration(seconds: 2),
-    this.animationCurve = FluffyThemes.animationCurve,
+    this.animationCurve = DvThemes.animationCurve,
     this.thumbnailMethod = ThumbnailMethod.scale,
     this.cacheKey,
     this.client,
@@ -204,7 +204,7 @@ class _MxcImageState extends State<MxcImage> {
                 ));
 
     return AnimatedCrossFade(
-      duration: FluffyThemes.animationDuration,
+      duration: DvThemes.animationDuration,
       firstChild: ClipRRect(
         borderRadius: widget.borderRadius,
         child: imageChild,

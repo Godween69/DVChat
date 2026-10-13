@@ -28,7 +28,7 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final client = Matrix.of(context).client;
-    final isColumnMode = FluffyThemes.isColumnMode(context);
+    final isColumnMode = DvThemes.isColumnMode(context);
 
     return SliverAppBar(
       floating: true,

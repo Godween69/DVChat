@@ -22,7 +22,7 @@ class ChatsNavigationRail extends StatelessWidget {
     return Material(
       child: SafeArea(
         child: SizedBox(
-          width: FluffyThemes.navRailWidth,
+          width: DvThemes.navRailWidth,
           child: Column(
             children: [
               Expanded(

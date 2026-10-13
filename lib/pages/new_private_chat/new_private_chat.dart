@@ -10,7 +10,6 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_private_chat/new_private_chat_view.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
-import 'package:dvchat/utils/fluffy_share.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/url_launcher.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -82,8 +81,6 @@ class NewPrivateChatController extends State<NewPrivateChat> {
 
     return profiles;
   }
-
-  void inviteAction() => FluffyShare.shareInviteLink(context);
 
   Future<void> openScannerAction() async {
     final l10n = L10n.of(context);

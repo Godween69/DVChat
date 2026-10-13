@@ -5,7 +5,7 @@
 
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/bootstrap/view_model/bootstrap_view_model.dart';
-import 'package:dvchat/utils/fluffy_share.dart';
+import 'package:dvchat/utils/dv_share.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -30,7 +30,7 @@ class StoreRecoveryKeyView extends StatelessWidget {
             suffixIcon: IconButton(
               icon: Icon(Icons.copy_outlined),
               onPressed: () =>
-                  FluffyShare.share(viewModel.value.recoveryKey!, context),
+                  DvShare.share(viewModel.value.recoveryKey!, context),
             ),
           ),
         ),

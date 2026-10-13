@@ -23,14 +23,14 @@ class ChatListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isColumnMode = FluffyThemes.isColumnMode(context);
+    final isColumnMode = DvThemes.isColumnMode(context);
     return Row(
       children: [
         Material(
           color: Theme.of(context).colorScheme.surface,
           child: AnimatedSize(
-            duration: FluffyThemes.animationDuration,
-            curve: FluffyThemes.animationCurve,
+            duration: DvThemes.animationDuration,
+            curve: DvThemes.animationCurve,
             child: isColumnMode
                 ? const ChatsNavigationRail()
                 : SizedBox(width: 0, height: MediaQuery.sizeOf(context).height),

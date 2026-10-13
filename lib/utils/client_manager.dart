@@ -51,9 +51,7 @@ abstract class ClientManager {
           (client) => client
               .initWithRestore(
                 onMigration: () async {
-                  final l10n = await lookupL10n(
-                    appLocale,
-                  );
+                  final l10n = await lookupL10n(appLocale);
                   sendInitNotification(
                     l10n.databaseMigrationTitle,
                     l10n.databaseMigrationBody,
@@ -174,7 +172,7 @@ abstract class ClientManager {
         android: const AndroidInitializationSettings('notifications_icon'),
         iOS: const DarwinInitializationSettings(),
         linux: LinuxInitializationSettings(
-          defaultActionName: FluffyChatNotificationActions.open.name,
+          defaultActionName: DvChatNotificationActions.open.name,
         ),
         windows: windowsNotificationSettings,
         macOS: const DarwinInitializationSettings(),

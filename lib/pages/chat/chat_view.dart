@@ -45,7 +45,7 @@ class ChatView extends StatelessWidget {
         exceptionContext: ExceptionContext.joinRoom,
       );
     }
-    final bottomSheetPadding = FluffyThemes.isColumnMode(context) ? 16.0 : 8.0;
+    final bottomSheetPadding = DvThemes.isColumnMode(context) ? 16.0 : 8.0;
     final scrollUpBannerEventId = controller.scrollUpBannerEventId;
 
     final accountConfig = Matrix.of(context).client.applicationAccountConfig;
@@ -88,7 +88,7 @@ class ChatView extends StatelessWidget {
               key: Key('chat_page'),
               extendBodyBehindAppBar: true,
               appBar: AppBar(
-                shape: FluffyThemes.isColumnMode(context)
+                shape: DvThemes.isColumnMode(context)
                     ? Border(
                         bottom: BorderSide(color: theme.dividerColor, width: 1),
                       )
@@ -118,10 +118,10 @@ class ChatView extends StatelessWidget {
                         tooltip: L10n.of(context).backToMainChat,
                         color: theme.colorScheme.onSecondaryContainer,
                       )
-                    : FluffyThemes.isColumnMode(context)
+                    : DvThemes.isColumnMode(context)
                     ? null
                     : const Center(child: BackButton()),
-                titleSpacing: FluffyThemes.isColumnMode(context) ? 24 : 0,
+                titleSpacing: DvThemes.isColumnMode(context) ? 24 : 0,
                 title: ChatAppBarTitle(controller),
                 actions: [
                   if (controller.selectMode) ...[
@@ -335,7 +335,7 @@ class ChatView extends StatelessWidget {
                             child: Container(
                               margin: EdgeInsets.all(bottomSheetPadding),
                               constraints: const BoxConstraints(
-                                maxWidth: FluffyThemes.maxTimelineWidth,
+                                maxWidth: DvThemes.maxTimelineWidth,
                               ),
                               child: controller.room.isExtinct
                                   ? ElevatedButton.icon(

@@ -95,11 +95,11 @@ extension LocalNotificationsExtension on MatrixState {
             EventTypes.Encrypted ||
             EventTypes.Sticker => [
               LinuxNotificationAction(
-                key: FluffyChatNotificationActions.markAsRead.name,
+                key: DvChatNotificationActions.markAsRead.name,
                 label: l10n.markAsRead,
               ),
               LinuxNotificationAction(
-                key: FluffyChatNotificationActions.mute.name,
+                key: DvChatNotificationActions.mute.name,
                 label: l10n.mute,
               ),
             ],
@@ -111,7 +111,7 @@ extension LocalNotificationsExtension on MatrixState {
           threadIdentifier: '${client.clientName}_${event.room.id}',
         ),
       ),
-      payload: FluffyChatPushPayload(
+      payload: DvChatPushPayload(
         client.clientName,
         event.room.id,
         event.eventId,

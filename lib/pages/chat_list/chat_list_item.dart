@@ -77,8 +77,8 @@ class _ChatListItemBody extends StatelessWidget {
               onLongPress: () => onLongPress?.call(context),
               leading: HoverBuilder(
                 builder: (context, hovered) => AnimatedScale(
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   scale: hovered ? 1.1 : 1.0,
                   child: SizedBox(
                     width: Avatar.defaultSize,
@@ -103,8 +103,8 @@ class _ChatListItemBody extends StatelessWidget {
                           child: GestureDetector(
                             onTap: () => onLongPress?.call(context),
                             child: AnimatedScale(
-                              duration: FluffyThemes.animationDuration,
-                              curve: FluffyThemes.animationCurve,
+                              duration: DvThemes.animationDuration,
+                              curve: DvThemes.animationCurve,
                               scale: listTileHovered ? 1.0 : 0.0,
                               child: Material(
                                 color: backgroundColor,
@@ -195,8 +195,8 @@ class _ChatListItemBody extends StatelessWidget {
                   ],
                   AnimatedSize(
                     clipBehavior: Clip.hardEdge,
-                    duration: FluffyThemes.animationDuration,
-                    curve: FluffyThemes.animationCurve,
+                    duration: DvThemes.animationDuration,
+                    curve: DvThemes.animationCurve,
                     child: typingText.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.only(right: 4.0),

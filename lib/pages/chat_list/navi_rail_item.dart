@@ -40,7 +40,7 @@ class NaviRailItem extends StatelessWidget {
       builder: (context, hovered) {
         return SizedBox(
           height: 64,
-          width: FluffyThemes.navRailWidth,
+          width: DvThemes.navRailWidth,
           child: Stack(
             children: [
               Positioned(
@@ -49,12 +49,12 @@ class NaviRailItem extends StatelessWidget {
                 left: 0,
                 child: AnimatedContainer(
                   width: isSelected
-                      ? FluffyThemes.isColumnMode(context)
+                      ? DvThemes.isColumnMode(context)
                             ? 8
                             : 4
                       : 0,
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
                     borderRadius: const BorderRadius.only(
@@ -67,8 +67,8 @@ class NaviRailItem extends StatelessWidget {
               Center(
                 child: AnimatedScale(
                   scale: hovered ? 1.1 : 1.0,
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   child: Material(
                     borderRadius: borderRadius,
                     color: isSelected

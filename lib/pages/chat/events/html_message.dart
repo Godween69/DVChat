@@ -657,8 +657,8 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedSize(
-          duration: FluffyThemes.animationDuration,
-          curve: FluffyThemes.animationCurve,
+          duration: DvThemes.animationDuration,
+          curve: DvThemes.animationCurve,
           alignment: AlignmentDirectional.topStart,
           child: Text.rich(
             widget.span,

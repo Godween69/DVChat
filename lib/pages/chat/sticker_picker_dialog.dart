@@ -5,7 +5,6 @@
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
-import 'package:dvchat/utils/url_launcher.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -77,18 +76,7 @@ class StickerPickerDialogState extends State<StickerPickerDialog> {
                 child: Center(
                   child: Column(
                     mainAxisSize: .min,
-                    children: [
-                      Text(L10n.of(context).noEmotesFound),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () => UrlLauncher(
-                          context,
-                          AppConfig.howDoIGetStickersTutorial,
-                        ).launchUrl(),
-                        icon: const Icon(Icons.explore_outlined),
-                        label: Text(L10n.of(context).discover),
-                      ),
-                    ],
+                    children: [Text(L10n.of(context).noEmotesFound)],
                   ),
                 ),
               )

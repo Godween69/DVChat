@@ -21,13 +21,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/custom_scroll_behaviour.dart';
 import 'matrix.dart';
 
-class FluffyChatApp extends StatelessWidget {
+class DvChatApp extends StatelessWidget {
   final Widget? testWidget;
   final List<Client> clients;
   final ({String? pincode, bool useBiometrics}) appLockSettings;
   final SharedPreferences store;
 
-  const FluffyChatApp({
+  const DvChatApp({
     super.key,
     this.testWidget,
     required this.clients,
@@ -76,12 +76,8 @@ class FluffyChatApp extends StatelessWidget {
       builder: (context, themeMode, primaryColor) => MaterialApp.router(
         title: AppSettings.applicationName.value,
         themeMode: themeMode,
-        theme: FluffyThemes.buildTheme(context, Brightness.light, primaryColor),
-        darkTheme: FluffyThemes.buildTheme(
-          context,
-          Brightness.dark,
-          primaryColor,
-        ),
+        theme: DvThemes.buildTheme(context, Brightness.light, primaryColor),
+        darkTheme: DvThemes.buildTheme(context, Brightness.dark, primaryColor),
         scrollBehavior: CustomScrollBehavior(),
         localizationsDelegates: [
           ...L10n.localizationsDelegates,

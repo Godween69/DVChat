@@ -317,19 +317,19 @@ Future<void> _tryPushHelper(
       EventTypes.Encrypted ||
       EventTypes.Sticker => <AndroidNotificationAction>[
         AndroidNotificationAction(
-          FluffyChatNotificationActions.reply.name,
+          DvChatNotificationActions.reply.name,
           l10n.reply,
           inputs: [AndroidNotificationActionInput(label: l10n.writeAMessage)],
           allowGeneratedReplies: true,
           semanticAction: SemanticAction.reply,
         ),
         AndroidNotificationAction(
-          FluffyChatNotificationActions.markAsRead.name,
+          DvChatNotificationActions.markAsRead.name,
           l10n.markAsRead,
           semanticAction: SemanticAction.markAsRead,
         ),
         AndroidNotificationAction(
-          FluffyChatNotificationActions.mute.name,
+          DvChatNotificationActions.mute.name,
           l10n.mute,
           semanticAction: SemanticAction.mute,
         ),
@@ -369,7 +369,7 @@ Future<void> _tryPushHelper(
     title: needsTitleAndBody ? title : null,
     body: needsTitleAndBody ? body : null,
     notificationDetails: platformChannelSpecifics,
-    payload: FluffyChatPushPayload(
+    payload: DvChatPushPayload(
       client.clientName,
       event.room.id,
       event.eventId,
@@ -438,17 +438,17 @@ Future<void> updateSummaryNotification({
   );
 }
 
-class FluffyChatPushPayload {
+class DvChatPushPayload {
   final String? clientName, roomId, eventId;
 
-  FluffyChatPushPayload(this.clientName, this.roomId, this.eventId);
+  DvChatPushPayload(this.clientName, this.roomId, this.eventId);
 
-  factory FluffyChatPushPayload.fromString(String payload) {
+  factory DvChatPushPayload.fromString(String payload) {
     final parts = payload.split('|');
     if (parts.length != 3) {
-      return FluffyChatPushPayload(null, null, null);
+      return DvChatPushPayload(null, null, null);
     }
-    return FluffyChatPushPayload(parts.first, parts[1], parts[2]);
+    return DvChatPushPayload(parts.first, parts[1], parts[2]);
   }
 
   @override

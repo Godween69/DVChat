@@ -5,7 +5,7 @@
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
-import 'package:dvchat/utils/fluffy_share.dart';
+import 'package:dvchat/utils/dv_share.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:flutter/foundation.dart';
@@ -74,7 +74,7 @@ class QrCodeViewer extends StatelessWidget {
               backgroundColor: Colors.black.withAlpha(128),
             ),
             icon: Icon(Icons.adaptive.share_outlined),
-            onPressed: () => FluffyShare.share(inviteLink, context),
+            onPressed: () => DvShare.share(inviteLink, context),
             color: Colors.white,
             tooltip: L10n.of(context).share,
           ),
@@ -112,7 +112,7 @@ class QrCodeViewer extends StatelessWidget {
                 children: [
                   ConstrainedBox(
                     constraints: const BoxConstraints(
-                      maxWidth: FluffyThemes.columnWidth,
+                      maxWidth: DvThemes.columnWidth,
                     ),
                     child: PrettyQrView.data(
                       data: inviteLink,

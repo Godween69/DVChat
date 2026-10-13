@@ -96,7 +96,7 @@ class NewPrivateChatView extends StatelessWidget {
             ),
             Expanded(
               child: AnimatedSwitcher(
-                duration: FluffyThemes.animationDuration,
+                duration: DvThemes.animationDuration,
                 child: searchResponse == null
                     ? ListView(
                         children: [
@@ -125,17 +125,6 @@ class NewPrivateChatView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.secondaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.onSecondaryContainer,
-                              child: Icon(Icons.adaptive.share_outlined),
-                            ),
-                            title: Text(L10n.of(context).shareInviteLink),
-                            onTap: controller.inviteAction,
-                          ),
                           ListTile(
                             leading: CircleAvatar(
                               backgroundColor:

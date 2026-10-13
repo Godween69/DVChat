@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'package:dvchat/l10n/l10n.dart';
-import 'package:dvchat/utils/fluffy_share.dart';
+import 'package:dvchat/utils/dv_share.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:flutter/services.dart';
@@ -160,10 +160,10 @@ class PublicRoomDialog extends StatelessWidget {
                                                   right: 4.0,
                                                 ),
                                                 child: AnimatedScale(
-                                                  duration: FluffyThemes
+                                                  duration: DvThemes
                                                       .animationDuration,
-                                                  curve: FluffyThemes
-                                                      .animationCurve,
+                                                  curve:
+                                                      DvThemes.animationCurve,
                                                   scale: hovered
                                                       ? 1.33
                                                       : copied
@@ -272,7 +272,7 @@ class PublicRoomDialog extends StatelessWidget {
                       AdaptiveIconTextButton(
                         label: L10n.of(context).share,
                         icon: Icons.adaptive.share,
-                        onTap: () => FluffyShare.share(
+                        onTap: () => DvShare.share(
                           'https://matrix.to/#/$roomLink',
                           context,
                         ),
