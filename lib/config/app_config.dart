@@ -36,9 +36,6 @@ abstract class AppConfig {
   static const double columnWidth = 360.0;
 
   static const String appId = 'online.dvbstudio.dvchat';
-  // Identifies the notification activation callback on Windows. Never change!
-  static const String windowsNotificationGuid =
-      '4894dfda-c70a-4ebc-b139-acae55f3988d';
 
   static const String sourceCodeUrl = 'https://github.com/Godween69/DVChat';
 

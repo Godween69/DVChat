@@ -227,8 +227,7 @@ class BootstrapViewModel extends ValueNotifier<BootstrapViewModelState> {
     }
   }
 
-  bool get supportsSecureStorage =>
-      PlatformInfos.isMobile || PlatformInfos.isDesktop;
+  bool get supportsSecureStorage => PlatformInfos.isMobile;
 
   Future<void> unlock(BuildContext context) async {
     final key = enterPassphraseOrRecovController.text.trim();

@@ -61,7 +61,7 @@ class SessionBackup {
 
 extension InitWithRestoreExtension on Client {
   static Future<void> deleteSessionBackup(String clientName) async {
-    final storage = PlatformInfos.isMobile || PlatformInfos.isLinux
+    final storage = PlatformInfos.isMobile
         ? const FlutterSecureStorage()
         : null;
     await storage?.delete(
@@ -72,7 +72,7 @@ extension InitWithRestoreExtension on Client {
   Future<void> initWithRestore({void Function()? onMigration}) async {
     final storageKey =
         '${AppSettings.applicationName.value}_session_backup_$clientName';
-    final storage = PlatformInfos.isMobile || PlatformInfos.isLinux
+    final storage = PlatformInfos.isMobile
         ? const FlutterSecureStorage()
         : null;
 

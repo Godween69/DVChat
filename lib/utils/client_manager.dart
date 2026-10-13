@@ -14,7 +14,6 @@ import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/custom_http_client.dart';
 import 'package:dvchat/utils/custom_image_resizer.dart';
 import 'package:dvchat/utils/init_with_restore.dart';
-import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -124,8 +123,7 @@ abstract class ClientManager {
       httpClient: CustomHttpClient.createHTTPClient(),
       verificationMethods: {
         KeyVerificationMethod.numbers,
-        if (kIsWeb || PlatformInfos.isMobile || PlatformInfos.isLinux)
-          KeyVerificationMethod.emoji,
+        if (kIsWeb || PlatformInfos.isMobile) KeyVerificationMethod.emoji,
       },
       importantStateEvents: <String>{
         // To make room emotes work
@@ -155,13 +153,6 @@ abstract class ClientManager {
     );
   }
 
-  static WindowsInitializationSettings get windowsNotificationSettings =>
-      WindowsInitializationSettings(
-        appName: AppSettings.applicationName.value,
-        appUserModelId: AppConfig.appId,
-        guid: AppConfig.windowsNotificationGuid,
-      );
-
   static Future<void> sendInitNotification(String title, String body) async {
     if (kIsWeb) {
       html.Notification(title, body: body);
@@ -171,14 +162,8 @@ abstract class ClientManager {
     final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
     await flutterLocalNotificationsPlugin.initialize(
-      settings: InitializationSettings(
-        android: const AndroidInitializationSettings('notifications_icon'),
-        iOS: const DarwinInitializationSettings(),
-        linux: LinuxInitializationSettings(
-          defaultActionName: DvChatNotificationActions.open.name,
-        ),
-        windows: windowsNotificationSettings,
-        macOS: const DarwinInitializationSettings(),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('notifications_icon'),
       ),
     );
 
@@ -193,7 +178,6 @@ abstract class ClientManager {
           importance: Importance.high,
           priority: Priority.max,
         ),
-        iOS: DarwinNotificationDetails(sound: 'notification.caf'),
       ),
     );
   }

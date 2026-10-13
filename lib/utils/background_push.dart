@@ -98,7 +98,6 @@ class BackgroundPush {
       await _flutterLocalNotificationsPlugin.initialize(
         settings: const InitializationSettings(
           android: AndroidInitializationSettings('notifications_icon'),
-          iOS: DarwinInitializationSettings(),
         ),
         onDidReceiveNotificationResponse: (response) => notificationTap(
           response,
@@ -151,9 +150,6 @@ class BackgroundPush {
     String? gatewayUrl,
     String? token,
   }) async {
-    if (PlatformInfos.isIOS) {
-      await firebase.requestPermission();
-    }
     if (PlatformInfos.isAndroid) {
       _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -291,9 +287,6 @@ class BackgroundPush {
       return;
     }
     if (_fcmToken?.isEmpty ?? true) {
-      if (PlatformInfos.isIOS) {
-        await firebase.requestPermission();
-      }
       const max = 5;
       for (var i = 0; i < max; i++) {
         try {

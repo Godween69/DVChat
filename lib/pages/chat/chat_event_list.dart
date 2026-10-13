@@ -15,7 +15,6 @@ import 'package:dvchat/pages/chat/events/message.dart';
 import 'package:dvchat/pages/chat/typing_indicators.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/filtered_timeline_extension.dart';
-import 'package:dvchat/utils/platform_infos.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix_api_lite/model/event_types.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
@@ -74,9 +73,7 @@ class ChatEventList extends StatelessWidget {
           ),
           reverse: true,
           controller: controller.scrollController,
-          keyboardDismissBehavior: PlatformInfos.isIOS
-              ? ScrollViewKeyboardDismissBehavior.onDrag
-              : ScrollViewKeyboardDismissBehavior.manual,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           childrenDelegate: SliverChildBuilderDelegate(
             (BuildContext context, int i) {
               // Footer to display typing indicator and read receipts:

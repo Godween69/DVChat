@@ -18,33 +18,20 @@ import '../config/app_config.dart';
 
 abstract class PlatformInfos {
   static bool get isWeb => kIsWeb;
-  static bool get isLinux => !kIsWeb && Platform.isLinux;
-  static bool get isWindows => !kIsWeb && Platform.isWindows;
-  static bool get isMacOS => !kIsWeb && Platform.isMacOS;
-  static bool get isIOS => !kIsWeb && Platform.isIOS;
   static bool get isAndroid => !kIsWeb && Platform.isAndroid;
 
-  static bool get isCupertinoStyle => isIOS || isMacOS;
-
-  static bool get isMobile => isAndroid || isIOS;
-
-  /// For desktops which don't support ChachedNetworkImage yet
-  static bool get isBetaDesktop => isWindows || isLinux;
-
-  static bool get isDesktop => isLinux || isWindows || isMacOS;
+  /// Приложение для телефона — только Android (iPhone работает через web-версию)
+  static bool get isMobile => isAndroid;
 
   static bool get usesTouchscreen => !isMobile;
-
-  static bool get supportsVideoPlayer =>
-      !PlatformInfos.isWindows && !PlatformInfos.isLinux;
 
   static bool get supportsCustomImageResizer =>
       PlatformInfos.isWeb || PlatformInfos.isMobile;
 
   /// Web could also record in theory but currently creates broken opus
-  static bool get platformCanRecord => (isMobile || isMacOS);
+  static bool get platformCanRecord => isMobile;
 
-  static bool get supportsAppLock => (isMobile || isMacOS);
+  static bool get supportsAppLock => isMobile;
 
   static String get appDisplayName =>
       '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';

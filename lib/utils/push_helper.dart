@@ -68,10 +68,6 @@ Future<void> pushHelper(
         title: 'Новое сообщение',
         body: l10n.openAppToReadMessages,
         notificationDetails: NotificationDetails(
-          iOS: DarwinNotificationDetails(
-            threadIdentifier:
-                '${notification.clientName}_${notification.roomId}',
-          ),
           android: AndroidNotificationDetails(
             AppConfig.pushNotificationsChannelId,
             l10n.incomingMessages,
@@ -340,23 +336,8 @@ Future<void> _tryPushHelper(
       _ => null,
     },
   );
-  final iOSAttachmentPath = PlatformInfos.isIOS
-      ? await client.getIosNotificationAvatar(event.room.avatar)
-      : null;
-  final iOSPlatformChannelSpecifics = DarwinNotificationDetails(
-    threadIdentifier: '${notification.clientName}_${notification.roomId}',
-    attachments: iOSAttachmentPath == null
-        ? null
-        : [
-            DarwinNotificationAttachment(
-              iOSAttachmentPath,
-              identifier: 'image',
-            ),
-          ],
-  );
   final platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
-    iOS: iOSPlatformChannelSpecifics,
   );
 
   final title = event.room.getLocalizedDisplayname(MatrixLocals(l10n));
@@ -391,7 +372,7 @@ Future<void> _tryPushHelper(
 }
 
 void updateAppBadge(int unreadCount) {
-  if (PlatformInfos.isAndroid || PlatformInfos.isMacOS || PlatformInfos.isIOS) {
+  if (PlatformInfos.isAndroid) {
     if (unreadCount == 0) {
       FlutterNewBadger.removeBadge();
     } else {

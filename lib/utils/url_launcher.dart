@@ -78,13 +78,7 @@ class UrlLauncher {
         if (latlong.length == 2 &&
             latlong.first != null &&
             latlong.last != null) {
-          if (PlatformInfos.isIOS) {
-            // iOS is great at not following standards, so we need to transmute the geo URI
-            // to an apple maps thingy
-            // https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/MapLinks/MapLinks.html
-            final ll = '${latlong.first},${latlong.last}';
-            launchUrlString('https://maps.apple.com/?q=$ll&sll=$ll');
-          } else if (PlatformInfos.isAndroid) {
+          if (PlatformInfos.isAndroid) {
             // Google Maps ignores the coordinates in the path of geo URIs and
             // only shows a pin for the q parameter. The label prevents it from
             // snapping to the nearest place.

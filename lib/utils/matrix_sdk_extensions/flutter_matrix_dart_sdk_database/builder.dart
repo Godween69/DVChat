@@ -11,12 +11,10 @@ import 'dart:io';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
-import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:matrix/matrix.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path_provider_foundation/path_provider_foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -31,12 +29,7 @@ Future<DatabaseApi> flutterMatrixSdkDatabaseBuilder(String clientName) async {
     try {
       // Send error notification:
       final l10n = await lookupL10n(appLocale);
-      // We expect that the database cannot be open on iOS 2.8.0 due to that
-      // the team ID has changed and te app can no longer access the database
-      // key in the iOS keychain. This should be removed from 2.9.0 on.
-      if (!PlatformInfos.isIOS) {
-        ClientManager.sendInitNotification(l10n.initAppError, e.toString());
-      }
+      ClientManager.sendInitNotification(l10n.initAppError, e.toString());
     } catch (e, s) {
       Logs().e('Unable to send error notification', e, s);
     }
@@ -54,17 +47,7 @@ Future<DatabaseApi> flutterMatrixSdkDatabaseBuilder(String clientName) async {
 
 Future<Directory?> getFileStorageLocation() async {
   try {
-    late final Directory temporaryDirectory;
-    if (PlatformInfos.isIOS) {
-      final containerPath = await PathProviderFoundation().getContainerPath(
-        appGroupIdentifier: 'group.online.dvbstudio.dvchat',
-      );
-      temporaryDirectory = Directory(containerPath!);
-    } else if (PlatformInfos.isLinux) {
-      temporaryDirectory = await getApplicationCacheDirectory();
-    } else {
-      temporaryDirectory = await getTemporaryDirectory();
-    }
+    final temporaryDirectory = await getTemporaryDirectory();
     return await Directory(
       join(temporaryDirectory.path, 'dvchat_download_cache'),
     ).create(recursive: true);
@@ -125,22 +108,8 @@ Future<MatrixSdkDatabase> _constructDatabase(String clientName) async {
   );
 }
 
-Future<String> _getDatabaseDirectory() async {
-  if (PlatformInfos.isIOS) {
-    final containerPath = await PathProviderFoundation().getContainerPath(
-      appGroupIdentifier: 'group.online.dvbstudio.dvchat',
-    );
-    if (containerPath == null) {
-      Logs().w('No container path found for iOS app!');
-      return (await getLibraryDirectory()).path;
-    }
-    return containerPath;
-  }
-  if (PlatformInfos.isMacOS) {
-    return (await getLibraryDirectory()).path;
-  }
-  return (await getApplicationSupportDirectory()).path;
-}
+Future<String> _getDatabaseDirectory() async =>
+    (await getApplicationSupportDirectory()).path;
 
 Future<String> _getDatabasePath(String clientName) async {
   final databaseDirectory = await _getDatabaseDirectory();
@@ -152,11 +121,7 @@ Future<void> _migrateLegacyLocation(
   String sqlFilePath,
   String clientName,
 ) async {
-  final oldPath = PlatformInfos.isDesktop
-      ? (await getApplicationSupportDirectory()).path
-      : PlatformInfos.isIOS
-      ? (await getLibraryDirectory()).path
-      : await getDatabasesPath();
+  final oldPath = await getDatabasesPath();
 
   final oldFilePath = join(oldPath, '$clientName.sqlite');
   if (oldFilePath == sqlFilePath) return;

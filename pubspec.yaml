@@ -62,14 +62,12 @@ dependencies:
       ref: main
   mime: ^2.1.0
   native_imaging: ^1.0.0
-  ogg_caf_converter: ^0.1.4
   open_filex: ^4.7.0
   package_info_plus: ^10.2.2
   particles_network: ^1.9.5
   pasteboard: ^0.5.0
   path: ^1.9.0
   path_provider: ^2.1.6
-  path_provider_foundation: ^2.6.0
   provider: ^6.0.2
   punycode: ^1.0.0
   qr_code_scanner_plus: ^2.3.0

@@ -241,8 +241,7 @@ class EmotesSettingsView extends StatelessWidget {
                       // TODO: Dispose this
                       final textEditingController = TextEditingController();
                       textEditingController.text = imageCode;
-                      final useShortCuts =
-                          (PlatformInfos.isWeb || PlatformInfos.isDesktop);
+                      final useShortCuts = PlatformInfos.isWeb;
                       return ListTile(
                         title: Row(
                           children: [

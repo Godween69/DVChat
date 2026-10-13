@@ -12,12 +12,10 @@ import 'package:collection/collection.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/init_with_restore.dart';
-import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/uia_request_manager.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/dvchat_app.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
@@ -270,22 +268,7 @@ class MatrixState extends State<Matrix> {
           DvChatApp.router.go('/');
         });
     onUiaRequest[name] ??= c.onUiaRequest.stream.listen(uiaRequestHandler);
-    if (PlatformInfos.isWeb || PlatformInfos.isDesktop) {
-      FlutterLocalNotificationsPlugin().initialize(
-        settings: InitializationSettings(
-          linux: LinuxInitializationSettings(
-            defaultActionName: DvChatNotificationActions.open.name,
-          ),
-          windows: ClientManager.windowsNotificationSettings,
-          macOS: const DarwinInitializationSettings(),
-        ),
-        onDidReceiveNotificationResponse: (response) => notificationTap(
-          response,
-          clients: widget.clients,
-          router: DvChatApp.router,
-          l10n: null,
-        ),
-      );
+    if (PlatformInfos.isWeb) {
       c.onSync.stream.first.then((s) {
         html.Notification.requestPermission();
         onNotification[name] ??= c.onNotification.stream.listen(

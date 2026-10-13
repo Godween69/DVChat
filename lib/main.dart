@@ -76,7 +76,7 @@ void main() => runZonedGuarded(() async {
     _vodozemacInitialized = true;
   }
 
-  Logs().nativeColors = !PlatformInfos.isIOS;
+  Logs().nativeColors = true;
 
   // If the app starts in detached mode, we assume that it is in
   // background fetch mode for processing push notifications. This is

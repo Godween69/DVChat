@@ -9,11 +9,8 @@ import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_download_content_extension.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:dvchat/utils/notification_background_handler.dart';
-import 'package:dvchat/utils/push_helper.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:universal_html/html.dart' as html;
@@ -24,7 +21,6 @@ extension LocalNotificationsExtension on MatrixState {
     ..load();
 
   Future<void> showLocalNotification(Event event) async {
-    final l10n = L10n.of(context);
     final roomId = event.room.id;
     if (activeRoomId == roomId) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
@@ -84,40 +80,5 @@ extension LocalNotificationsExtension on MatrixState {
       );
       return;
     }
-
-    FlutterLocalNotificationsPlugin().show(
-      id: event.room.id.hashCode,
-      title: title,
-      body: body,
-      notificationDetails: NotificationDetails(
-        linux: LinuxNotificationDetails(
-          sound: ThemeLinuxSound('message-new-instant'),
-          actions: switch (event.type) {
-            EventTypes.Message ||
-            EventTypes.Encrypted ||
-            EventTypes.Sticker => [
-              LinuxNotificationAction(
-                key: DvChatNotificationActions.markAsRead.name,
-                label: l10n.markAsRead,
-              ),
-              LinuxNotificationAction(
-                key: DvChatNotificationActions.mute.name,
-                label: l10n.mute,
-              ),
-            ],
-            _ => [],
-          },
-        ),
-        windows: WindowsNotificationDetails(timestamp: event.originServerTs),
-        macOS: DarwinNotificationDetails(
-          threadIdentifier: '${client.clientName}_${event.room.id}',
-        ),
-      ),
-      payload: DvChatPushPayload(
-        client.clientName,
-        event.room.id,
-        event.eventId,
-      ).toString(),
-    );
   }
 }
