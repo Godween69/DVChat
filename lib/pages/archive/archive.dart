@@ -31,9 +31,13 @@ class ArchiveController extends State<Archive> {
   Future<List<ArchivedRoom>>? _leftRoomsFuture;
 
   /// Чаты, отправленные в архив тегом (их можно вернуть)
-  List<Room> get archivedRooms => Matrix.of(
-    context,
-  ).client.rooms.where((room) => room.isInArchive).toList();
+  List<Room> get archivedRooms => Matrix.of(context).client.rooms
+      .where(
+        (room) =>
+            room.isInArchive ||
+            (room.isAbandonedDMRoom == true && !room.isHiddenByUser),
+      )
+      .toList();
 
   Future<List<ArchivedRoom>> getLeftRooms(BuildContext context) =>
       _leftRoomsFuture ??= Matrix.of(

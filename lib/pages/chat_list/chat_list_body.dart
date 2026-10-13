@@ -82,6 +82,8 @@ class ChatListViewBody extends StatelessWidget {
         }
         final rooms = allRooms
             .where((room) => !room.isNewcomerPlaceholder)
+            // Закрытый чат живёт только в Архиве, метка для этого не нужна
+            .where((room) => room.isAbandonedDMRoom != true)
             .where(
               (room) =>
                   !(room.isInArchive || room.isHiddenByUser) ||
