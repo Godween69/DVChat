@@ -109,19 +109,18 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _openChat(String userId) async {
     final client = _client;
-    // Чат с этим человеком уже есть: просто открываем его, сервер не спрашиваем
-    final existingId = client.getDirectChatFromUserId(userId);
-    final existing =
-        (existingId == null ? null : client.getRoomById(existingId)) ??
-        client.rooms
-            .where(
-              (r) =>
-                  r.membership == Membership.join &&
-                  r.isDirectChat &&
-                  r.directChatMatrixID == userId,
-            )
-            .firstOrNull;
-    if (existing != null && existing.membership == Membership.join) {
+    // Живой чат с этим человеком уже есть: открываем его, сервер не спрашиваем.
+    // Закрытый чат (собеседник вышел) не считается: он только для чтения и лежит в Архиве
+    final existing = client.rooms
+        .where(
+          (r) =>
+              r.membership == Membership.join &&
+              r.isDirectChat &&
+              r.directChatMatrixID == userId &&
+              r.isAbandonedDMRoom != true,
+        )
+        .firstOrNull;
+    if (existing != null) {
       context.go('/rooms/${existing.id}');
       return;
     }

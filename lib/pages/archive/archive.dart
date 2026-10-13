@@ -93,7 +93,13 @@ class ArchiveController extends State<Archive> {
       return;
     }
     if (!mounted) return;
-    await showFutureLoadingDialog(context: context, future: room.hideForever);
+    // Закрытый чат удаляем по-настоящему (выход и забывание), иначе он остаётся в аккаунте
+    await showFutureLoadingDialog(
+      context: context,
+      future: () => room.isAbandonedDMRoom == true
+          ? room.deleteForMe()
+          : room.hideForever(),
+    );
     if (mounted) setState(() {});
   }
 
@@ -131,7 +137,11 @@ class ArchiveController extends State<Archive> {
         final total = archived.length + left.length;
         var done = 0;
         for (final room in archived) {
-          await room.hideForever();
+          if (room.isAbandonedDMRoom == true) {
+            await room.deleteForMe();
+          } else {
+            await room.hideForever();
+          }
           onProgress(++done / total);
         }
         for (final entry in left) {
