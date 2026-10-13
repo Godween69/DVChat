@@ -86,9 +86,14 @@ class ArchiveController extends State<Archive> {
     return true;
   }
 
+  /// Удаление из архива окончательное: выход из комнаты и забывание. Чат с администратором
+  /// покинуть нельзя, его только скрываем.
+  Future<void> _deleteFromArchive(Room room) =>
+      room.isSupportRoom ? room.hideForever() : room.deleteForMe();
+
   Future<void> deleteArchivedRoom(Room room) async {
     if (!await _confirmDelete(
-      'Чат пропадёт из списка. Он вернётся, если в нём появится новое сообщение.',
+      'Чат будет удалён навсегда. У собеседника он останется в Архиве только для чтения.',
     )) {
       return;
     }
@@ -96,9 +101,7 @@ class ArchiveController extends State<Archive> {
     // Закрытый чат удаляем по-настоящему (выход и забывание), иначе он остаётся в аккаунте
     await showFutureLoadingDialog(
       context: context,
-      future: () => room.isAbandonedDMRoom == true
-          ? room.deleteForMe()
-          : room.hideForever(),
+      future: () => _deleteFromArchive(room),
     );
     if (mounted) setState(() {});
   }
@@ -127,7 +130,7 @@ class ArchiveController extends State<Archive> {
       title: L10n.of(context).areYouSure,
       okLabel: L10n.of(context).yes,
       cancelLabel: L10n.of(context).cancel,
-      message: 'Это удалит все сообщения из архива.',
+      message: 'Все чаты из архива будут удалены навсегда.',
     );
     if (confirmed != OkCancelResult.ok) return;
     if (!mounted) return;
@@ -137,11 +140,7 @@ class ArchiveController extends State<Archive> {
         final total = archived.length + left.length;
         var done = 0;
         for (final room in archived) {
-          if (room.isAbandonedDMRoom == true) {
-            await room.deleteForMe();
-          } else {
-            await room.hideForever();
-          }
+          await _deleteFromArchive(room);
           onProgress(++done / total);
         }
         for (final entry in left) {
