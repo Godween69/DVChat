@@ -4,15 +4,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/app_locale.dart';
-import 'package:fluffychat/utils/custom_http_client.dart';
-import 'package:fluffychat/utils/custom_image_resizer.dart';
-import 'package:fluffychat/utils/init_with_restore.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/custom_http_client.dart';
+import 'package:dvchat/utils/custom_image_resizer.dart';
+import 'package:dvchat/utils/init_with_restore.dart';
+import 'package:dvchat/utils/notification_background_handler.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;

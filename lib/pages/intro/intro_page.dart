@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
-import 'package:fluffychat/widgets/dv_logo.dart';
-import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/sign_in_flows/link_login.dart';
+import 'package:dvchat/widgets/dv_logo.dart';
+import 'package:dvchat/widgets/layouts/login_scaffold.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 
 class IntroPage extends StatelessWidget {

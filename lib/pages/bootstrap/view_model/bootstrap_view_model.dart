@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/sign_in_flows/link_login.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';

@@ -5,14 +5,14 @@
 
 import 'dart:convert';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/pages/intro/intro_page.dart';
-import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/oidc_session_json_extension.dart';
-import 'package:fluffychat/utils/sign_in_flows/check_homeserver.dart';
-import 'package:fluffychat/utils/sign_in_flows/link_login.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/pages/intro/intro_page.dart';
+import 'package:dvchat/pages/sign_in/view_model/model/public_homeserver_data.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/oidc_session_json_extension.dart';
+import 'package:dvchat/utils/sign_in_flows/check_homeserver.dart';
+import 'package:dvchat/utils/sign_in_flows/link_login.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';

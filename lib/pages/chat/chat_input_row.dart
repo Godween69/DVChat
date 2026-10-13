@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/recording_input_row.dart';
+import 'package:dvchat/pages/chat/recording_view_model.dart';
+import 'package:dvchat/utils/other_party_can_receive.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/hover_builder.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:emoji_picker_flutter/locales/default_emoji_set_locale.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/recording_input_row.dart';
-import 'package:fluffychat/pages/chat/recording_view_model.dart';
-import 'package:fluffychat/utils/other_party_can_receive.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/hover_builder.dart';
-import 'package:fluffychat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

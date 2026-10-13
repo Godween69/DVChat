@@ -4,18 +4,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'package:collection/collection.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_details/chat_details_view.dart';
+import 'package:dvchat/pages/settings/settings.dart';
+import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/avatar_crop_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_details/chat_details_view.dart';
-import 'package:fluffychat/pages/settings/settings.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/avatar_crop_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

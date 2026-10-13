@@ -5,17 +5,17 @@
 
 import 'dart:ui';
 
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/events/state_message.dart';
+import 'package:dvchat/utils/account_config.dart';
+import 'package:dvchat/utils/color_value.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/events/state_message.dart';
-import 'package:fluffychat/utils/account_config.dart';
-import 'package:fluffychat/utils/color_value.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

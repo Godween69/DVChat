@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/chat/chat.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/typing_animation.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat/chat.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/typing_animation.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TypingIndicators extends StatelessWidget {

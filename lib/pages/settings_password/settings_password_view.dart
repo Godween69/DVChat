@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/settings_password/settings_password.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/settings_password/settings_password.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 

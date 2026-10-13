@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/update_checker.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/dv_my_id.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/update_checker.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_my_id.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

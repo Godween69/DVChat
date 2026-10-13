@@ -5,12 +5,12 @@
 
 import 'dart:typed_data';
 
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/new_group/new_group_view.dart';
+import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/widgets/avatar_crop_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/new_group/new_group_view.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/widgets/avatar_crop_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart' as sdk;

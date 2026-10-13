@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/beautify_string_extension.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/settings_switch_list_tile.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/beautify_string_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/app_lock.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/settings_switch_list_tile.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';

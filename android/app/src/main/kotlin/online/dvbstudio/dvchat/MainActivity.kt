@@ -1,5 +1,4 @@
-package chat.fluffy.fluffychat
-
+package online.dvbstudio.dvchat
 import io.flutter.embedding.android.FlutterFragment
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine

@@ -4,13 +4,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/pages/new_private_chat/qr_scanner_modal.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/sign_in_flows/crypto_autosetup.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/sign_in_flows/crypto_autosetup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;

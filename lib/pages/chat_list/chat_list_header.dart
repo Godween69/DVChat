@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/chat_list/chat_list.dart';
-import 'package:fluffychat/pages/chat_list/client_chooser_button.dart';
-import 'package:fluffychat/utils/sync_status_localization.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat_list/chat_list.dart';
+import 'package:dvchat/pages/chat_list/client_chooser_button.dart';
+import 'package:dvchat/utils/sync_status_localization.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

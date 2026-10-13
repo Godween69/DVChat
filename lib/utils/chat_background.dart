@@ -2,7 +2,7 @@
 
 import 'dart:ui';
 
-import 'package:fluffychat/config/setting_keys.dart';
+import 'package:dvchat/config/setting_keys.dart';
 
 /// DVChat: выбранный пользователем цвет фона чата (null — по умолчанию).
 Color? get dvChatBackground {

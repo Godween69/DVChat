@@ -2,14 +2,14 @@
 
 import 'dart:async';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/new_private_chat/qr_scanner_modal.dart';
-import 'package:fluffychat/utils/dv_api.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/dv_my_id.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_my_id.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';

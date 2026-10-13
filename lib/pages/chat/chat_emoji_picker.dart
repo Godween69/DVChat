@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'chat.dart';

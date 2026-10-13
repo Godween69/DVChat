@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 
-import 'package:fluffychat/config/app_config.dart';
+import 'package:dvchat/config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:matrix/matrix.dart';
 

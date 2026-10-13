@@ -5,11 +5,11 @@
 
 import 'dart:convert';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

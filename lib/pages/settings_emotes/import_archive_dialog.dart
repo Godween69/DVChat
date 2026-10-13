@@ -7,11 +7,11 @@ import 'dart:async';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/settings_emotes/settings_emotes.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/settings_emotes/settings_emotes.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

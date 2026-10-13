@@ -5,10 +5,10 @@
 
 import 'dart:async';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/invitation_selection/invitation_selection_view.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/invitation_selection/invitation_selection_view.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

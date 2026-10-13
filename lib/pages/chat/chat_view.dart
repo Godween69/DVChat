@@ -6,22 +6,22 @@
 import 'dart:ui' as ui;
 
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/chat.dart';
-import 'package:fluffychat/pages/chat/chat_app_bar_list_tile.dart';
-import 'package:fluffychat/pages/chat/chat_app_bar_title.dart';
-import 'package:fluffychat/pages/chat/chat_event_list.dart';
-import 'package:fluffychat/pages/chat/pinned_events.dart';
-import 'package:fluffychat/pages/chat/reply_display.dart';
-import 'package:fluffychat/utils/account_config.dart';
-import 'package:fluffychat/utils/chat_background.dart';
-import 'package:fluffychat/utils/dv_admin.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/widgets/chat_settings_popup_menu.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/chat.dart';
+import 'package:dvchat/pages/chat/chat_app_bar_list_tile.dart';
+import 'package:dvchat/pages/chat/chat_app_bar_title.dart';
+import 'package:dvchat/pages/chat/chat_event_list.dart';
+import 'package:dvchat/pages/chat/pinned_events.dart';
+import 'package:dvchat/pages/chat/reply_display.dart';
+import 'package:dvchat/utils/account_config.dart';
+import 'package:dvchat/utils/chat_background.dart';
+import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

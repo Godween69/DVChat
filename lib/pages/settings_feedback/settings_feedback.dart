@@ -1,10 +1,10 @@
 // DVChat: форма обратной связи. Письмо уходит администратору,
 // личный чат с ним появляется у человека после ответа.
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/utils/dv_api.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 

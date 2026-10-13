@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
-import 'package:fluffychat/pages/sign_in/view_model/sign_in_view_model.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/sign_in_flows/check_homeserver.dart';
-import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/view_model_builder.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/sign_in/view_model/model/public_homeserver_data.dart';
+import 'package:dvchat/pages/sign_in/view_model/sign_in_view_model.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/sign_in_flows/check_homeserver.dart';
+import 'package:dvchat/widgets/layouts/login_scaffold.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/view_model_builder.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 

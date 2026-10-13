@@ -3,7 +3,7 @@
 
 import 'dart:async';
 
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/widgets/fluffy_chat_app.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';

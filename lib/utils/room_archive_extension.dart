@@ -2,7 +2,7 @@
 // из комнаты никто не выходит, поэтому собеседник ничего не видит.
 // Возврат в список определяется по времени сообщений, а не по счётчику непрочитанных.
 
-import 'package:fluffychat/config/app_config.dart';
+import 'package:dvchat/config/app_config.dart';
 import 'package:matrix/matrix.dart';
 
 /// Тип данных комнаты: время последнего сообщения в момент архивации (серверное)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/widgets/dv_logo.dart';
+import 'package:dvchat/widgets/dv_logo.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// DVChat: заставка при холодном запуске — крупный логотип, плавное появление

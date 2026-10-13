@@ -5,11 +5,11 @@
 
 import 'dart:async';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:url_launcher/url_launcher.dart';

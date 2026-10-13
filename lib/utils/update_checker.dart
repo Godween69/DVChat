@@ -7,8 +7,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart' show sha256;
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:open_filex/open_filex.dart' show OpenFilex, ResultType;

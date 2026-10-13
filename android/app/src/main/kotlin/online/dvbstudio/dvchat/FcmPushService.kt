@@ -1,5 +1,4 @@
-package chat.fluffy.fluffychat
-
+package online.dvbstudio.dvchat
 import com.famedly.fcm_shared_isolate.FcmSharedIsolateService
 
 import io.flutter.embedding.engine.FlutterEngine

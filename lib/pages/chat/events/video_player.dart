@@ -5,14 +5,14 @@
 
 import 'dart:math';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/utils/file_description.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/event_extension.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/url_launcher.dart';
-import 'package:fluffychat/widgets/blur_hash.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/file_description.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/event_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/url_launcher.dart';
+import 'package:dvchat/widgets/blur_hash.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

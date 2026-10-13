@@ -8,12 +8,12 @@ import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/start_push_foreground_service.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/notification_background_handler.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/start_push_foreground_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;

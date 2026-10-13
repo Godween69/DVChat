@@ -2,9 +2,9 @@
 
 import 'dart:async';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/dv_api.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
