@@ -20,6 +20,7 @@
 | `utils/dv_api.dart` | Запросы к серверному модулю dv_social: твой ID, друзья, заявки |
 | `pages/friends/friends_page.dart` | Экран друзей и заявок |
 | `widgets/dv_my_id.dart` | Показ и копирование своего ID |
+| `widgets/dv_qr.dart` | Единая отрисовка QR-кода (на экране и PNG для сохранения) |
 | `utils/dv_admin.dart` | Определяет администратора (видит служебные сведения) |
 | `utils/dv_share.dart` | Передача ссылок/приглашений в другие приложения |
 | `utils/update_checker.dart` | Проверка и установка обновлений с нашего сервера (version.json, sha256) |

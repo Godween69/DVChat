@@ -4,10 +4,10 @@ import 'dart:async';
 
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/dv_qr.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class DvMyIdTile extends StatelessWidget {
   const DvMyIdTile({super.key});
@@ -53,7 +53,7 @@ class DvMyIdTile extends StatelessWidget {
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(12),
-            child: QrImageView(data: dvAddLink(id), size: 220),
+            child: DvQr(data: dvAddLink(id), size: 220, color: Colors.black),
           ),
           const SizedBox(height: 12),
           SelectableText(

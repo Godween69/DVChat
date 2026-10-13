@@ -12,12 +12,12 @@ import 'package:dvchat/pages/new_private_chat/new_private_chat.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_qr.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../widgets/qr_code_viewer.dart';
 
@@ -182,14 +182,9 @@ class NewPrivateChatView extends StatelessWidget {
                                       constraints: const BoxConstraints(
                                         maxWidth: 200,
                                       ),
-                                      child: PrettyQrView.data(
+                                      child: DvQr(
                                         data: 'https://matrix.to/#/$userId',
-                                        decoration: PrettyQrDecoration(
-                                          shape: PrettyQrSmoothSymbol(
-                                            roundFactor: 1,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                        ),
+                                        color: theme.colorScheme.primary,
                                       ),
                                     ),
                                   ),
