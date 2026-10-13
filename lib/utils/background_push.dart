@@ -165,7 +165,7 @@ class BackgroundPush {
     if (PlatformInfos.isIOS) {
       await firebase.requestPermission();
     }
-    if (PlatformInfos.isAndroid && !isIntegrationTest) {
+    if (PlatformInfos.isAndroid) {
       _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin

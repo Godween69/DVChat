@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -140,29 +139,8 @@ class ChatController extends State<ChatPageWithRoom>
   Timer? typingCoolDown;
   Timer? typingTimeout;
   bool currentlyTyping = false;
-  bool dragging = false;
 
   final GlobalKey inputBarKey = GlobalKey();
-
-  void onDragEntered(_) => setState(() => dragging = true);
-
-  void onDragExited(_) => setState(() => dragging = false);
-
-  Future<void> onDragDone(DropDoneDetails details) async {
-    setState(() => dragging = false);
-    if (details.files.isEmpty) return;
-
-    await showAdaptiveDialog(
-      context: context,
-      builder: (c) => SendFileDialog(
-        files: details.files,
-        room: room,
-        outerContext: context,
-        threadRootEventId: activeThreadId,
-        threadLastEventId: threadLastEventId,
-      ),
-    );
-  }
 
   bool get canSaveSelectedEvent =>
       selectedEvents.length == 1 &&

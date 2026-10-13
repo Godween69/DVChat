@@ -329,14 +329,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.15"
-  desktop_drop:
-    dependency: "direct main"
-    description:
-      name: desktop_drop
-      sha256: "47ded09c85909edfed644fd4cbb5051b040d0aed5c79e7e062ea4b3b7156dbe4"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.8.4"
   desktop_webview_window:
     dependency: transitive
     description:
@@ -1029,14 +1021,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.10.6"
-  just_audio_media_kit:
-    dependency: "direct main"
-    description:
-      name: just_audio_media_kit
-      sha256: f3cf04c3a50339709e87e90b4e841eef4364ab4be2bdbac0c54cc48679f84d23
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   just_audio_platform_interface:
     dependency: transitive
     description:
@@ -1222,14 +1206,6 @@ packages:
       url: "https://github.com/famedly/matrix-dart-sdk.git"
     source: git
     version: "13.0.0"
-  media_kit:
-    dependency: transitive
-    description:
-      name: media_kit
-      sha256: ae9e79597500c7ad6083a3c7b7b7544ddabfceacce7ae5c9709b0ec16a5d6643
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.6"
   meta:
     dependency: transitive
     description:
@@ -1662,14 +1638,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
-  safe_local_storage:
-    dependency: transitive
-    description:
-      name: safe_local_storage
-      sha256: "494b982d5edb71030650ea463d939670e91b232b588323dc75229d2c5f23e7b7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.6"
   safe_url_check:
     dependency: transitive
     description:
@@ -2075,14 +2043,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.1"
-  universal_platform:
-    dependency: transitive
-    description:
-      name: universal_platform
-      sha256: "64e16458a0ea9b99260ceb5467a214c1f298d647c659af1bff6d3bf82536b1ec"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
   unorm_dart:
     dependency: transitive
     description:
@@ -2091,14 +2051,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.2"
-  uri_parser:
-    dependency: transitive
-    description:
-      name: uri_parser
-      sha256: "051c62e5f693de98ca9f130ee707f8916e2266945565926be3ff20659f7853ce"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.2"
   url_launcher:
     dependency: "direct main"
     description:
