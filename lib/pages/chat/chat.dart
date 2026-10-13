@@ -30,6 +30,7 @@ import 'package:fluffychat/utils/matrix_sdk_extensions/filtered_timeline_extensi
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/other_party_can_receive.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/room_archive_extension.dart';
 import 'package:fluffychat/utils/show_scaffold_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
@@ -243,6 +244,16 @@ class ChatController extends State<ChatPageWithRoom>
   }
 
   Future<void> leaveChat() async {
+    if (room.isSupportRoom) {
+      // DVChat: чат с поддержкой не покидаем, только скрываем
+      final hidden = await showFutureLoadingDialog(
+        context: context,
+        future: room.hideForever,
+      );
+      if (!mounted) return;
+      if (hidden.error == null) context.go('/rooms');
+      return;
+    }
     final success = await showFutureLoadingDialog(
       context: context,
       future: () async {

@@ -47,6 +47,15 @@ class ChatSettingsPopupMenu extends StatelessWidget {
         final router = GoRouter.of(context);
         switch (choice) {
           case ChatPopupMenuActions.leave:
+            if (room.isSupportRoom) {
+              // DVChat: чат с поддержкой не покидаем, только скрываем
+              final hidden = await showFutureLoadingDialog(
+                context: context,
+                future: room.hideForever,
+              );
+              if (hidden.error == null) router.go('/rooms');
+              break;
+            }
             final l10n = L10n.of(context);
             final confirmed = await showOkCancelAlertDialog(
               context: context,
