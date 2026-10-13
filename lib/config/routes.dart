@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Маршруты: все экраны приложения и переходы между ними (go_router).
+// Новый экран подключается здесь.
+
 import 'dart:async';
 
 import 'package:dvchat/config/themes.dart';

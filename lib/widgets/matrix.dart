@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Центральный «пульт» приложения: хранит клиенты Matrix, вход и выход, подписки
+// на уведомления, блокировку приложения. Доступен из любого экрана через Matrix.of(context).
+
 import 'dart:async';
 
 import 'package:collection/collection.dart';

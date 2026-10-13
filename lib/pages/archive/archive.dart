@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Архив»: скрытые личные чаты (логика). Внешний вид — archive_view.dart,
+// способ архивации — utils/room_archive_extension.dart.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/archive/archive_view.dart';

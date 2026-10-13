@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Точка входа приложения. Переносит старые данные (legacy_migration), создаёт клиенты Matrix,
+// запускает DvChatApp. Здесь же фоновая обработка ошибок и запуск при открытии из уведомления.
+
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';

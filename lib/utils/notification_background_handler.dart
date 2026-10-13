@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Обработка нажатий и действий на уведомлении (ответить, прочитано), в том числе
+// когда приложение закрыто.
+
 import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';

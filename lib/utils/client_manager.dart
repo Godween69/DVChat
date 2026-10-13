@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Создание и восстановление клиентов Matrix при запуске: база данных, настройки SDK,
+// список сохранённых аккаунтов.
+
 import 'package:collection/collection.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';

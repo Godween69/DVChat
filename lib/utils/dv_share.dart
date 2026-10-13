@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Передача текста и ссылок (приглашение, ID) в другие приложения через системное меню.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/services.dart';

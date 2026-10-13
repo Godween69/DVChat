@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Разбор пуша в фоне, когда приложение закрыто: по event_id запрашивает событие,
+// расшифровывает и показывает локальное уведомление.
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

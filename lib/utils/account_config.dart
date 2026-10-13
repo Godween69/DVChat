@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Настройки аккаунта, которые хранятся на сервере (account data) и подтягиваются на любом
+// устройстве. Для старых установок читается и прежний ключ (см. legacy_migration).
+
 import 'package:matrix/matrix.dart';
 
 extension ApplicationAccountConfigExtension on Client {
