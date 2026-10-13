@@ -9,6 +9,7 @@ import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/push_helper.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -130,7 +131,7 @@ Future<void> notificationTap(
   updateSummaryNotification(
     flutterLocalNotificationsPlugin: FlutterLocalNotificationsPlugin(),
     clientName: client.clientName,
-    l10n: await lookupL10n(PlatformDispatcher.instance.locale),
+    l10n: await lookupL10n(appLocale),
   );
 
   switch (notificationResponse.notificationResponseType) {

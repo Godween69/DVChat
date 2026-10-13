@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
@@ -26,7 +27,7 @@ Future<DatabaseApi> flutterMatrixSdkDatabaseBuilder(String clientName) async {
 
     try {
       // Send error notification:
-      final l10n = await lookupL10n(PlatformDispatcher.instance.locale);
+      final l10n = await lookupL10n(appLocale);
       // We expect that the database cannot be open on iOS 2.8.0 due to that
       // the team ID has changed and te app can no longer access the database
       // key in the iOS keychain. This should be removed from 2.9.0 on.

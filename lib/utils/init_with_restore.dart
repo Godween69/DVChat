@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'dart:convert';
-import 'dart:ui';
 
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -109,7 +109,7 @@ extension InitWithRestoreExtension on Client {
       }
     } catch (e, s) {
       Logs().wtf('Client init failed!', e, s);
-      final l10n = await lookupL10n(PlatformDispatcher.instance.locale);
+      final l10n = await lookupL10n(appLocale);
       final sessionBackupString = await storage?.read(key: storageKey);
       if (sessionBackupString == null) {
         ClientManager.sendInitNotification(

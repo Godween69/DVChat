@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/custom_http_client.dart';
 import 'package:fluffychat/utils/custom_image_resizer.dart';
 import 'package:fluffychat/utils/init_with_restore.dart';
@@ -51,7 +52,7 @@ abstract class ClientManager {
               .initWithRestore(
                 onMigration: () async {
                   final l10n = await lookupL10n(
-                    PlatformDispatcher.instance.locale,
+                    appLocale,
                   );
                   sendInitNotification(
                     l10n.databaseMigrationTitle,

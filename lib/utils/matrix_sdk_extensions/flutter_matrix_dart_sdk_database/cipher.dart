@@ -8,9 +8,9 @@ import 'dart:math';
 
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:matrix/matrix.dart';
@@ -78,7 +78,7 @@ Future<void> _sendNoEncryptionWarning(Object exception) async {
 
   if (isStored == true) return;
 
-  final l10n = await lookupL10n(PlatformDispatcher.instance.locale);
+  final l10n = await lookupL10n(appLocale);
   ClientManager.sendInitNotification(
     l10n.noDatabaseEncryption,
     exception.toString(),

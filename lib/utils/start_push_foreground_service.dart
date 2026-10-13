@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -41,7 +42,7 @@ abstract class ForegroundServices {
       }
       if (PlatformInfos.isMobile) {
         final l10n = await L10n.delegate.load(
-          PlatformDispatcher.instance.locale,
+          appLocale,
         );
         FlutterForegroundTask.init(
           androidNotificationOptions: AndroidNotificationOptions(

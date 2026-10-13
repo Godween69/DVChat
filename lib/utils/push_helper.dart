@@ -6,12 +6,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/notification_avatar_extension.dart';
@@ -36,7 +36,7 @@ Future<void> pushHelper(
   String? activeRoomId,
   required FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
 }) async {
-  l10n ??= await lookupL10n(PlatformDispatcher.instance.locale);
+  l10n ??= await lookupL10n(appLocale);
 
   try {
     await _tryPushHelper(
@@ -121,7 +121,7 @@ Future<void> _tryPushHelper(
 
   lastReceivedPushNotification[client.clientName] = DateTime.now();
 
-  l10n ??= await L10n.delegate.load(PlatformDispatcher.instance.locale);
+  l10n ??= await L10n.delegate.load(appLocale);
 
   Logs().v('Load event...');
   final event = await client.getEventByPushNotification(

@@ -14,6 +14,7 @@ import 'dart:ui';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/main.dart';
+import 'package:fluffychat/utils/app_locale.dart';
 import 'package:fluffychat/utils/notification_background_handler.dart';
 import 'package:fluffychat/utils/push_helper.dart';
 import 'package:fluffychat/widgets/fluffy_chat_app.dart';
@@ -50,7 +51,7 @@ class BackgroundPush {
     // inspired by _lookupL10n in .dart_tool/flutter_gen/gen_l10n/l10n.dart
     l10n ??=
         (context != null && context.mounted ? L10n.of(context) : null) ??
-        (await L10n.delegate.load(PlatformDispatcher.instance.locale));
+        (await L10n.delegate.load(appLocale));
   }
 
   final pendingTests = <String, Completer<void>>{};
