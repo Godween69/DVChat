@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Сведения о чате» (внешний вид): название, аватар, участники, настройки чата.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/pages/chat_details/participant_list_item.dart';

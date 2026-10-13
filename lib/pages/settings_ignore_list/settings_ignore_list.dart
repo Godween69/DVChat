@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Скрытые пользователи» (логика): список игнорируемых.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:material_ui/material_ui.dart';

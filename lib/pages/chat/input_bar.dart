@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Текстовое поле сообщения: автодополнение имён, команд, эмодзи.
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';

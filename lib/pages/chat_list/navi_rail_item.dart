@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Пункт боковой панели навигации (для широких экранов).
+
 import 'package:badges/badges.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/widgets/hover_builder.dart';

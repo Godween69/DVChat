@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Эмодзи и стикеры» (логика): свои наборы эмодзи.
+
 import 'dart:async';
 
 import 'package:archive/archive.dart'

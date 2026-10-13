@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Содержимое сообщения по типу: текст, картинка, видео, файл, голос, опрос.
+
 import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';

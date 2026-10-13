@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Доступ к чату (логика): режим входа, видимость истории, адрес.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_access_settings/chat_access_settings_page.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';

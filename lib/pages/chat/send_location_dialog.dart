@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Отправка геопозиции.
+
 import 'dart:async';
 
 import 'package:cupertino_ui/cupertino_ui.dart';

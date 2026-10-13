@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Устройства» (логика): список входов в аккаунт, переименование, удаление.
+
 import 'package:async/async.dart' show Result;
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:dvchat/l10n/l10n.dart';

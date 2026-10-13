@@ -1,3 +1,5 @@
+// DVChat: Галочки доставки и прочтения.
+
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -25,7 +27,9 @@ class MessageTicks extends StatelessWidget {
     final readers = <String>{};
     // timeline.events идёт от новых к старым: собираем отметки до нашего сообщения
     for (final e in timeline.events) {
-      readers.addAll(e.receipts.map((r) => r.user.id).where((id) => id != myId));
+      readers.addAll(
+        e.receipts.map((r) => r.user.id).where((id) => id != myId),
+      );
       if (e.eventId == event.eventId) break;
     }
     if (event.room.isDirectChat) return readers.isNotEmpty;

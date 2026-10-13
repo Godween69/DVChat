@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Перевод файла из веба в XFile для отправки.
+
 import 'dart:async';
 import 'dart:typed_data';
 

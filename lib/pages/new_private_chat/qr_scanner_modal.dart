@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно сканирования QR-кода камерой (вход, добавление друга).
+
 import 'dart:async';
 import 'dart:io';
 

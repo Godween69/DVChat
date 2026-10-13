@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Шифрование чата (логика): включение, проверка устройств.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_encryption_settings/chat_encryption_settings_view.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';

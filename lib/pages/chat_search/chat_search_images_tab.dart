@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Поиск по чату: вкладка «Картинки».
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
 import 'package:dvchat/pages/chat_search/search_footer.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Пузырь сообщения: внешний вид, ответы, реакции, жесты. Содержимое — message_content.dart.
+
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';

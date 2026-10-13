@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Строка участника в сведениях о чате.
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';

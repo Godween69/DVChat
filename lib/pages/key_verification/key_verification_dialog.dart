@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно проверки ключей с собеседником: запрос, сравнение эмодзи, результат.
+
 import 'dart:convert';
 import 'dart:ui';
 

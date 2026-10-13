@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Нижняя строка поиска: «загрузить ещё».
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
 import 'package:material_ui/material_ui.dart';

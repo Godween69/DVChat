@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Анимации при особых сообщениях (конфетти и т.п.).
+
 import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';

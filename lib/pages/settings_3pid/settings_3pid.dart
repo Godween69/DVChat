@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Почта и телефон» (логика): привязанные к аккаунту адреса.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';

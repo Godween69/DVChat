@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Настройки чата» (внешний вид): поведение отправки и показа сообщений.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';

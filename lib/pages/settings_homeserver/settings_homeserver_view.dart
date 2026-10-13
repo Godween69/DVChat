@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «О сервере» (внешний вид): сведения о домашнем сервере и его возможностях.
+
 import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';

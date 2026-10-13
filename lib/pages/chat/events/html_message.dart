@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Показ форматированных (HTML) сообщений: жирный, ссылки, цитаты, код.
+
 import 'package:collection/collection.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/setting_keys.dart';

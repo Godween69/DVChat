@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Картинка в сообщении.
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/file_description.dart';

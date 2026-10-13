@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Поиск по чату (внешний вид): вкладки.
+
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_search/chat_search_files_tab.dart';

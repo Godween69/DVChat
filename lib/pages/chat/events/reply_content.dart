@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Цитата сообщения, на которое отвечают.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:material_ui/material_ui.dart';

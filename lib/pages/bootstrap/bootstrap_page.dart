@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Страница мастера резервной копии ключей: собирает шаги из view_model и widgets.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/bootstrap/view_model/bootstrap_view_model.dart';
 import 'package:dvchat/pages/bootstrap/widgets/new_passphrase_view.dart';

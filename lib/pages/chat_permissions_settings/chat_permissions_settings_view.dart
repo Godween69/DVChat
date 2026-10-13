@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Права в чате» (внешний вид): кто что может делать в чате.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_permissions_settings/chat_permissions_settings.dart';
 import 'package:dvchat/pages/chat_permissions_settings/permission_list_tile.dart';

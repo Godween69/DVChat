@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Поиск по чату: вкладка «Сообщения».
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_search/search_footer.dart';
 import 'package:dvchat/utils/date_time_extension.dart';

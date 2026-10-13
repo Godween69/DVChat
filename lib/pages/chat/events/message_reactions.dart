@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Реакции под сообщением.
+
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/utils/single_reaction_extension.dart';
 import 'package:dvchat/widgets/avatar.dart';

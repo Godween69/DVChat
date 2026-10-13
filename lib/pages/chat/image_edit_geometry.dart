@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Вычисления для обрезки и поворота картинки перед отправкой.
+
 import 'dart:ui';
 
 import 'package:crop_image/crop_image.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Новый личный чат» (логика): поиск пользователя по ID или QR.
+
 import 'dart:async';
 
 import 'package:device_info_plus/device_info_plus.dart';

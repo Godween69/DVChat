@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Оформление» (логика): тема, цвета, шрифт, фон чата.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/file_selector.dart';

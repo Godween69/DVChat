@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Заглушка строки чата, пока список загружается.
+
 import 'package:material_ui/material_ui.dart';
 
 class DummyChatListItem extends StatelessWidget {

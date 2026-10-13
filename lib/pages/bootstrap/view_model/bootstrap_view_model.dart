@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Логика мастера резервной копии ключей: создание, восстановление, проверка.
+
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/platform_infos.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Поиск по чату (логика).
+
 import 'package:dvchat/pages/chat_search/chat_search_view.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';

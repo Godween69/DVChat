@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Опрос в сообщении: варианты и голосование.
+
 import 'package:async/async.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Участники чата» (внешний вид): список участников, поиск, приглашённые.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:go_router/go_router.dart';

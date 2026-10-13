@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Просмотр медиа» (внешний вид): картинки и видео на весь экран.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/image_viewer/pointers_listener.dart';
 import 'package:dvchat/pages/image_viewer/video_player.dart';

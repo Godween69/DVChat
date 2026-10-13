@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Подсказки команд при вводе «/» в поле сообщения.
+
 // This file is auto-generated using scripts/generate_command_hints_glue.sh.
 
 import 'package:dvchat/l10n/l10n.dart';

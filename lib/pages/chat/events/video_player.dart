@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Видео в сообщении.
+
 import 'dart:math';
 
 import 'package:dvchat/config/app_config.dart';

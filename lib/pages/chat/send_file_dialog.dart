@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно отправки файлов и картинок: предпросмотр, подпись, сжатие.
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Список сообщений чата: группировка по дням, подгрузка истории, непрочитанные.
+
 import 'package:collection/collection.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/setting_keys.dart';

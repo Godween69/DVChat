@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Участники чата» (логика): список участников, поиск, приглашённые.
+
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';

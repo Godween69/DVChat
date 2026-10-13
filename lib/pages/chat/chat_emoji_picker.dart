@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Выбор эмодзи для поля ввода.
+
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';

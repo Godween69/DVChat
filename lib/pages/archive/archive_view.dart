@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Архив» (внешний вид): скрытые личные чаты; возврат чата в список.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/archive/archive.dart';
 import 'package:dvchat/pages/chat_list/chat_list_item.dart';

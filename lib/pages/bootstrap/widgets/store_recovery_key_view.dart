@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Шаг мастера: сохранить ключ восстановления.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/bootstrap/view_model/bootstrap_view_model.dart';
 import 'package:dvchat/utils/dv_share.dart';

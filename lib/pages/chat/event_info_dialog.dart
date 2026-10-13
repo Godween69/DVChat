@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно со служебными сведениями о сообщении (видит администратор).
+
 import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';

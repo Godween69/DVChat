@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Приглашение» (внешний вид): выбор людей для приглашения в чат.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
 import 'package:dvchat/widgets/avatar.dart';

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Список чатов (логика): выбор, архив, закрепление, удаление, поиск, переходы.
+
 import 'dart:async';
 
 import 'package:collection/collection.dart';

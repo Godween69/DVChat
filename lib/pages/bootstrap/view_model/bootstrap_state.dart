@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Состояния мастера резервной копии ключей.
+
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 

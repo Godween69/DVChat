@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Верхняя панель списка чатов: поиск и статус соединения.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';

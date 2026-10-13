@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Уведомления» (внешний вид): правила уведомлений.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';

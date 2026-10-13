@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Шифрование чата (внешний вид).
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_encryption_settings/chat_encryption_settings.dart';
 import 'package:dvchat/utils/beautify_string_extension.dart';
