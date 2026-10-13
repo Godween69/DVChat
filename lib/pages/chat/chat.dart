@@ -21,6 +21,7 @@ import 'package:fluffychat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:fluffychat/pages/chat_details/chat_details.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
 import 'package:fluffychat/utils/dv_admin.dart';
+import 'package:fluffychat/utils/dv_api.dart';
 import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/file_selector.dart';
 import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call.dart';
@@ -216,24 +217,38 @@ class ChatController extends State<ChatPageWithRoom>
     selectedEvents.clear();
   });
 
+  /// DVChat: собеседник покинул чат — создаём новую комнату через сервер
   Future<void> recreateChat() async {
     final room = this.room;
     final userId = room.directChatMatrixID;
     if (userId == null) {
-      throw Exception(
-        'Try to recreate a room with is not a DM room. This should not be possible from the UI!',
-      );
+      throw Exception('Новый чат можно создать только из личного чата');
     }
-    await showFutureLoadingDialog(
+    final client = room.client;
+    final result = await showFutureLoadingDialog(
       context: context,
-      future: () => room.invite(userId),
+      future: () async {
+        final answer = await DvApi(client).post('chat', {'user_id': userId});
+        final roomId = answer['room_id'];
+        if (roomId is! String) {
+          throw const DvApiException(500, '', 'Сервер не вернул чат');
+        }
+        await client.waitForRoomInSync(roomId, join: true);
+        return roomId;
+      },
     );
+    final roomId = result.result;
+    if (roomId == null || !mounted) return;
+    context.go('/rooms/$roomId');
   }
 
   Future<void> leaveChat() async {
     final success = await showFutureLoadingDialog(
       context: context,
-      future: room.leave,
+      future: () async {
+        await room.leave();
+        await room.forget();
+      },
     );
     if (!mounted) return;
     if (success.error != null) return;

@@ -383,13 +383,11 @@ class ChatView extends StatelessWidget {
                                                           .error,
                                                     ),
                                                     icon: const Icon(
-                                                      Icons.archive_outlined,
+                                                      Icons.delete_outline,
                                                     ),
                                                     onPressed:
                                                         controller.leaveChat,
-                                                    label: Text(
-                                                      L10n.of(context).leave,
-                                                    ),
+                                                    label: Text('Удалить чат'),
                                                   ),
                                                   TextButton.icon(
                                                     style: TextButton.styleFrom(
@@ -403,11 +401,7 @@ class ChatView extends StatelessWidget {
                                                     ),
                                                     onPressed:
                                                         controller.recreateChat,
-                                                    label: Text(
-                                                      L10n.of(
-                                                        context,
-                                                      ).reopenChat,
-                                                    ),
+                                                    label: Text('Новый чат'),
                                                   ),
                                                 ],
                                               )

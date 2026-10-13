@@ -19,6 +19,9 @@ import '../../widgets/matrix.dart';
 import 'chat_list_header.dart';
 
 /// DVChat: как в WhatsApp. Сверху группы, под ними личные чаты, всё в одном окне.
+/// Комнаты, уже отправленные в архив автоматически (чтобы не делать это повторно)
+final Set<String> _autoArchived = {};
+
 class ChatListViewBody extends StatelessWidget {
   final ChatListController controller;
 
@@ -69,6 +72,24 @@ class ChatListViewBody extends StatelessWidget {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             for (final room in returning) {
               room.returnToList();
+            }
+          });
+        }
+        // DVChat: собеседник покинул чат — чат уходит в архив (читать можно, писать нельзя)
+        final abandoned = allRooms
+            .where(
+              (room) =>
+                  room.isAbandonedDMRoom == true &&
+                  !room.isInArchive &&
+                  !room.isHiddenByUser &&
+                  !_autoArchived.contains(room.id),
+            )
+            .toList();
+        if (abandoned.isNotEmpty) {
+          _autoArchived.addAll(abandoned.map((room) => room.id));
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            for (final room in abandoned) {
+              room.moveToArchive();
             }
           });
         }
