@@ -203,12 +203,10 @@ Future<void> notificationTap(
                 ? '/rooms?client=${client.clientName}'
                 : '/rooms/$roomId?client=${client.clientName}',
           );
-        case FluffyChatNotificationActions.enterCall:
-          router?.go('/rooms/$roomId?client=${client.clientName}&action=call');
       }
     case NotificationResponseType.notificationDismissed:
       return;
   }
 }
 
-enum FluffyChatNotificationActions { markAsRead, reply, mute, open, enterCall }
+enum FluffyChatNotificationActions { markAsRead, reply, mute, open }

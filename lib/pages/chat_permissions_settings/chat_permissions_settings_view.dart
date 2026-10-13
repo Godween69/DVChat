@@ -6,7 +6,6 @@
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat_permissions_settings/chat_permissions_settings.dart';
 import 'package:fluffychat/pages/chat_permissions_settings/permission_list_tile.dart';
-import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call_member.dart';
 import 'package:fluffychat/widgets/layouts/max_width_body.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
@@ -45,8 +44,6 @@ class ChatPermissionsSettingsView extends StatelessWidget {
             final eventsPowerLevels = Map<String, int?>.from(
               powerLevelsContent.tryGetMap<String, int?>('events') ?? {},
             )..removeWhere((k, v) => v is! int);
-            eventsPowerLevels[MatrixRtcCallMember.eventType] ??=
-                powerLevelsContent['state_default'] as int? ?? 50;
             return Column(
               children: [
                 ListTile(

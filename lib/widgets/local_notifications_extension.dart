@@ -9,8 +9,6 @@ import 'package:fluffychat/utils/client_download_content_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/notification_background_handler.dart';
 import 'package:fluffychat/utils/push_helper.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
-import 'package:fluffychat/widgets/incoming_call_dialog.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -24,22 +22,6 @@ extension LocalNotificationsExtension on MatrixState {
     ..load();
 
   Future<void> showLocalNotification(Event event) async {
-    if (event.type == RtcNotificationContent.eventType &&
-        event.tryParseRtcNotificationContent()?.notificationType == .ring) {
-      final context =
-          FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
-          this.context;
-      showDialog<bool>(
-        context: context,
-        builder: (_) => IncomingCallDialog(event: event),
-      ).then((joinCall) {
-        if (joinCall != true) return;
-        if (!context.mounted) return;
-        setActiveClient(event.room.client);
-        FluffyChatApp.router.go('/rooms/${event.room.id}?action=call');
-      });
-    }
-
     final l10n = L10n.of(context);
     final roomId = event.room.id;
     if (activeRoomId == roomId) {
@@ -119,12 +101,6 @@ extension LocalNotificationsExtension on MatrixState {
               LinuxNotificationAction(
                 key: FluffyChatNotificationActions.mute.name,
                 label: l10n.mute,
-              ),
-            ],
-            RtcNotificationContent.eventType => [
-              LinuxNotificationAction(
-                key: FluffyChatNotificationActions.enterCall.name,
-                label: l10n.enterCall,
               ),
             ],
             _ => [],
