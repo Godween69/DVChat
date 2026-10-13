@@ -9,7 +9,6 @@
 // (pusher), дальше сообщение идёт Synapse → шлюз dvchatgate → FCM → телефон.
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
@@ -22,11 +21,8 @@ import 'package:dvchat/utils/push_helper.dart';
 import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:unifiedpush/unifiedpush.dart';
-import 'package:unifiedpush_ui/unifiedpush_ui.dart';
 
 import '../config/app_config.dart';
 import '../config/setting_keys.dart';
@@ -63,8 +59,6 @@ class BackgroundPush {
   final firebase = FcmSharedIsolate();
 
   DateTime? lastReceivedPush;
-
-  bool upAction = false;
 
   Future<void> _init() async {
     firebaseEnabled = true;
@@ -126,14 +120,6 @@ class BackgroundPush {
           flutterLocalNotificationsPlugin: _flutterLocalNotificationsPlugin,
         ),
       );
-      if (Platform.isAndroid) {
-        await UnifiedPush.initialize(
-          onNewEndpoint: _newUpEndpoint,
-          onRegistrationFailed: (_, i) => _upUnregistered(i),
-          onUnregistered: _upUnregistered,
-          onMessage: _onUpMessage,
-        );
-      }
     } catch (e, s) {
       Logs().e('Unable to initialize Flutter local notifications', e, s);
     }
@@ -262,31 +248,14 @@ class BackgroundPush {
   static bool _wentToRoomOnStartup = false;
 
   Future<void> setupPush(BuildContext context) async {
-    if (PlatformInfos.isAndroid &&
-        (await UnifiedPush.getDistributors()).isNotEmpty &&
-        context.mounted) {
-      await UnifiedPushUi(
-        context: context,
-        instances: ['default'],
-        unifiedPushFunctions: UPFunctions(),
-        showNoDistribDialog: false,
-        onNoDistribDialogDismissed: () {}, // TODO: Implement me
-      ).registerAppWithDialog();
-    } else {
-      for (final client in clients) {
-        Logs().d('SetupPush for Client ${client.clientName}');
-        if (client.onLoginStateChanged.value != LoginState.loggedIn ||
-            !PlatformInfos.isMobile ||
-            matrix == null) {
-          return;
-        }
-        // Do not setup unifiedpush if this has been initialized by
-        // an unifiedpush action
-        if (upAction) {
-          return;
-        }
-        await setupFirebase(client);
+    for (final client in clients) {
+      Logs().d('SetupPush for Client ${client.clientName}');
+      if (client.onLoginStateChanged.value != LoginState.loggedIn ||
+          !PlatformInfos.isMobile ||
+          matrix == null) {
+        return;
       }
+      await setupFirebase(client);
     }
 
     // ignore: unawaited_futures
@@ -349,98 +318,5 @@ class BackgroundPush {
       gatewayUrl: AppSettings.pushNotificationsGatewayUrl.value,
       token: _fcmToken,
     );
-  }
-
-  Future<void> _newUpEndpoint(PushEndpoint newPushEndpoint, String i) async {
-    final newEndpoint = newPushEndpoint.url;
-    upAction = true;
-    if (newEndpoint.isEmpty) {
-      await _upUnregistered(i);
-      return;
-    }
-    var endpoint =
-        'https://matrix.gateway.unifiedpush.org/_matrix/push/v1/notify';
-    try {
-      final url = Uri.parse(newEndpoint)
-          .replace(path: '/_matrix/push/v1/notify', query: '')
-          .toString()
-          .split('?')
-          .first;
-      final res = json.decode(
-        utf8.decode((await http.get(Uri.parse(url))).bodyBytes),
-      );
-      if (res['gateway'] == 'matrix' ||
-          (res['unifiedpush'] is Map &&
-              res['unifiedpush']['gateway'] == 'matrix')) {
-        endpoint = url;
-      }
-    } catch (e) {
-      Logs().i(
-        '[Push] No self-hosted unified push gateway present: $newEndpoint',
-      );
-    }
-    Logs().i('[Push] UnifiedPush using endpoint $endpoint');
-
-    for (final client in clients) {
-      await setupPusher(
-        client: client,
-        gatewayUrl: endpoint,
-        token: newEndpoint,
-      );
-    }
-    await AppSettings.unifiedPushEndpoint.setItem(newEndpoint);
-    await AppSettings.unifiedPushRegistered.setItem(true);
-  }
-
-  Future<void> _upUnregistered(String i) async {
-    upAction = true;
-    Logs().i('[Push] Removing UnifiedPush endpoint...');
-    await AppSettings.unifiedPushEndpoint.setItem(
-      AppSettings.unifiedPushEndpoint.defaultValue,
-    );
-    await AppSettings.unifiedPushRegistered.setItem(false);
-  }
-
-  Future<void> _onUpMessage(PushMessage pushMessage, String i) async {
-    final message = pushMessage.content;
-    upAction = true;
-    final data = Map<String, dynamic>.from(
-      json.decode(utf8.decode(message))['notification'],
-    );
-    // UP may strip the devices list
-    data['devices'] ??= [];
-    await pushHelper(
-      PushNotification.fromJson(data),
-      clients: clients,
-      l10n: l10n,
-      activeRoomId: matrix?.activeRoomId,
-      flutterLocalNotificationsPlugin: _flutterLocalNotificationsPlugin,
-    );
-  }
-}
-
-class UPFunctions extends UnifiedPushFunctions {
-  final List<String> features = [
-    /*list of features*/
-  ];
-
-  @override
-  Future<String?> getDistributor() async {
-    return await UnifiedPush.getDistributor();
-  }
-
-  @override
-  Future<List<String>> getDistributors() async {
-    return await UnifiedPush.getDistributors(features);
-  }
-
-  @override
-  Future<void> registerApp(String instance) async {
-    await UnifiedPush.register(instance: instance, features: features);
-  }
-
-  @override
-  Future<void> saveDistributor(String distributor) async {
-    await UnifiedPush.saveDistributor(distributor);
   }
 }

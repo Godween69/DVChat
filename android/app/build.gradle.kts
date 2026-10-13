@@ -17,7 +17,7 @@ dependencies {
 }
 
 
-// Workaround for https://pub.dev/packages/unifiedpush#the-build-fails-because-of-duplicate-classes
+// DVChat: единая версия библиотеки tink, чтобы в сборку не попадали дублирующиеся классы
 configurations.all {
     // Use the latest version published: https://central.sonatype.com/artifact/com.google.crypto.tink/tink-android
     val tink = "com.google.crypto.tink:tink-android:1.23.0"

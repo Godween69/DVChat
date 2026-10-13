@@ -30,7 +30,7 @@
 ## Уведомления (цепочка)
 
 Synapse → свой шлюз dvchatgate → FCM → приложение.
-- Android: `android/.../FcmPushService.kt`, `UnifiedPushService.kt`
+- Android: `android/.../FcmPushService.kt`
 - Dart: `utils/background_push.dart` (регистрация), `utils/push_helper.dart` (разбор пуша
   в фоне), `utils/notification_background_handler.dart`, `utils/notification_avatar_extension.dart`,
   `widgets/local_notifications_extension.dart`

@@ -24,8 +24,6 @@ enum AppSettings<T> {
   audioRecordingBitRate<int>('audioRecordingBitRate', 64000),
   audioRecordingSamplingRate<int>('audioRecordingSamplingRate', 48000),
   showNoGoogle<bool>('dvchat.show_no_google', false),
-  unifiedPushRegistered<bool>('dvchat.unifiedpush.registered', false),
-  unifiedPushEndpoint<String>('dvchat.unifiedpush.endpoint', ''),
   pushNotificationsGatewayUrl<String>(
     'pushNotificationsGatewayUrl',
     'http://172.30.50.2:8080/_matrix/push/v1/notify',
