@@ -7,6 +7,7 @@ import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/utils/update_checker.dart';
 import 'package:fluffychat/widgets/avatar.dart';
+import 'package:fluffychat/widgets/dv_my_id.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -100,6 +101,7 @@ class SettingsView extends StatelessWidget {
                 );
               },
             ),
+            const DvMyIdTile(),
             ListTile(
               leading: const Icon(Icons.format_paint_outlined),
               title: Text(L10n.of(context).changeTheme),

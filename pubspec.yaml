@@ -85,6 +85,7 @@ dependencies:
   provider: ^6.0.2
   punycode: ^1.0.0
   qr_code_scanner_plus: ^2.3.0
+  qr_flutter: ^4.1.0
   qr_image: ^1.0.0
   receive_sharing_intent: ^1.9.0
   record: ^7.1.1
