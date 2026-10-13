@@ -16,6 +16,7 @@ import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
 import 'package:dvchat/utils/file_description.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/utils/single_reaction_extension.dart';
 import 'package:dvchat/utils/string_color.dart';
@@ -250,7 +251,10 @@ class Message extends StatelessWidget {
             ),
           ),
         ),
-        direction: AppSettings.swipeRightToLeftToReply.value
+        // Закрытый чат: жест не работает вовсе
+        direction: event.room.isHistoryOnly
+            ? SwipeDirection.none
+            : AppSettings.swipeRightToLeftToReply.value
             ? SwipeDirection.endToStart
             : SwipeDirection.startToEnd,
         onSwipe: (_) => onSwipe(),
@@ -411,6 +415,7 @@ class Message extends StatelessWidget {
                               child: GestureDetector(
                                 onDoubleTap:
                                     AppSettings.doubleTapToReact.value &&
+                                        !event.room.isHistoryOnly &&
                                         event.room.canSendDefaultMessages
                                     ? () {
                                         HapticFeedback.lightImpact();
@@ -471,6 +476,7 @@ class Message extends StatelessWidget {
                                             }.contains(event.messageType) &&
                                             !event.redacted &&
                                             event.status.isSent &&
+                                            !event.room.isHistoryOnly &&
                                             !longPressSelect)
                                         ? () =>
                                               _forwardOne(context, displayEvent)

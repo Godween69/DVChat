@@ -10,6 +10,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/sync_status_localization.dart';
 import 'package:dvchat/utils/verified_room_extension.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -37,7 +38,7 @@ class ChatAppBarTitle extends StatelessWidget {
       hoverColor: Colors.transparent,
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      onTap: controller.isArchived
+      onTap: controller.isArchived || controller.room.isHistoryOnly
           ? null
           : () => DvThemes.isThreeColumnMode(context)
                 ? controller.toggleDisplayChatDetailsColumn()

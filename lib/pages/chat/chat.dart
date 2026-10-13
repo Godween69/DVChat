@@ -21,7 +21,6 @@ import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_admin.dart';
-import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/event_extension.dart';
@@ -29,7 +28,6 @@ import 'package:dvchat/utils/matrix_sdk_extensions/filtered_timeline_extension.d
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/other_party_can_receive.dart';
 import 'package:dvchat/utils/platform_infos.dart';
-import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
@@ -196,51 +194,6 @@ class ChatController extends State<ChatPageWithRoom>
     activeThreadId = null;
     selectedEvents.clear();
   });
-
-  /// DVChat: собеседник покинул чат — создаём новую комнату через сервер
-  Future<void> recreateChat() async {
-    final room = this.room;
-    final userId = room.directChatMatrixID;
-    if (userId == null) {
-      throw Exception('Новый чат можно создать только из личного чата');
-    }
-    final client = room.client;
-    final result = await showFutureLoadingDialog(
-      context: context,
-      future: () async {
-        final answer = await DvApi(client).post('chat', {'user_id': userId});
-        final roomId = answer['room_id'];
-        if (roomId is! String) {
-          throw const DvApiException(500, '', 'Сервер не вернул чат');
-        }
-        await client.waitForRoomInSync(roomId, join: true);
-        return roomId;
-      },
-    );
-    final roomId = result.result;
-    if (roomId == null || !mounted) return;
-    context.go('/rooms/$roomId');
-  }
-
-  Future<void> leaveChat() async {
-    if (room.isSupportRoom) {
-      // DVChat: чат с поддержкой не покидаем, только скрываем
-      final hidden = await showFutureLoadingDialog(
-        context: context,
-        future: room.hideForever,
-      );
-      if (!mounted) return;
-      if (hidden.error == null) context.go('/rooms');
-      return;
-    }
-    final success = await showFutureLoadingDialog(
-      context: context,
-      future: room.deleteForMe,
-    );
-    if (!mounted) return;
-    if (success.error != null) return;
-    context.go('/rooms');
-  }
 
   Future<void> requestHistory([_]) async {
     Logs().v('Requesting history...');

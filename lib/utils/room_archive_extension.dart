@@ -69,6 +69,8 @@ extension RoomArchiveExtension on Room {
   /// Пришло приглашение или чужое сообщение новее метки архивации
   bool get hasNewMessages {
     if (membership == Membership.invite) return true;
+    // Закрытый чат новых сообщений не получит: служебная запись о закрытии не должна вернуть его
+    if (isAbandonedDMRoom == true) return false;
     final since = _archivedAtMs;
     final last = lastEvent;
     if (since == null || last == null) return false;

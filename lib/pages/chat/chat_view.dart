@@ -19,6 +19,7 @@ import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/chat_background.dart';
 import 'package:dvchat/utils/dv_admin.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -204,7 +205,8 @@ class ChatView extends StatelessWidget {
                             ),
                         ],
                       ),
-                  ] else if (!controller.room.isArchived) ...[
+                  ] else if (!controller.room.isArchived &&
+                      !controller.room.isHistoryOnly) ...[
                     ChatSettingsPopupMenu(controller.room, true),
                   ],
                 ],
@@ -347,6 +349,9 @@ class ChatView extends StatelessWidget {
                                       ),
                                       onPressed: controller.goToNewRoomAction,
                                     )
+                                  // Закрытый чат: внизу ничего, только лента выше
+                                  : controller.room.isHistoryOnly
+                                  ? const SizedBox.shrink()
                                   : controller.room.canSendDefaultMessages &&
                                         controller.room.membership ==
                                             Membership.join
@@ -357,52 +362,14 @@ class ChatView extends StatelessWidget {
                                           ? theme.colorScheme.tertiaryContainer
                                           : theme.colorScheme.surfaceContainer,
                                       borderRadius: BorderRadius.circular(32),
-                                      child:
-                                          controller.room.isAbandonedDMRoom ==
-                                              true
-                                          ? Row(
-                                              mainAxisAlignment: .spaceEvenly,
-                                              children: [
-                                                TextButton.icon(
-                                                  style: TextButton.styleFrom(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          16,
-                                                        ),
-                                                    foregroundColor:
-                                                        theme.colorScheme.error,
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.delete_outline,
-                                                  ),
-                                                  onPressed:
-                                                      controller.leaveChat,
-                                                  label: Text('Удалить чат'),
-                                                ),
-                                                TextButton.icon(
-                                                  style: TextButton.styleFrom(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          16,
-                                                        ),
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.forum_outlined,
-                                                  ),
-                                                  onPressed:
-                                                      controller.recreateChat,
-                                                  label: Text('Новый чат'),
-                                                ),
-                                              ],
-                                            )
-                                          : Column(
-                                              mainAxisSize: .min,
-                                              children: [
-                                                ReplyDisplay(controller),
-                                                ChatInputRow(controller),
-                                                ChatEmojiPicker(controller),
-                                              ],
-                                            ),
+                                      child: Column(
+                                        mainAxisSize: .min,
+                                        children: [
+                                          ReplyDisplay(controller),
+                                          ChatInputRow(controller),
+                                          ChatEmojiPicker(controller),
+                                        ],
+                                      ),
                                     )
                                   : SizedBox.shrink(),
                             ),
