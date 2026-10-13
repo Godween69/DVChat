@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/reaction_push_rule.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -59,7 +60,7 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
   }
 
   // DVChat: уведомления о реакциях — локальная настройка плюс серверное правило.
-  // Правило .m.rule.reaction включено = реакции не пушатся, поэтому при «вкл» его отключаем.
+  // При «вкл» добавляется своё серверное правило dvchat.reaction, стандартное .m.rule.reaction отключается.
   Future<void> setReactionNotifications(bool on) async {
     setState(() {
       isLoading = true;
@@ -67,16 +68,7 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
     try {
       final client = Matrix.of(context).client;
       await AppSettings.notifyAboutReactions.setItem(on);
-      final rule = (client.globalPushRules?.override ?? const <PushRule>[])
-          .where((r) => r.ruleId == '.m.rule.reaction')
-          .firstOrNull;
-      if (rule != null && rule.enabled == on) {
-        await client.setPushRuleEnabled(
-          PushRuleKind.override,
-          '.m.rule.reaction',
-          !on,
-        );
-      }
+      await syncReactionPushRule(client, on: on);
     } catch (e, s) {
       Logs().w('Unable to toggle reaction notifications', e, s);
       if (!mounted) return;

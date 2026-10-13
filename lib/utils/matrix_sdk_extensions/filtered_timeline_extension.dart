@@ -6,6 +6,7 @@
 // DVChat: Фильтр ленты: какие события показывать в переписке, а какие служебные скрывать.
 
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
 import 'package:matrix/matrix.dart';
 
 extension VisibleInGuiExtension on List<Event> {
@@ -34,6 +35,8 @@ extension IsStateExtension on Event {
         RelationshipTypes.edit,
         RelationshipTypes.reaction,
       }.contains(relationshipType) &&
+      // DVChat: сообщения человека, отправленные пока он был заблокирован, не показываем
+      !room.client.isHiddenByBlock(this) &&
       // always filter out m.key.* and other known but unimportant events
       !isKnownHiddenStates &&
       // event types to hide: redaction and reaction events

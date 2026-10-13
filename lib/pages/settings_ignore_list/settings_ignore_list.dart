@@ -6,6 +6,7 @@
 // DVChat: Экран «Скрытые пользователи» (логика): список игнорируемых.
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -52,7 +53,7 @@ class SettingsIgnoreListController extends State<SettingsIgnoreList> {
     final client = Matrix.of(context).client;
     showFutureLoadingDialog(
       context: context,
-      future: () => client.ignoreUser(userId, leaveRooms: false),
+      future: () => client.blockUser(userId),
     );
     setState(() {});
     controller.clear();

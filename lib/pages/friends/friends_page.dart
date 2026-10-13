@@ -102,6 +102,22 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _openChat(String userId) async {
     final client = _client;
+    // Чат с этим человеком уже есть: просто открываем его, сервер не спрашиваем
+    final existingId = client.getDirectChatFromUserId(userId);
+    final existing =
+        (existingId == null ? null : client.getRoomById(existingId)) ??
+        client.rooms
+            .where(
+              (r) =>
+                  r.membership == Membership.join &&
+                  r.isDirectChat &&
+                  r.directChatMatrixID == userId,
+            )
+            .firstOrNull;
+    if (existing != null && existing.membership == Membership.join) {
+      context.go('/rooms/${existing.id}');
+      return;
+    }
     final result = await showFutureLoadingDialog(
       context: context,
       future: () async {
@@ -110,7 +126,10 @@ class _FriendsPageState extends State<FriendsPage> {
         if (roomId is! String) {
           throw const DvApiException(500, '', 'Сервер не вернул чат');
         }
-        await client.waitForRoomInSync(roomId, join: true);
+        // Ожидание ограничено: вечная крутилка хуже понятной ошибки
+        await client
+            .waitForRoomInSync(roomId, join: true)
+            .timeout(const Duration(seconds: 30));
         return roomId;
       },
     );

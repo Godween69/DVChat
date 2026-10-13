@@ -6,6 +6,7 @@
 // DVChat: Экран «Скрытые пользователи» (внешний вид): список игнорируемых.
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
@@ -87,7 +88,7 @@ class SettingsIgnoreListView extends StatelessWidget {
                         onPressed: () => showFutureLoadingDialog(
                           context: context,
                           future: () =>
-                              client.unignoreUser(client.ignoredUsers[i]),
+                              client.unblockUser(client.ignoredUsers[i]),
                         ),
                       ),
                     ),

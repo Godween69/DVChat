@@ -6,6 +6,7 @@
 // DVChat: Меню «три точки» в шапке чата (поиск, сведения, архив, уведомления).
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
@@ -106,8 +107,7 @@ class ChatSettingsPopupMenu extends StatelessWidget {
               if (!context.mounted) return;
               await showFutureLoadingDialog(
                 context: context,
-                future: () =>
-                    room.client.ignoreUser(partnerId, leaveRooms: false),
+                future: () => room.client.blockUser(partnerId),
               );
               break;
             }
@@ -117,7 +117,7 @@ class ChatSettingsPopupMenu extends StatelessWidget {
               if (partnerId == null) return;
               await showFutureLoadingDialog(
                 context: context,
-                future: () => room.client.unignoreUser(partnerId),
+                future: () => room.client.unblockUser(partnerId),
               );
               break;
             }

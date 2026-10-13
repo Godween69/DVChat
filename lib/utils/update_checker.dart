@@ -233,9 +233,9 @@ abstract class DvUpdateChecker {
       if (result.type != ResultType.done) {
         Logs().w('DVChat: не удалось открыть установку: ${result.message}');
         messenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Не удалось открыть установку, открываю загрузку в браузере',
+              'Не удалось открыть установку (${result.type.name}), открываю загрузку в браузере',
             ),
           ),
         );
@@ -247,9 +247,9 @@ abstract class DvUpdateChecker {
       Logs().w('DVChat: не удалось скачать обновление', e, s);
       closeDialog();
       messenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Не удалось скачать обновление в приложении, открываю загрузку в браузере',
+            'Не удалось скачать обновление в приложении ($e), открываю загрузку в браузере',
           ),
         ),
       );

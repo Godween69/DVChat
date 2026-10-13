@@ -18,6 +18,7 @@ import 'package:dvchat/main.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/push_helper.dart';
+import 'package:dvchat/utils/reaction_push_rule.dart';
 import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -252,6 +253,14 @@ class BackgroundPush {
         return;
       }
       await setupFirebase(client);
+      try {
+        await syncReactionPushRule(
+          client,
+          on: AppSettings.notifyAboutReactions.value,
+        );
+      } catch (e, s) {
+        Logs().w('[Push] Unable to sync reaction push rule', e, s);
+      }
     }
 
     // ignore: unawaited_futures
