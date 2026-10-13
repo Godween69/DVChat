@@ -21,7 +21,32 @@ extension RoomArchiveExtension on Room {
   /// Закрытый чат: собеседник вышел, мы тоже не в комнате. Только чтение истории:
   /// без выбора, копирования, пересылки, ответов, реакций и сохранения файлов.
   bool get isHistoryOnly =>
-      {Membership.leave, Membership.ban}.contains(membership);
+      {Membership.leave, Membership.ban}.contains(membership) ||
+      isAbandonedDMRoom == true;
+
+  /// Удалить чат у себя. Если собеседник ещё в комнате, ему остаётся служебная запись
+  /// (тихая, без уведомления), а его чат уходит в Архив. Затем выходим и забываем комнату.
+  Future<void> deleteForMe({bool unfriend = false}) async {
+    if (isDirectChat &&
+        isAbandonedDMRoom != true &&
+        membership == Membership.join) {
+      final name = unsafeGetUserFromMemoryOrFallback(
+        client.userID!,
+      ).calcDisplayname();
+      try {
+        await sendTextEvent(
+          unfriend
+              ? '$name удалил(а) вас из друзей. Переписка закрыта.'
+              : '$name удалил(а) чат. Переписка закрыта.',
+          msgtype: MessageTypes.Notice,
+        );
+      } catch (e, s) {
+        Logs().w('DVChat: не удалось оставить запись о закрытии чата', e, s);
+      }
+    }
+    await leave();
+    await forget();
+  }
 
   /// Чат удалён из архива: скрыт, вернётся при новом сообщении
   bool get isHiddenByUser => tags.containsKey(AppConfig.hiddenTag);

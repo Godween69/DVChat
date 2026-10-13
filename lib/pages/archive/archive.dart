@@ -168,7 +168,7 @@ class ArchiveController extends State<Archive> {
       for (final room in archived)
         _ArchiveEntry(
           date: room.lastEvent?.originServerTs ?? epoch,
-          closed: false,
+          closed: room.isAbandonedDMRoom == true,
           item: ChatListItem(
             room,
             key: ValueKey('archived_${room.id}'),

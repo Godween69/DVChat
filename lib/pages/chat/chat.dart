@@ -235,10 +235,7 @@ class ChatController extends State<ChatPageWithRoom>
     }
     final success = await showFutureLoadingDialog(
       context: context,
-      future: () async {
-        await room.leave();
-        await room.forget();
-      },
+      future: room.deleteForMe,
     );
     if (!mounted) return;
     if (success.error != null) return;

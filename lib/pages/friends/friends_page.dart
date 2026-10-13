@@ -5,7 +5,10 @@ import 'dart:async';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/utils/best_friends.dart';
 import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/dv_my_id.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
@@ -59,12 +62,16 @@ class _FriendsPageState extends State<FriendsPage> {
   late Future<_FriendsData> _future;
   final Map<String, Future<Profile>> _profiles = {};
 
+  /// «Лучшие друзья» (личный список, хранится в данных аккаунта)
+  late Set<String> _best;
+
   Client get _client => Matrix.of(context).client;
 
   @override
   void initState() {
     super.initState();
     _future = _fetch();
+    _best = {..._client.bestFriends};
   }
 
   Future<Profile> _profile(String userId) =>
@@ -233,24 +240,149 @@ class _FriendsPageState extends State<FriendsPage> {
     ),
   );
 
-  Widget _userTile(String id, {VoidCallback? onTap, Widget? trailing}) =>
-      FutureBuilder<Profile>(
-        future: _profile(id),
-        builder: (context, snapshot) {
-          final profile = snapshot.data;
-          final name = profile?.displayName ?? id.localpart ?? id;
-          return ListTile(
-            leading: Avatar(
-              mxContent: profile?.avatarUrl,
-              name: name,
-              client: _client,
-            ),
-            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-            onTap: onTap,
-            trailing: trailing,
-          );
-        },
+  Widget _userTile(
+    String id, {
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+    Widget? trailing,
+  }) => FutureBuilder<Profile>(
+    future: _profile(id),
+    builder: (context, snapshot) {
+      final profile = snapshot.data;
+      final name = profile?.displayName ?? id.localpart ?? id;
+      return ListTile(
+        leading: Avatar(
+          mxContent: profile?.avatarUrl,
+          name: name,
+          client: _client,
+        ),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        trailing: trailing,
       );
+    },
+  );
+
+  Widget _friendTile(String id, bool allUsers) => _userTile(
+    id,
+    onTap: () => _openChat(id),
+    onLongPress: () => _friendMenu(id, allUsers),
+  );
+
+  Future<String> _nameOf(String id) async {
+    try {
+      return (await _profile(id)).displayName ?? id.localpart ?? id;
+    } catch (_) {
+      return id.localpart ?? id;
+    }
+  }
+
+  /// Меню по долгому нажатию: лучшие и удаление из друзей
+  Future<void> _friendMenu(String id, bool allUsers) async {
+    final isBest = _best.contains(id);
+    final error = Theme.of(context).colorScheme.error;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isBest ? Icons.star : Icons.star_outline),
+              title: Text(isBest ? 'Убрать из лучших' : 'В лучшие'),
+              onTap: () => Navigator.of(context).pop('best'),
+            ),
+            if (!allUsers)
+              ListTile(
+                leading: Icon(Icons.person_remove_outlined, color: error),
+                title: Text(
+                  'Удалить из друзей',
+                  style: TextStyle(color: error),
+                ),
+                onTap: () => Navigator.of(context).pop('remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'best') {
+      setState(() {
+        if (isBest) {
+          _best.remove(id);
+        } else {
+          _best.add(id);
+        }
+      });
+      try {
+        await _client.setBestFriend(id, best: !isBest);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          if (isBest) {
+            _best.add(id);
+          } else {
+            _best.remove(id);
+          }
+        });
+        _snack('Не удалось сохранить: $e');
+      }
+    } else if (action == 'remove') {
+      await _removeFriend(id);
+    }
+  }
+
+  Future<void> _removeFriend(String userId) async {
+    final name = await _nameOf(userId);
+    if (!mounted) return;
+    final ok = await showOkCancelAlertDialog(
+      context: context,
+      title: 'Удалить $name из друзей?',
+      message:
+          'Вся переписка с этим человеком будет удалена у вас и отправлена в Архив '
+          'у него, без возможности продолжить. Чтобы общаться снова, нужно заново '
+          'подружиться через QR-код и начать новый чат.',
+      okLabel: 'Удалить',
+      cancelLabel: 'Отмена',
+      isDestructive: true,
+    );
+    if (ok != OkCancelResult.ok || !mounted) return;
+    final client = _client;
+    final result = await showFutureLoadingDialog(
+      context: context,
+      future: () async {
+        // Сначала сервер: если он отказал, чаты не трогаем
+        await DvApi(client).post('friends/remove', {'user_id': userId});
+        final rooms = client.rooms
+            .where(
+              (r) =>
+                  r.membership == Membership.join &&
+                  r.isDirectChat &&
+                  r.directChatMatrixID == userId &&
+                  r.isAbandonedDMRoom != true &&
+                  !r.isSupportRoom,
+            )
+            .toList();
+        for (final room in rooms) {
+          try {
+            await room.deleteForMe(unfriend: true);
+          } catch (e, s) {
+            Logs().w('DVChat: не удалось удалить чат ${room.id}', e, s);
+          }
+        }
+        if (_best.contains(userId)) {
+          await client.setBestFriend(userId, best: false);
+        }
+      },
+    );
+    if (!mounted) return;
+    if (result.error == null) {
+      setState(() => _best.remove(userId));
+      _snack('$name удалён(а) из друзей');
+    }
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -293,6 +425,8 @@ class _FriendsPageState extends State<FriendsPage> {
           if (data == null) {
             return const Center(child: CircularProgressIndicator.adaptive());
           }
+          final best = data.friends.where(_best.contains).toList();
+          final rest = data.friends.where((id) => !_best.contains(id)).toList();
           return RefreshIndicator(
             onRefresh: () async {
               _reload();
@@ -324,7 +458,11 @@ class _FriendsPageState extends State<FriendsPage> {
                       ),
                     ),
                 ],
-                _header(data.allUsers ? 'Все пользователи' : 'Мои друзья'),
+                if (best.isNotEmpty) ...[
+                  _header('Лучшие'),
+                  for (final id in best) _friendTile(id, data.allUsers),
+                ],
+                _header(data.allUsers ? 'Все пользователи' : 'Друзья'),
                 if (data.friends.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(24),
@@ -334,8 +472,7 @@ class _FriendsPageState extends State<FriendsPage> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                for (final id in data.friends)
-                  _userTile(id, onTap: () => _openChat(id)),
+                for (final id in rest) _friendTile(id, data.allUsers),
               ],
             ),
           );

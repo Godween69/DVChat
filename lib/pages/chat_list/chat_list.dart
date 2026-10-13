@@ -479,10 +479,7 @@ class ChatListController extends State<ChatList>
         }
         await showFutureLoadingDialog(
           context: context,
-          future: () async {
-            await room.leave();
-            await room.forget();
-          },
+          future: room.deleteForMe,
         );
         return;
       case ChatContextAction.lowPriority:

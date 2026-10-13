@@ -5,6 +5,8 @@
 
 // DVChat: Тело списка чатов: чаты, приглашения, пустое состояние.
 
+import 'dart:async';
+
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
@@ -12,6 +14,7 @@ import 'package:dvchat/pages/chat_list/chat_list_item.dart';
 import 'package:dvchat/pages/chat_list/dummy_chat_list_item.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
+import 'package:dvchat/widgets/closed_chat_notice.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -71,6 +74,9 @@ class ChatListViewBody extends StatelessWidget {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             for (final room in abandoned) {
               room.moveToArchive();
+            }
+            if (context.mounted) {
+              unawaited(showClosedChatNotice(context, abandoned));
             }
           });
         }
