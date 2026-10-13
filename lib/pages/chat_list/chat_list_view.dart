@@ -3,8 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:dvchat/config/app_config.dart';
-import 'package:dvchat/config/setting_keys.dart';
+// DVChat: каркас экрана списка чатов.
+//
+// На широком экране слева узкая панель (navigation_rail.dart), справа сам
+// список (chat_list_body.dart). На телефоне только список и кнопка нового чата.
+
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/chat_list/navigation_rail.dart';
@@ -20,81 +23,33 @@ class ChatListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final oneColumnSpacesMode =
-        !FluffyThemes.isColumnMode(context) &&
-        AppSettings.displayNavigationRail.value;
-    return PopScope(
-      canPop: controller.activeSpaceId == null,
-      onPopInvokedWithResult: (pop, _) {
-        if (pop) return;
-        if (controller.activeSpaceId != null) {
-          controller.clearActiveSpace();
-          return;
-        }
-      },
-      child: Row(
-        children: [
-          Material(
-            color: Theme.of(context).colorScheme.surface,
-            child: AnimatedSize(
-              duration: FluffyThemes.animationDuration,
-              curve: FluffyThemes.animationCurve,
-              child:
-                  (FluffyThemes.isColumnMode(context) ||
-                      AppSettings.displayNavigationRail.value)
-                  ? SpacesNavigationRail(
-                      activeSpaceId: controller.activeSpaceId,
-                      onGoToChats: controller.clearActiveSpace,
-                      onGoToSpaceId: controller.setActiveSpace,
-                    )
-                  : SizedBox(
-                      width: 0,
-                      height: MediaQuery.sizeOf(context).height,
-                    ),
+    final isColumnMode = FluffyThemes.isColumnMode(context);
+    return Row(
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: AnimatedSize(
+            duration: FluffyThemes.animationDuration,
+            curve: FluffyThemes.animationCurve,
+            child: isColumnMode
+                ? const ChatsNavigationRail()
+                : SizedBox(width: 0, height: MediaQuery.sizeOf(context).height),
+          ),
+        ),
+        if (isColumnMode)
+          Container(width: 1, color: Theme.of(context).dividerColor),
+        Expanded(
+          child: GestureDetector(
+            onTap: FocusManager.instance.primaryFocus?.unfocus,
+            excludeFromSemantics: true,
+            behavior: HitTestBehavior.translucent,
+            child: Scaffold(
+              floatingActionButton: isColumnMode ? null : const StartChatFab(),
+              body: Material(child: ChatListViewBody(controller)),
             ),
           ),
-          if (FluffyThemes.isColumnMode(context) ||
-              AppSettings.displayNavigationRail.value)
-            if (FluffyThemes.isColumnMode(context))
-              Container(width: 1, color: Theme.of(context).dividerColor),
-
-          Expanded(
-            child: GestureDetector(
-              onTap: FocusManager.instance.primaryFocus?.unfocus,
-              excludeFromSemantics: true,
-              behavior: HitTestBehavior.translucent,
-              child: Scaffold(
-                backgroundColor: oneColumnSpacesMode
-                    ? Theme.of(context).colorScheme.surfaceContainer
-                    : null,
-                floatingActionButton: FluffyThemes.isColumnMode(context)
-                    ? null
-                    : const StartChatFab(),
-                body: SafeArea(
-                  top: oneColumnSpacesMode,
-                  bottom: false,
-                  left: false,
-                  right: false,
-                  child: Material(
-                    clipBehavior: oneColumnSpacesMode
-                        ? Clip.hardEdge
-                        : Clip.none,
-                    borderRadius: oneColumnSpacesMode
-                        ? BorderRadius.only(
-                            topLeft: Radius.circular(AppConfig.borderRadius),
-                          )
-                        : null,
-                    color: oneColumnSpacesMode
-                        ? Theme.of(context).colorScheme.surface
-                        : null,
-                    child: ChatListViewBody(controller),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

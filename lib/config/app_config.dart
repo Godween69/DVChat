@@ -31,7 +31,6 @@ abstract class AppConfig {
   static const String pushNotificationsChannelId = 'fluffychat_push';
   static const String pushNotificationsAppId = 'online.dvbstudio.dvchat';
   static const double borderRadius = 18.0;
-  static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
 
   static const String enablePushTutorial =

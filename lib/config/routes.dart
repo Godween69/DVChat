@@ -91,12 +91,7 @@ abstract class AppRoutes {
         FluffyThemes.isColumnMode(context) &&
                 state.fullPath?.startsWith('/rooms/settings') == false
             ? TwoColumnLayout(
-                mainView: ChatList(
-                  activeChat: state.pathParameters['roomid'],
-                  activeSpace: state.uri.queryParameters['spaceId'],
-                  displayNavigationRail:
-                      state.path?.startsWith('/rooms/settings') != true,
-                ),
+                mainView: ChatList(activeChat: state.pathParameters['roomid']),
                 sideView: child,
               )
             : child,
@@ -110,10 +105,7 @@ abstract class AppRoutes {
             state,
             FluffyThemes.isColumnMode(context)
                 ? const EmptyPage()
-                : ChatList(
-                    activeChat: state.pathParameters['roomid'],
-                    activeSpace: state.uri.queryParameters['spaceId'],
-                  ),
+                : ChatList(activeChat: state.pathParameters['roomid']),
           ),
           routes: [
             GoRoute(
@@ -163,18 +155,6 @@ abstract class AppRoutes {
                 context,
                 state,
                 NewGroup(spaceId: state.uri.queryParameters['space_id']),
-              ),
-              redirect: loggedOutRedirect,
-            ),
-            GoRoute(
-              path: 'newspace',
-              pageBuilder: (context, state) => defaultPageBuilder(
-                context,
-                state,
-                NewGroup(
-                  createGroupType: CreateGroupType.space,
-                  spaceId: state.uri.queryParameters['space_id'],
-                ),
               ),
               redirect: loggedOutRedirect,
             ),

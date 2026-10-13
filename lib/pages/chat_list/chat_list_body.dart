@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/chat_list/chat_list_item.dart';
 import 'package:dvchat/pages/chat_list/dummy_chat_list_item.dart';
-import 'package:dvchat/pages/chat_list/space_view.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:material_ui/material_ui.dart';
@@ -32,25 +30,6 @@ class ChatListViewBody extends StatelessWidget {
     final theme = Theme.of(context);
 
     final client = Matrix.of(context).client;
-    final activeSpace = controller.activeSpaceId;
-    if (activeSpace != null) {
-      return SpaceView(
-        key: ValueKey(activeSpace),
-        spaceId: activeSpace,
-        onBack: controller.clearActiveSpace,
-        onChatTab: controller.onChatTap,
-        activeChat: controller.activeChat,
-      );
-    }
-    final spaces = client.rooms.where((r) => r.isSpace);
-    final spaceDelegateCandidates = <String, Room>{};
-    for (final space in spaces) {
-      for (final spaceChild in space.spaceChildren) {
-        final roomId = spaceChild.roomId;
-        if (roomId == null) continue;
-        spaceDelegateCandidates[roomId] = space;
-      }
-    }
 
     const dummyChatCount = 4;
     return StreamBuilder(
@@ -97,10 +76,8 @@ class ChatListViewBody extends StatelessWidget {
             .where((room) => !room.isNewcomerPlaceholder)
             .where(
               (room) =>
-                  (!(room.isInArchive || room.isHiddenByUser) ||
-                      room.hasNewMessages) &&
-                  (!AppSettings.hideRoomsInSpaces.value ||
-                      spaceDelegateCandidates[room.id] == null),
+                  !(room.isInArchive || room.isHiddenByUser) ||
+                  room.hasNewMessages,
             )
             .toList();
 
@@ -196,15 +173,13 @@ class ChatListViewBody extends StatelessWidget {
                       );
                     }
                     final room = entry as Room;
-                    final space = spaceDelegateCandidates[room.id];
                     final item = ChatListItem(
                       room,
-                      space: space,
                       key: Key('chat_list_item_${room.id}'),
                       filter: '',
                       onTap: () => controller.onChatTap(room),
                       onLongPress: (context) =>
-                          controller.chatContextAction(room, context, space),
+                          controller.chatContextAction(room, context),
                       activeChat: controller.activeChat == room.id,
                     );
                     return isBlocked(room)

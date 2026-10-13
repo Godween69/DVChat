@@ -3,133 +3,55 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:dvchat/config/app_config.dart';
+// DVChat: узкая боковая панель списка чатов на широком экране.
+//
+// Раньше здесь были ещё спейсы (группы чатов), теперь остаётся кнопка «Чаты»
+// и кнопка создания нового чата.
+
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/navi_rail_item.dart';
 import 'package:dvchat/pages/chat_list/start_chat_fab.dart';
-import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:dvchat/utils/stream_extension.dart';
-import 'package:dvchat/widgets/avatar.dart';
-import 'package:dvchat/widgets/matrix.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart';
 
-class SpacesNavigationRail extends StatelessWidget {
-  final String? activeSpaceId;
-  final void Function() onGoToChats;
-  final void Function(String) onGoToSpaceId;
-
-  const SpacesNavigationRail({
-    required this.activeSpaceId,
-    required this.onGoToChats,
-    required this.onGoToSpaceId,
-    super.key,
-  });
+class ChatsNavigationRail extends StatelessWidget {
+  const ChatsNavigationRail({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final client = Matrix.of(context).client;
-    final coloredMode = !FluffyThemes.isColumnMode(context);
-    final theme = Theme.of(context);
     return Material(
-      color: coloredMode ? theme.colorScheme.surfaceContainer : null,
       child: SafeArea(
-        child: StreamBuilder(
-          key: ValueKey(client.userID.toString()),
-          stream: client.onSync.stream
-              .where((s) => s.hasRoomUpdate)
-              .rateLimit(const Duration(seconds: 1)),
-          builder: (context, _) {
-            final allSpaces = client.rooms
-                .where((room) => room.isSpace)
-                .toList();
-
-            return SizedBox(
-              width: FluffyThemes.isColumnMode(context)
-                  ? FluffyThemes.navRailWidth
-                  : FluffyThemes.navRailWidth - 8,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      padding: EdgeInsets.symmetric(vertical: 4),
-                      scrollDirection: Axis.vertical,
-                      itemCount: allSpaces.length + 2,
-                      itemBuilder: (context, i) {
-                        if (i == 0) {
-                          return NaviRailItem(
-                            isSelected: activeSpaceId == null,
-                            onTap: onGoToChats,
-                            icon: const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: Icon(Icons.forum_outlined),
-                            ),
-                            selectedIcon: const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: Icon(Icons.forum),
-                            ),
-                            toolTip: L10n.of(context).chats,
-                            unreadBadgeFilter: (room) => true,
-                          );
-                        }
-                        i--;
-                        if (i == allSpaces.length) {
-                          return NaviRailItem(
-                            isSelected: false,
-                            onTap: () => context.go('/rooms/newspace'),
-                            icon: const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: Icon(Icons.add),
-                            ),
-                            toolTip: L10n.of(context).createNewSpace,
-                          );
-                        }
-                        final space = allSpaces[i];
-                        final displayname = allSpaces[i]
-                            .getLocalizedDisplayname(
-                              MatrixLocals(L10n.of(context)),
-                            );
-                        final spaceChildrenIds = space.spaceChildren
-                            .map((c) => c.roomId)
-                            .toSet();
-                        return NaviRailItem(
-                          toolTip: displayname,
-                          isSelected: activeSpaceId == space.id,
-                          onTap: () => onGoToSpaceId(allSpaces[i].id),
-                          unreadBadgeFilter: (room) =>
-                              spaceChildrenIds.contains(room.id),
-                          icon: Avatar(
-                            mxContent: allSpaces[i].avatar,
-                            name: displayname,
-                            //size: 36,
-                            shapeBorder: RoundedSuperellipseBorder(
-                              side: BorderSide(
-                                width: 1,
-                                color: Theme.of(context).dividerColor,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppConfig.spaceBorderRadius,
-                              ),
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              AppConfig.spaceBorderRadius,
-                            ),
-                          ),
-                        );
-                      },
+        child: SizedBox(
+          width: FluffyThemes.navRailWidth,
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  children: [
+                    NaviRailItem(
+                      isSelected: true,
+                      onTap: () {},
+                      icon: const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: Icon(Icons.forum_outlined),
+                      ),
+                      selectedIcon: const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: Icon(Icons.forum),
+                      ),
+                      toolTip: L10n.of(context).chats,
+                      unreadBadgeFilter: (room) => true,
                     ),
-                  ),
-                  if (FluffyThemes.isColumnMode(context))
-                    Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: StartChatFab(),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            );
-          },
+              const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: StartChatFab(),
+              ),
+            ],
+          ),
         ),
       ),
     );

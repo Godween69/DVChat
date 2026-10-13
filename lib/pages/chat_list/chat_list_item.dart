@@ -21,7 +21,6 @@ import '../../widgets/avatar.dart';
 
 class _ChatListItemBody extends StatelessWidget {
   final Room room;
-  final Room? space;
   final bool activeChat;
   final void Function(BuildContext context)? onLongPress;
   final void Function()? onForget;
@@ -35,7 +34,6 @@ class _ChatListItemBody extends StatelessWidget {
     this.onLongPress,
     this.onForget,
     this.filter,
-    this.space,
   });
 
   @override
@@ -63,7 +61,6 @@ class _ChatListItemBody extends StatelessWidget {
     final needLastEventSender =
         lastEvent != null &&
         room.getState(EventTypes.RoomMember, lastEvent.senderId) == null;
-    final space = this.space;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -88,67 +85,12 @@ class _ChatListItemBody extends StatelessWidget {
                     height: Avatar.defaultSize,
                     child: Stack(
                       children: [
-                        if (space != null)
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            child: Avatar(
-                              shapeBorder: RoundedSuperellipseBorder(
-                                side: BorderSide(
-                                  width: 2,
-                                  color:
-                                      backgroundColor ??
-                                      theme.colorScheme.surface,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  AppConfig.spaceBorderRadius * 0.75,
-                                ),
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppConfig.spaceBorderRadius * 0.75,
-                              ),
-                              mxContent: space.avatar,
-                              size: Avatar.defaultSize * 0.75,
-                              name: space.getLocalizedDisplayname(),
-                              onTap: () => onLongPress?.call(context),
-                            ),
-                          ),
                         Positioned(
                           bottom: 0,
                           right: 0,
                           child: Avatar(
-                            shapeBorder: space == null
-                                ? room.isSpace
-                                      ? RoundedSuperellipseBorder(
-                                          side: BorderSide(
-                                            width: 1,
-                                            color: theme.dividerColor,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.spaceBorderRadius,
-                                          ),
-                                        )
-                                      : null
-                                : RoundedRectangleBorder(
-                                    side: BorderSide(
-                                      width: 2,
-                                      color:
-                                          backgroundColor ??
-                                          theme.colorScheme.surface,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      Avatar.defaultSize,
-                                    ),
-                                  ),
-                            borderRadius: room.isSpace
-                                ? BorderRadius.circular(
-                                    AppConfig.spaceBorderRadius,
-                                  )
-                                : null,
                             mxContent: room.avatar,
-                            size: space != null
-                                ? Avatar.defaultSize * 0.75
-                                : Avatar.defaultSize,
+                            size: Avatar.defaultSize,
                             name: displayname,
                             presenceUserId: directChatMatrixId,
                             presenceBackgroundColor: backgroundColor,
@@ -217,7 +159,7 @@ class _ChatListItemBody extends StatelessWidget {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                  if (!room.isSpace && room.membership != Membership.invite)
+                  if (room.membership != Membership.invite)
                     Padding(
                       padding: const EdgeInsets.only(left: 4.0),
                       child: Text(
@@ -294,13 +236,7 @@ class _ChatListItemBody extends StatelessWidget {
                         : const SizedBox.shrink(),
                   ),
                   Expanded(
-                    child: room.isSpace && room.membership == Membership.join
-                        ? Text(
-                            L10n.of(
-                              context,
-                            ).countChats(room.spaceChildren.length),
-                          )
-                        : typingText.isNotEmpty
+                    child: typingText.isNotEmpty
                         ? Text(
                             typingText,
                             style: TextStyle(color: theme.colorScheme.primary),
@@ -319,9 +255,14 @@ class _ChatListItemBody extends StatelessWidget {
                                     plaintextBody: true,
                                     removeMarkdown: true,
                                     withSenderNamePrefix:
-    // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
-    !(room.lastEvent?.content.containsKey('online.dvbstudio.dvchat.newcomer') ?? false) &&
-    (!isDirectChat || directChatMatrixId != room.lastEvent?.senderId),
+                                        // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+                                        !(room.lastEvent?.content.containsKey(
+                                              'online.dvbstudio.dvchat.newcomer',
+                                            ) ??
+                                            false) &&
+                                        (!isDirectChat ||
+                                            directChatMatrixId !=
+                                                room.lastEvent?.senderId),
                                   )
                                 : null,
                             initialData: lastEvent?.calcLocalizedBodyFallback(
@@ -331,9 +272,14 @@ class _ChatListItemBody extends StatelessWidget {
                               plaintextBody: true,
                               removeMarkdown: true,
                               withSenderNamePrefix:
-    // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
-    !(room.lastEvent?.content.containsKey('online.dvbstudio.dvchat.newcomer') ?? false) &&
-    (!isDirectChat || directChatMatrixId != room.lastEvent?.senderId),
+                                  // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+                                  !(room.lastEvent?.content.containsKey(
+                                        'online.dvbstudio.dvchat.newcomer',
+                                      ) ??
+                                      false) &&
+                                  (!isDirectChat ||
+                                      directChatMatrixId !=
+                                          room.lastEvent?.senderId),
                             ),
                             builder: (context, snapshot) => Text(
                               room.membership == Membership.invite
@@ -408,7 +354,6 @@ class _ChatListItemBody extends StatelessWidget {
 /// логином («dima»), пока чат не откроют.
 class ChatListItem extends StatelessWidget {
   final Room room;
-  final Room? space;
   final bool activeChat;
   final void Function(BuildContext context)? onLongPress;
   final void Function()? onForget;
@@ -422,7 +367,6 @@ class ChatListItem extends StatelessWidget {
     this.onLongPress,
     this.onForget,
     this.filter,
-    this.space,
     super.key,
   });
 
@@ -432,7 +376,6 @@ class ChatListItem extends StatelessWidget {
       future: room.name.isEmpty ? room.loadHeroUsers() : null,
       builder: (context, _) => _ChatListItemBody(
         room,
-        space: space,
         activeChat: activeChat,
         onTap: onTap,
         onLongPress: onLongPress,
