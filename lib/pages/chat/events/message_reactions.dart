@@ -6,6 +6,7 @@
 // DVChat: Реакции под сообщением.
 
 import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/single_reaction_extension.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -60,7 +61,9 @@ class MessageReactions extends StatelessWidget {
             reactionKey: r.key,
             count: r.count,
             // DVChat: одна реакция на пользователя; нажатие переключает свою реакцию
-            onTap: () => event.room.setMyReaction(event, timeline, r.key),
+            onTap: event.room.isHistoryOnly
+                ? null
+                : () => event.room.setMyReaction(event, timeline, r.key),
             onLongPress: () async => await _AdaptableReactorsDialog(
               client: client,
               reactionEntry: r,

@@ -18,6 +18,11 @@ extension RoomArchiveExtension on Room {
   /// Чат лежит в архиве (виден только на экране «Архив»)
   bool get isInArchive => tags.containsKey(AppConfig.archiveTag);
 
+  /// Закрытый чат: собеседник вышел, мы тоже не в комнате. Только чтение истории:
+  /// без выбора, копирования, пересылки, ответов, реакций и сохранения файлов.
+  bool get isHistoryOnly =>
+      {Membership.leave, Membership.ban}.contains(membership);
+
   /// Чат удалён из архива: скрыт, вернётся при новом сообщении
   bool get isHiddenByUser => tags.containsKey(AppConfig.hiddenTag);
 
