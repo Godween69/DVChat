@@ -3,14 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:convert';
-
 import 'package:async/async.dart';
 import 'package:dvchat/utils/legacy_migration.dart';
 import 'package:dvchat/utils/platform_infos.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:managed_configurations/managed_configurations.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -83,20 +78,14 @@ enum AppSettings<T> {
   static SharedPreferences get store => _store!;
   static SharedPreferences? _store;
 
-  static Map<String, Object?>? _platformConfiguration;
+  T get defaultValue => _defaultValue;
 
-  T get defaultValue {
-    final platformConfig = _platformConfiguration?[name];
-    if (platformConfig is T) return platformConfig;
-    return _defaultValue;
-  }
-
-  static Future<void> reset({bool loadWebConfigFile = true}) async {
+  static Future<void> reset() async {
     await AppSettings._store!.clear();
-    await init(loadWebConfigFile: loadWebConfigFile);
+    await init();
   }
 
-  static Future<SharedPreferences> init({bool loadWebConfigFile = true}) async {
+  static Future<SharedPreferences> init() async {
     if (AppSettings._store != null) return AppSettings.store;
 
     final store = AppSettings._store = await SharedPreferences.getInstance();
@@ -125,24 +114,6 @@ enum AppSettings<T> {
         AppSettings.doubleTapToReact.key,
         PlatformInfos.isMobile,
       );
-    }
-
-    // Load configuration from config.json file or MDM:
-    if (PlatformInfos.isMobile) {
-      _platformConfiguration =
-          await ManagedConfigurations().getManagedConfigurations;
-    } else if (kIsWeb && loadWebConfigFile) {
-      try {
-        final configJsonString = utf8.decode(
-          (await http.get(Uri.parse('config.json'))).bodyBytes,
-        );
-        _platformConfiguration =
-            json.decode(configJsonString) as Map<String, Object?>;
-      } on FormatException catch (_) {
-        Logs().v('[ConfigLoader] config.json not found');
-      } catch (e) {
-        Logs().v('[ConfigLoader] config.json not found', e);
-      }
     }
 
     return store;

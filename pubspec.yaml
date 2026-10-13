@@ -4,11 +4,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 name: dvchat
-description: Chat with your friends.
+description: DVChat, закрытый семейный мессенджер на сервере Matrix.
 publish_to: none
-# On version bump please also increase:
-# 1. The build number (for F-Droid)
-# 2. The version in /snap/snapcraft.yaml
+# Версию MAJOR.MINOR меняет скрипт сборки (dvchat-build.sh --bump minor|major),
+# PATCH и номер сборки он подставляет сам. Число после + здесь не используется.
 version: 1.1.0+1
 
 environment:
@@ -56,7 +55,6 @@ dependencies:
   light_compressor_v2: ^1.9.1
   local_auth: ^3.0.2
   lottie: ^3.6.1
-  managed_configurations: ^1.2.0
   material_ui: 1.5.0
   matrix: #^11.0.0
     git:
@@ -90,7 +88,6 @@ dependencies:
   unifiedpush_ui: ^0.2.0
   universal_html: ^2.3.0
   url_launcher: ^6.3.3
-  uuid: ^4.6.0
   video_player: ^2.14.1
   wakelock_plus: ^1.8.0
   zxing2: ^0.2.4
