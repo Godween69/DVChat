@@ -1,0 +1,356 @@
+// DVChat: экран «Друзья»: список, заявки, добавление по ID или QR, открытие чата
+
+import 'dart:async';
+
+import 'package:fluffychat/config/app_config.dart';
+import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:fluffychat/utils/dv_api.dart';
+import 'package:fluffychat/widgets/avatar.dart';
+import 'package:fluffychat/widgets/dv_my_id.dart';
+import 'package:fluffychat/widgets/future_loading_dialog.dart';
+import 'package:fluffychat/widgets/matrix.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
+
+const _scanMarker = 'scan';
+
+/// Разбирает строку из QR или поля ввода. Ссылку входа в аккаунт не принимаем.
+({String? id, String? error}) parseFriendCode(String raw) {
+  final text = raw.trim();
+  if (text.toLowerCase().startsWith(
+    '${AppConfig.loginLinkScheme}://${AppConfig.loginLinkHost}',
+  )) {
+    return (
+      id: null,
+      error:
+          'Это ссылка для входа в аккаунт, а не код друга. Её нельзя использовать.',
+    );
+  }
+  final match = RegExp(
+    '^(?:${AppConfig.loginLinkScheme}://add/)?(\\d{10})\$',
+  ).firstMatch(text);
+  if (match == null) return (id: null, error: 'Это не код друга DVChat');
+  return (id: match.group(1), error: null);
+}
+
+class FriendsPage extends StatefulWidget {
+  const FriendsPage({super.key});
+
+  @override
+  State<FriendsPage> createState() => _FriendsPageState();
+}
+
+class _FriendsData {
+  final List<String> friends;
+  final List<String> requests;
+  final bool allUsers;
+  const _FriendsData(this.friends, this.requests, this.allUsers);
+}
+
+class _FriendsPageState extends State<FriendsPage> {
+  late Future<_FriendsData> _future;
+  final Map<String, Future<Profile>> _profiles = {};
+
+  Client get _client => Matrix.of(context).client;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetch();
+  }
+
+  Future<Profile> _profile(String userId) =>
+      _profiles.putIfAbsent(userId, () => _client.getProfileFromUserId(userId));
+
+  static List<String> _ids(Object? value) => value is List
+      ? value
+            .whereType<Map<String, Object?>>()
+            .map((m) => m['user_id'])
+            .whereType<String>()
+            .toList()
+      : <String>[];
+
+  Future<_FriendsData> _fetch() async {
+    final api = DvApi(_client);
+    final friends = await api.get('friends');
+    final requests = await api.get('requests');
+    return _FriendsData(
+      _ids(friends['friends']),
+      _ids(requests['requests']),
+      friends['all_users'] == true,
+    );
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _openChat(String userId) async {
+    final client = _client;
+    final result = await showFutureLoadingDialog(
+      context: context,
+      future: () async {
+        final res = await DvApi(client).post('chat', {'user_id': userId});
+        final roomId = res['room_id'];
+        if (roomId is! String) {
+          throw const DvApiException(500, '', 'Сервер не вернул чат');
+        }
+        await client.waitForRoomInSync(roomId, join: true);
+        return roomId;
+      },
+    );
+    final roomId = result.result;
+    if (roomId == null || !mounted) return;
+    context.go('/rooms/$roomId');
+  }
+
+  Future<void> _answer(String userId, bool accept) async {
+    final client = _client;
+    await showFutureLoadingDialog(
+      context: context,
+      future: () => DvApi(
+        client,
+      ).post('requests/answer', {'user_id': userId, 'accept': accept}),
+    );
+    if (mounted) _reload();
+  }
+
+  Future<void> _addFriend() async {
+    final input = await showDialog<String>(
+      context: context,
+      builder: (_) => const _AddFriendDialog(),
+    );
+    if (input == null || !mounted) return;
+    if (input == _scanMarker) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => QrScannerModal(
+            onScan: (code) {
+              // Сканер закрывается сам до вызова onScan
+              if (!mounted) return;
+              final parsed = parseFriendCode(code);
+              final id = parsed.id;
+              if (id == null) {
+                _snack(parsed.error ?? 'Не удалось прочитать код');
+                return;
+              }
+              unawaited(_submit(id, viaQr: true));
+            },
+          ),
+        ),
+      );
+      return;
+    }
+    await _submit(input, viaQr: false);
+  }
+
+  Future<void> _submit(String id, {required bool viaQr}) async {
+    if (!mounted) return;
+    final client = _client;
+    final result = await showFutureLoadingDialog(
+      context: context,
+      future: () =>
+          DvApi(client).post('friends/add', {'dv_id': id, 'via_qr': viaQr}),
+    );
+    final status = result.result?['status'];
+    if (!mounted) return;
+    if (status == 'added') {
+      _snack('Друг добавлен');
+    } else if (status == 'requested') {
+      _snack('Заявка отправлена: друг увидит её у себя в списке заявок');
+    } else if (status == 'already') {
+      _snack('Этот человек уже у вас в друзьях');
+    }
+    _reload();
+  }
+
+  Widget _header(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
+
+  Widget _userTile(String id, {VoidCallback? onTap, Widget? trailing}) =>
+      FutureBuilder<Profile>(
+        future: _profile(id),
+        builder: (context, snapshot) {
+          final profile = snapshot.data;
+          final name = profile?.displayName ?? id.localpart ?? id;
+          return ListTile(
+            leading: Avatar(
+              mxContent: profile?.avatarUrl,
+              name: name,
+              client: _client,
+            ),
+            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: onTap,
+            trailing: trailing,
+          );
+        },
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Друзья'),
+        leading: Center(
+          child: BackButton(onPressed: () => context.go('/rooms')),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            tooltip: 'Добавить друга',
+            onPressed: _addFriend,
+          ),
+        ],
+      ),
+      body: FutureBuilder<_FriendsData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${snapshot.error}', textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _reload,
+                      child: const Text('Повторить'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final data = snapshot.data;
+          if (data == null) {
+            return const Center(child: CircularProgressIndicator.adaptive());
+          }
+          return RefreshIndicator(
+            onRefresh: () async {
+              _reload();
+              await _future;
+            },
+            child: ListView(
+              children: [
+                const DvMyIdTile(),
+                const Divider(height: 1),
+                if (data.requests.isNotEmpty) ...[
+                  _header('Заявки в друзья'),
+                  for (final id in data.requests)
+                    _userTile(
+                      id,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.check_circle_outline),
+                            tooltip: 'Принять',
+                            onPressed: () => _answer(id, true),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.cancel_outlined),
+                            tooltip: 'Отклонить',
+                            onPressed: () => _answer(id, false),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                _header(data.allUsers ? 'Все пользователи' : 'Мои друзья'),
+                if (data.friends.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Пока нет друзей. Нажмите значок «добавить» вверху: '
+                      'введите ID или отсканируйте QR-код.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                for (final id in data.friends)
+                  _userTile(id, onTap: () => _openChat(id)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AddFriendDialog extends StatefulWidget {
+  const _AddFriendDialog();
+
+  @override
+  State<_AddFriendDialog> createState() => _AddFriendDialogState();
+}
+
+class _AddFriendDialogState extends State<_AddFriendDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _valid => RegExp(r'^\d{10}$').hasMatch(_controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Добавить друга'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            maxLength: 10,
+            autofocus: true,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(labelText: 'ID друга (10 цифр)'),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).pop(_scanMarker),
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: const Text('Сканировать QR-код'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(L10n.of(context).cancel),
+        ),
+        TextButton(
+          onPressed: _valid
+              ? () => Navigator.of(context).pop(_controller.text.trim())
+              : null,
+          child: const Text('Добавить'),
+        ),
+      ],
+    );
+  }
+}

@@ -8,6 +8,7 @@ import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/pages/chat_list/chat_list.dart';
 import 'package:fluffychat/pages/chat_list/navigation_rail.dart';
+import 'package:fluffychat/pages/chat_list/start_chat_fab.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'chat_list_body.dart';
@@ -66,6 +67,9 @@ class ChatListView extends StatelessWidget {
                 backgroundColor: oneColumnSpacesMode
                     ? Theme.of(context).colorScheme.surfaceContainer
                     : null,
+                floatingActionButton: FluffyThemes.isColumnMode(context)
+                    ? null
+                    : const StartChatFab(),
                 body: SafeArea(
                   top: oneColumnSpacesMode,
                   bottom: false,
