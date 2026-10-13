@@ -54,7 +54,7 @@ Future<Directory?> getFileStorageLocation() async {
     late final Directory temporaryDirectory;
     if (PlatformInfos.isIOS) {
       final containerPath = await PathProviderFoundation().getContainerPath(
-        appGroupIdentifier: 'group.im.fluffychat.app',
+        appGroupIdentifier: 'group.online.dvbstudio.dvchat',
       );
       temporaryDirectory = Directory(containerPath!);
     } else if (PlatformInfos.isLinux) {
@@ -63,7 +63,7 @@ Future<Directory?> getFileStorageLocation() async {
       temporaryDirectory = await getTemporaryDirectory();
     }
     return await Directory(
-      join(temporaryDirectory.path, 'fluffychat_download_cache'),
+      join(temporaryDirectory.path, 'dvchat_download_cache'),
     ).create(recursive: true);
   } on MissingPlatformDirectoryException catch (_) {
     Logs().w(
@@ -125,7 +125,7 @@ Future<MatrixSdkDatabase> _constructDatabase(String clientName) async {
 Future<String> _getDatabaseDirectory() async {
   if (PlatformInfos.isIOS) {
     final containerPath = await PathProviderFoundation().getContainerPath(
-      appGroupIdentifier: 'group.im.fluffychat.app',
+      appGroupIdentifier: 'group.online.dvbstudio.dvchat',
     );
     if (containerPath == null) {
       Logs().w('No container path found for iOS app!');

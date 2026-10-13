@@ -6,7 +6,7 @@
 import 'package:matrix/matrix.dart';
 
 extension EventCheckboxRoomExtension on Room {
-  static const String relationshipType = 'im.fluffychat.checkboxes';
+  static const String relationshipType = 'online.dvbstudio.dvchat.checkboxes';
   Future<String?> checkCheckbox(
     String eventId,
     int checkboxId, {

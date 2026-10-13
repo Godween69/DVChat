@@ -210,15 +210,6 @@ class SettingsSecurityView extends StatelessWidget {
                     ),
                   Divider(color: theme.dividerColor),
                   ListTile(
-                    iconColor: Colors.orange,
-                    leading: const Icon(Icons.delete_sweep_outlined),
-                    title: Text(
-                      L10n.of(context).dehydrate,
-                      style: const TextStyle(color: Colors.orange),
-                    ),
-                    onTap: controller.dehydrateAction,
-                  ),
-                  ListTile(
                     iconColor: Colors.red,
                     leading: const Icon(Icons.delete_outlined),
                     title: Text(

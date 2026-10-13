@@ -48,10 +48,7 @@ class DvChatApp extends StatelessWidget {
     debugLogDiagnostics: false,
     redirect: (context, state) {
       // Workaround for content sharings passed to go router:
-      if ({
-        'content',
-        'sharemedia-im.fluffychat.app',
-      }.contains(state.uri.scheme)) {
+      if ({'content', 'sharemedia-dvchat'}.contains(state.uri.scheme)) {
         Logs().d('Ignore content sharing handling in go router', state.uri);
         return '/';
       }

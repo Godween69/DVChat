@@ -48,7 +48,7 @@ class AccountBundle {
   };
 }
 
-const accountBundlesType = 'im.fluffychat.account_bundles';
+const accountBundlesType = 'online.dvbstudio.dvchat.account_bundles';
 
 extension AccountBundlesExtension on Client {
   List<AccountBundle> get accountBundles {

@@ -11,6 +11,7 @@ import 'package:collection/collection.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/legacy_migration.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/start_push_foreground_service.dart';
@@ -111,17 +112,18 @@ void main() => runZonedGuarded(() async {
 
 /// Fetch the pincode for the applock and start the flutter engine.
 Future<void> startGui(List<Client> clients, SharedPreferences store) async {
+  // DVChat: перенос пин-кода и каналов уведомлений со старых имён (один раз, до чтения пина)
+  await migrateLegacyPlatformData(store);
+
   // Fetch the pin for the applock if existing for mobile applications.
   String? pin;
   var useBiometrics = false;
   if (PlatformInfos.supportsAppLock) {
     try {
-      pin = await const FlutterSecureStorage().read(
-        key: 'chat.fluffy.app_lock',
-      );
+      pin = await const FlutterSecureStorage().read(key: 'dvchat.app_lock');
       useBiometrics =
           (await const FlutterSecureStorage().read(
-            key: 'chat.fluffy.use_biometrics',
+            key: 'dvchat.use_biometrics',
           )) ==
           'true';
     } catch (e, s) {

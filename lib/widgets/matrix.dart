@@ -4,22 +4,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/init_with_restore.dart';
-import 'package:dvchat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/uia_request_manager.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/dvchat_app.dart';
-import 'package:dvchat/widgets/future_loading_dialog.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
@@ -391,34 +386,5 @@ class MatrixState extends State<Matrix> {
   @override
   Widget build(BuildContext context) {
     return Provider(create: (_) => this, child: widget.child);
-  }
-
-  Future<void> dehydrateAction(BuildContext context) async {
-    final l10n = L10n.of(context);
-    final response = await showOkCancelAlertDialog(
-      context: context,
-      isDestructive: true,
-      title: l10n.dehydrate,
-      message: l10n.dehydrateWarning,
-    );
-    if (response != OkCancelResult.ok) {
-      return;
-    }
-    if (!context.mounted) return;
-    final result = await showFutureLoadingDialog(
-      context: context,
-      future: client.exportDump,
-    );
-    final export = result.result;
-    if (export == null) return;
-
-    final exportBytes = Uint8List.fromList(const Utf8Codec().encode(export));
-
-    final exportFileName =
-        'fluffychat-export-${DateFormat(DateFormat.YEAR_MONTH_DAY).format(DateTime.now())}.fluffybackup';
-
-    final file = MatrixFile(bytes: exportBytes, name: exportFileName);
-    if (!context.mounted) return;
-    file.save(context);
   }
 }

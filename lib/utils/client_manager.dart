@@ -24,7 +24,7 @@ import 'package:universal_html/html.dart' as html;
 import 'matrix_sdk_extensions/flutter_matrix_dart_sdk_database/builder.dart';
 
 abstract class ClientManager {
-  static const String clientNamespace = 'im.fluffychat.store.clients';
+  static const String clientNamespace = 'dvchat.store.clients';
 
   static Future<List<Client>> getClients({
     bool initialize = true,

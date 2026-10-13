@@ -26,9 +26,9 @@ abstract class AppConfig {
   static const String loginLinkHost = 'login';
 
   static const String inviteLinkPrefix = 'https://matrix.to/#/';
-  static const String deepLinkPrefix = 'im.fluffychat://chat/';
+  static const String deepLinkPrefix = 'dvchat://chat/';
   static const String schemePrefix = 'matrix:';
-  static const String pushNotificationsChannelId = 'fluffychat_push';
+  static const String pushNotificationsChannelId = 'dvchat_push';
   static const String pushNotificationsAppId = 'online.dvbstudio.dvchat';
   static const double borderRadius = 18.0;
   static const double columnWidth = 360.0;

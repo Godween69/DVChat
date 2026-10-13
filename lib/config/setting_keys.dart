@@ -6,6 +6,7 @@
 import 'dart:convert';
 
 import 'package:async/async.dart';
+import 'package:dvchat/utils/legacy_migration.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -17,16 +18,16 @@ enum AppSettings<T> {
   textMessageMaxLength<int>('textMessageMaxLength', 16384),
 
   /// Max lines for unselected HTML/text bubbles; 0 = unlimited (no fade).
-  messagePreviewMaxLines<int>('chat.fluffy.message_preview_max_lines', 50),
+  messagePreviewMaxLines<int>('dvchat.message_preview_max_lines', 50),
   audioRecordingNumChannels<int>('audioRecordingNumChannels', 1),
   audioRecordingAutoGain<bool>('audioRecordingAutoGain', true),
   audioRecordingEchoCancel<bool>('audioRecordingEchoCancel', false),
   audioRecordingNoiseSuppress<bool>('audioRecordingNoiseSuppress', true),
   audioRecordingBitRate<int>('audioRecordingBitRate', 64000),
   audioRecordingSamplingRate<int>('audioRecordingSamplingRate', 48000),
-  showNoGoogle<bool>('chat.fluffy.show_no_google', false),
-  unifiedPushRegistered<bool>('chat.fluffy.unifiedpush.registered', false),
-  unifiedPushEndpoint<String>('chat.fluffy.unifiedpush.endpoint', ''),
+  showNoGoogle<bool>('dvchat.show_no_google', false),
+  unifiedPushRegistered<bool>('dvchat.unifiedpush.registered', false),
+  unifiedPushEndpoint<String>('dvchat.unifiedpush.endpoint', ''),
   pushNotificationsGatewayUrl<String>(
     'pushNotificationsGatewayUrl',
     'http://172.30.50.2:8080/_matrix/push/v1/notify',
@@ -35,47 +36,44 @@ enum AppSettings<T> {
     'pushNotificationsPusherFormat',
     'event_id_only',
   ),
-  renderHtml<bool>('chat.fluffy.renderHtml', true),
-  fontSizeFactor<double>('chat.fluffy.font_size_factor', 1.0),
-  hideRedactedEvents<bool>('chat.fluffy.hideRedactedEvents', false),
-  hideUnknownEvents<bool>('chat.fluffy.hideUnknownEvents', true),
-  autoplayImages<bool>('chat.fluffy.autoplay_images', true),
-  voiceMessageSpeedPercent<int>('chat.fluffy.voice_message_speed', 100),
-  archiveDeleteConfirm<bool>('chat.fluffy.archive_delete_confirm', true),
-  notifyAboutReactions<bool>('chat.fluffy.notify_about_reactions', true),
-  sendTypingNotifications<bool>('chat.fluffy.send_typing_notifications', true),
-  sendPublicReadReceipts<bool>('chat.fluffy.send_public_read_receipts', true),
-  swipeRightToLeftToReply<bool>('chat.fluffy.swipeRightToLeftToReply', true),
-  sendOnEnter<bool>('chat.fluffy.send_on_enter', false),
-  shareKeysWith<String>('chat.fluffy.share_keys_with_2', 'all'),
-  noEncryptionWarningShown<bool>(
-    'chat.fluffy.no_encryption_warning_shown',
-    false,
-  ),
-  displayChatDetailsColumn('chat.fluffy.display_chat_details_column', false),
+  renderHtml<bool>('dvchat.renderHtml', true),
+  fontSizeFactor<double>('dvchat.font_size_factor', 1.0),
+  hideRedactedEvents<bool>('dvchat.hideRedactedEvents', false),
+  hideUnknownEvents<bool>('dvchat.hideUnknownEvents', true),
+  autoplayImages<bool>('dvchat.autoplay_images', true),
+  voiceMessageSpeedPercent<int>('dvchat.voice_message_speed', 100),
+  archiveDeleteConfirm<bool>('dvchat.archive_delete_confirm', true),
+  notifyAboutReactions<bool>('dvchat.notify_about_reactions', true),
+  sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
+  sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),
+  swipeRightToLeftToReply<bool>('dvchat.swipeRightToLeftToReply', true),
+  sendOnEnter<bool>('dvchat.send_on_enter', false),
+  shareKeysWith<String>('dvchat.share_keys_with_2', 'all'),
+  noEncryptionWarningShown<bool>('dvchat.no_encryption_warning_shown', false),
+  displayChatDetailsColumn('dvchat.display_chat_details_column', false),
   // AppConfig-mirrored settings
-  applicationName<String>('chat.fluffy.application_name', 'DVChat'),
+  applicationName<String>('dvchat.application_name', 'DVChat'),
   defaultHomeserver<String>(
-    'chat.fluffy.default_homeserver',
+    'dvchat.default_homeserver',
     'chat.dvbstudio.online',
   ),
   // colorSchemeSeed stored as ARGB int
-  colorSchemeSeedInt<int>('chat.fluffy.color_scheme_seed', 0xFF5625BA),
+  colorSchemeSeedInt<int>('dvchat.color_scheme_seed', 0xFF5625BA),
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
-  enableSoftLogout<bool>('chat.fluffy.enable_soft_logout', true),
-  sendTimelineEventTimeout<int>('chat.fluffy.send_timeline_event_timeout', 15),
-  webNotificationSound<bool>('chat.fluffy.web_notification_sound', true),
-  chatFilter<String>('chat.fluffy.chat_filter', 'allChats'),
-  showThumbnailsInTimeline<bool>('chat.fluffy.showThumbnailsInTimeline', true),
-  doubleTapToReact<bool>('chat.fluffy.double_tap_to_react', false),
+  enableSoftLogout<bool>('dvchat.enable_soft_logout', true),
+  sendTimelineEventTimeout<int>('dvchat.send_timeline_event_timeout', 15),
+  webNotificationSound<bool>('dvchat.web_notification_sound', true),
+  chatFilter<String>('dvchat.chat_filter', 'allChats'),
+  showThumbnailsInTimeline<bool>('dvchat.showThumbnailsInTimeline', true),
+  doubleTapToReact<bool>('dvchat.double_tap_to_react', false),
   // DVChat: цвет фона чата (ARGB, 0 = по умолчанию)
-  chatBackgroundColorInt<int>('chat.fluffy.chat_background_color', 0),
-  doubleTapReaction<String>('chat.fluffy.double_tap_reaction', '❤️'),
-  benchmarksInLogs<bool>('chat.fluffy.benchmarks_in_logs', false),
-  autoSendErrorReports<bool?>('chat.fluffy.auto_send_eror_reports', null),
-  knownErrorHashes<List<String>>('chat.fluffy.known_crash_hashes', []),
-  checkForUpdates<bool>('chat.fluffy.check_for_updates', true),
-  lastUpdateCheckDate<String>('chat.fluffy.last_update_check_date', '');
+  chatBackgroundColorInt<int>('dvchat.chat_background_color', 0),
+  doubleTapReaction<String>('dvchat.double_tap_reaction', '❤️'),
+  benchmarksInLogs<bool>('dvchat.benchmarks_in_logs', false),
+  autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
+  knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),
+  checkForUpdates<bool>('dvchat.check_for_updates', true),
+  lastUpdateCheckDate<String>('dvchat.last_update_check_date', '');
 
   final String key;
   final T _defaultValue;
@@ -102,6 +100,9 @@ enum AppSettings<T> {
     if (AppSettings._store != null) return AppSettings.store;
 
     final store = AppSettings._store = await SharedPreferences.getInstance();
+
+    // DVChat: перенос ключей со старых имён (одноразово, потом цикл пустой)
+    await migrateLegacySettings(store);
 
     // Migrate wrong datatype for fontSizeFactor
     final fontSizeFactorString = Result(

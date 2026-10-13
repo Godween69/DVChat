@@ -41,12 +41,10 @@ abstract class ForegroundServices {
         return;
       }
       if (PlatformInfos.isMobile) {
-        final l10n = await L10n.delegate.load(
-          appLocale,
-        );
+        final l10n = await L10n.delegate.load(appLocale);
         FlutterForegroundTask.init(
           androidNotificationOptions: AndroidNotificationOptions(
-            channelId: 'fluffychat_sync',
+            channelId: 'dvchat_sync',
             channelName: l10n.loadingMessages,
             channelDescription: l10n.loadingMessages,
             onlyAlertOnce: true,

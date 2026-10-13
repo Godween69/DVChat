@@ -6,11 +6,17 @@
 import 'package:matrix/matrix.dart';
 
 extension ApplicationAccountConfigExtension on Client {
-  static const String accountDataKey = 'im.fluffychat.account_config';
+  static const String accountDataKey = 'online.dvbstudio.dvchat.account_config';
+
+  /// Прежнее имя записи (до переименования). Читаем как запасной вариант,
+  /// а записываем уже под новым именем.
+  static const String _legacyAccountDataKey = 'im.fluffychat.account_config';
 
   ApplicationAccountConfig get applicationAccountConfig =>
       ApplicationAccountConfig.fromJson(
-        accountData[accountDataKey]?.content ?? {},
+        (accountData[accountDataKey] ?? accountData[_legacyAccountDataKey])
+                ?.content ??
+            {},
       );
 
   Future<void> setApplicationAccountConfig(ApplicationAccountConfig config) =>

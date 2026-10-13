@@ -215,13 +215,7 @@ class BackgroundPush {
 
     if (!client.isLogged()) return;
 
-    final legacyPushers = pushers.where(
-      (pusher) =>
-          pusher.appId == thisAppId || // To migrate older app-id format:
-          ((pusher.appId == 'chat.fluffy.fluffychat.data_message' ||
-                  pusher.appId == 'chat.fluffy.fluffychat') &&
-              pusher.pushkey == token),
-    );
+    final legacyPushers = pushers.where((pusher) => pusher.appId == thisAppId);
     for (final pusher in legacyPushers) {
       try {
         await client.deletePusher(pusher);

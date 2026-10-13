@@ -714,8 +714,6 @@ class ChatListController extends State<ChatList>
 
   @override
   Widget build(BuildContext context) => ChatListView(this);
-
-  Future<void> dehydrate() => Matrix.of(context).dehydrateAction(context);
 }
 
 enum EditBundleAction { addToBundle, removeFromBundle }

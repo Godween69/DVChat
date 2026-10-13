@@ -83,12 +83,12 @@
                <data android:scheme="dvchat" android:host="login" />
             </intent-filter>
 
-            <!-- App can open im.fluffychat:// uris -->
+            <!-- DVChat: открытие чата по ссылке dvchat://chat/... -->
             <intent-filter>
                <action android:name="android.intent.action.VIEW" />
                <category android:name="android.intent.category.DEFAULT" />
                <category android:name="android.intent.category.BROWSABLE" />
-               <data android:scheme="im.fluffychat" android:host="chat" />
+               <data android:scheme="dvchat" android:host="chat" />
             </intent-filter>
 
             <!-- App can receive shared text -->
@@ -111,16 +111,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-          android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
-          android:exported="true">
-            <intent-filter android:label="flutter_web_auth">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="im.fluffychat.auth" android:path="/login"/>
-            </intent-filter>
-        </activity>
 
         <service android:name=".FcmPushService"
           android:exported="false">
