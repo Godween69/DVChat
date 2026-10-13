@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Фильтр ленты: какие события показывать в переписке, а какие служебные скрывать.
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:matrix/matrix.dart';
 

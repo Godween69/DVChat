@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Русские тексты для Matrix SDK («…вошёл в чат», «…сменил название» и т.п.).
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:matrix/matrix.dart';
 

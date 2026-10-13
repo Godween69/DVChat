@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение Event: текст сообщения для показа (с учётом удалённых, зашифрованных, ответов).
+
 import 'package:async/async.dart' as async;
 import 'package:dvchat/utils/size_string.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';

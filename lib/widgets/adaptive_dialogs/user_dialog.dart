@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Карточка пользователя: аватар, ID, статус, кнопка «написать».
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:material_ui/material_ui.dart';

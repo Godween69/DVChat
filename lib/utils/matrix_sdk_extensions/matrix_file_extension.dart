@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение MatrixFile: сохранение и отправка файла другим приложениям.
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/size_string.dart';
 import 'package:file_picker/file_picker.dart';

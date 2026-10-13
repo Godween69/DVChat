@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Двухколоночная раскладка (список и содержимое) для широких экранов.
+
 import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
 

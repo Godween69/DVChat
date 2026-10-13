@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Создание локальной базы данных клиента (sqflite) с шифрованием; путь и открытие базы.
+// ВНИМАНИЕ: ошибка здесь может стереть историю чатов на телефоне — править осторожно.
+
 import 'dart:io';
 
 import 'package:dvchat/l10n/l10n.dart';

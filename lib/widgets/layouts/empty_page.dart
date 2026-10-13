@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Заглушка пустой страницы (логотип по центру).
+
 import 'dart:math';
 
 import 'package:material_ui/material_ui.dart';

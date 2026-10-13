@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Диалоги «ОК / Отмена» и «ОК».
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/url_launcher.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
