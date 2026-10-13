@@ -35,10 +35,19 @@ class SettingsController extends State<Settings> {
   Future<Profile>? profileFuture;
   bool profileUpdated = false;
 
-  void updateProfile() => setState(() {
-    profileUpdated = true;
-    profileFuture = null;
-  });
+  // DVChat: профиль в базе SDK считается свежим сутки и помечается устаревшим
+  // только событием из комнаты. У новичка комнат нет, поэтому сами помечаем
+  // его устаревшим и запрашиваем заново.
+  void updateProfile() {
+    final client = Matrix.of(context).client;
+    final userId = client.userID!;
+    setState(() {
+      profileUpdated = true;
+      profileFuture = client.database
+          .markUserProfileAsOutdated(userId)
+          .then((_) => client.getProfileFromUserId(userId));
+    });
+  }
 
   Future<void> setDisplaynameAction() async {
     final l10n = L10n.of(context);
