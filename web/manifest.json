@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#41a2bc",
-    "description": "The cutest messenger in the Matrix network",
+    "description": "DVChat: закрытый семейный мессенджер",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
