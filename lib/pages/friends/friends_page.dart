@@ -10,12 +10,17 @@ import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/dv_my_id.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/matrix.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
+import 'package:zxing2/qrcode.dart';
 
 const _scanMarker = 'scan';
+const _imageMarker = 'image';
 
 /// Разбирает строку из QR или поля ввода. Ссылку входа в аккаунт не принимаем.
 ({String? id, String? error}) parseFriendCode(String raw) {
@@ -152,7 +157,31 @@ class _FriendsPageState extends State<FriendsPage> {
       );
       return;
     }
+    if (input == _imageMarker) {
+      await _scanFromImage();
+      return;
+    }
     await _submit(input, viaQr: false);
+  }
+
+  /// Читает QR-код из картинки в галерее (скриншот или фото кода друга).
+  Future<void> _scanFromImage() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    final text = await compute(_decodeQrFromBytes, bytes);
+    if (!mounted) return;
+    if (text == null) {
+      _snack('На картинке не найден QR-код');
+      return;
+    }
+    final parsed = parseFriendCode(text);
+    final id = parsed.id;
+    if (id == null) {
+      _snack(parsed.error ?? 'Не удалось прочитать код');
+      return;
+    }
+    await _submit(id, viaQr: true);
   }
 
   Future<void> _submit(String id, {required bool viaQr}) async {
@@ -337,6 +366,12 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
             icon: const Icon(Icons.qr_code_scanner_outlined),
             label: const Text('Сканировать QR-код'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).pop(_imageMarker),
+            icon: const Icon(Icons.image_outlined),
+            label: const Text('QR из картинки'),
+          ),
         ],
       ),
       actions: [
@@ -352,5 +387,34 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
         ),
       ],
     );
+  }
+}
+
+/// Декодирует QR из байтов картинки (запускается в отдельном потоке).
+String? _decodeQrFromBytes(Uint8List bytes) {
+  try {
+    var image = img.decodeImage(bytes);
+    if (image == null) return null;
+    // Слишком большие фото уменьшаем: так быстрее и надёжнее
+    if (image.width > 1400 || image.height > 1400) {
+      image = img.copyResize(
+        image,
+        width: image.width >= image.height ? 1400 : null,
+        height: image.height > image.width ? 1400 : null,
+      );
+    }
+    final source = RGBLuminanceSource(
+      image.width,
+      image.height,
+      image
+          .convert(numChannels: 4)
+          .getBytes(order: img.ChannelOrder.abgr)
+          .buffer
+          .asInt32List(),
+    );
+    final bitmap = BinaryBitmap(HybridBinarizer(source));
+    return QRCodeReader().decode(bitmap).text;
+  } catch (_) {
+    return null;
   }
 }

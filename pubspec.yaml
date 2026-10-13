@@ -102,6 +102,7 @@ dependencies:
   uuid: ^4.6.0
   video_player: ^2.14.1
   wakelock_plus: ^1.8.0
+  zxing2: ^0.2.4
 
 dev_dependencies:
   dart_code_linter: ^4.4.0
