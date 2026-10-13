@@ -548,6 +548,14 @@ class ChatListController extends State<ChatList>
         );
         if (confirmedDelete != OkCancelResult.ok) return;
         if (!mounted) return;
+        if (room.isSupportRoom) {
+          // DVChat: чат с поддержкой не покидаем, только скрываем
+          await showFutureLoadingDialog(
+            context: context,
+            future: room.hideForever,
+          );
+          return;
+        }
         await showFutureLoadingDialog(
           context: context,
           future: () async {

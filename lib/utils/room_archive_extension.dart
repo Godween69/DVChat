@@ -8,6 +8,9 @@ import 'package:matrix/matrix.dart';
 /// Тип данных комнаты: время последнего сообщения в момент архивации (серверное)
 const String _archiveStampType = 'online.dvbstudio.dvchat.archived_at';
 
+/// Метка комнаты поддержки (ставится сервером): такой чат нельзя покинуть, только скрыть
+const String _supportStateType = 'online.dvbstudio.dvchat.support';
+
 /// Комнаты, которые прямо сейчас возвращаются в список (защита от повторных вызовов)
 final Set<String> _returningRooms = {};
 
@@ -17,6 +20,9 @@ extension RoomArchiveExtension on Room {
 
   /// Чат удалён из архива: скрыт, вернётся при новом сообщении
   bool get isHiddenByUser => tags.containsKey(AppConfig.hiddenTag);
+
+  /// Чат с администратором (серверная метка в состоянии комнаты)
+  bool get isSupportRoom => getState(_supportStateType) != null;
 
   int? get _archivedAtMs {
     final value = roomAccountData[_archiveStampType]?.content['ts'];
