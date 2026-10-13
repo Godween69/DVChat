@@ -7,11 +7,9 @@
 
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/archive/archive.dart';
-import 'package:dvchat/pages/chat_list/chat_list_item.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:dvchat/widgets/matrix.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -67,25 +65,7 @@ class ArchiveView extends StatelessWidget {
                             ),
                           ))
                   : ListView(
-                      children: [
-                        for (final room in archived)
-                          ChatListItem(
-                            room,
-                            key: ValueKey('archived_${room.id}'),
-                            onForget: () => controller.deleteArchivedRoom(room),
-                            onTap: () => context.go('/rooms/${room.id}'),
-                          ),
-                        for (final entry in left)
-                          ChatListItem(
-                            entry.room,
-                            key: ValueKey('left_${entry.room.id}'),
-                            onForget: () => controller.forgetLeftRoom(entry),
-                            onTap: () => context.go(
-                              '/rooms/archive/${entry.room.id}',
-                              extra: entry.timeline,
-                            ),
-                          ),
-                      ],
+                      children: controller.buildItems(context, archived, left),
                     ),
             ),
           );

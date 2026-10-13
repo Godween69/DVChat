@@ -9,10 +9,12 @@
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/archive/archive_view.dart';
+import 'package:dvchat/pages/chat_list/chat_list_item.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -138,6 +140,108 @@ class ArchiveController extends State<Archive> {
     if (mounted) setState(() {});
   }
 
+  static const _months = [
+    'января',
+    'февраля',
+    'марта',
+    'апреля',
+    'мая',
+    'июня',
+    'июля',
+    'августа',
+    'сентября',
+    'октября',
+    'ноября',
+    'декабря',
+  ];
+
+  /// Строки архива одним списком: новые сверху, разделители по дням.
+  /// Закрытый чат (собеседник вышел) датируется последним событием в нём,
+  /// чат «В архив» — последним сообщением.
+  List<Widget> buildItems(
+    BuildContext context,
+    List<Room> archived,
+    List<ArchivedRoom> left,
+  ) {
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    final entries = <_ArchiveEntry>[
+      for (final room in archived)
+        _ArchiveEntry(
+          date: room.lastEvent?.originServerTs ?? epoch,
+          closed: false,
+          item: ChatListItem(
+            room,
+            key: ValueKey('archived_${room.id}'),
+            onForget: () => deleteArchivedRoom(room),
+            onTap: () => context.go('/rooms/${room.id}'),
+          ),
+        ),
+      for (final entry in left)
+        _ArchiveEntry(
+          date:
+              entry.timeline.events.firstOrNull?.originServerTs ??
+              entry.room.lastEvent?.originServerTs ??
+              epoch,
+          closed: true,
+          item: ChatListItem(
+            entry.room,
+            key: ValueKey('left_${entry.room.id}'),
+            onForget: () => forgetLeftRoom(entry),
+            onTap: () => context.go(
+              '/rooms/archive/${entry.room.id}',
+              extra: entry.timeline,
+            ),
+          ),
+        ),
+    ]..sort((a, b) => b.date.compareTo(a.date));
+
+    final theme = Theme.of(context);
+    final result = <Widget>[];
+    DateTime? lastDay;
+    for (final e in entries) {
+      final day = DateTime(e.date.year, e.date.month, e.date.day);
+      if (lastDay != day) {
+        lastDay = day;
+        result.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(
+              '${day.day} ${_months[day.month - 1]} ${day.year}',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        );
+      }
+      result.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+          child: Text(
+            e.closed ? 'Закрыт · только чтение' : 'В архиве · можно вернуть',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+      result.add(e.item);
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) => ArchiveView(this);
+}
+
+class _ArchiveEntry {
+  final DateTime date;
+  final bool closed;
+  final Widget item;
+
+  const _ArchiveEntry({
+    required this.date,
+    required this.closed,
+    required this.item,
+  });
 }
