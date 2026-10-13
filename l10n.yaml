@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 arb-dir: lib/l10n
-template-arb-file: intl_en.arb
+template-arb-file: intl_ru.arb
 output-localization-file: l10n.dart
 output-class: L10n
-preferred-supported-locales: ["en"]
+preferred-supported-locales: ["ru"]
 use-deferred-loading: true
 nullable-getter: false
