@@ -72,11 +72,25 @@ class SettingsView extends StatelessWidget {
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: FloatingActionButton.small(
-                              elevation: 2,
-                              onPressed: controller.setAvatarAction,
-                              heroTag: null,
-                              child: const Icon(Icons.camera_alt_outlined),
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Material(
+                                color: theme.colorScheme.primaryContainer,
+                                elevation: 2,
+                                borderRadius: BorderRadius.circular(12),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: controller.setAvatarAction,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.camera_alt_outlined,
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                       ],

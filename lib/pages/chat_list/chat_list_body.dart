@@ -153,7 +153,7 @@ class ChatListViewBody extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
                         client.rooms.isEmpty
-                            ? 'Пока нет чатов. Администратор скоро добавит вас в комнату.'
+                            ? 'Пока нет чатов'
                             : L10n.of(context).noMoreChatsFound,
                         textAlign: TextAlign.center,
                         style: TextStyle(
