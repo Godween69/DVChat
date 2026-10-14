@@ -201,25 +201,7 @@ class SettingsSecurityView extends StatelessWidget {
                       style: const TextStyle(fontFamily: 'RobotoMono'),
                     ),
                   ),
-                  if (capabilities?.mChangePassword?.enabled != false ||
-                      error != null)
-                    ListTile(
-                      leading: const Icon(Icons.password_outlined),
-                      trailing: const Icon(Icons.chevron_right_outlined),
-                      title: Text(L10n.of(context).changePassword),
-                      onTap: () =>
-                          context.go('/rooms/settings/security/password'),
-                    ),
-                  Divider(color: theme.dividerColor),
-                  ListTile(
-                    iconColor: Colors.red,
-                    leading: const Icon(Icons.delete_outlined),
-                    title: Text(
-                      L10n.of(context).deleteAccount,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    onTap: controller.deleteAccountAction,
-                  ),
+                  // DVChat: смена пароля и удаление аккаунта скрыты, аккаунтами управляет администратор
                 ],
               );
             },
