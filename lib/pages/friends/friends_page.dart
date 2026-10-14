@@ -58,7 +58,7 @@ class _FriendsData {
   const _FriendsData(this.friends, this.requests, this.allUsers);
 }
 
-class _FriendsPageState extends State<FriendsPage> {
+class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
   late Future<_FriendsData> _future;
   final Map<String, Future<Profile>> _profiles = {};
 
@@ -72,6 +72,51 @@ class _FriendsPageState extends State<FriendsPage> {
     super.initState();
     _future = _fetch();
     _best = {..._client.bestFriends};
+    // Список обновляется сам: служебная запись о закрытии чата, возврат в приложение, таймер
+    WidgetsBinding.instance.addObserver(this);
+    _syncSub = _client.onSync.stream
+        .where((s) => s.hasRoomUpdate)
+        .listen((_) => _scheduleSilentReload());
+    _periodic = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _silentReload(),
+    );
+  }
+
+  StreamSubscription<SyncUpdate>? _syncSub;
+  Timer? _reloadTimer;
+  Timer? _periodic;
+
+  /// Тихое обновление: ошибка сети оставляет прежний список, экран не мигает
+  Future<void> _silentReload() async {
+    if (!mounted) return;
+    try {
+      final data = await _fetch();
+      if (!mounted) return;
+      setState(() => _future = Future.value(data));
+    } catch (e) {
+      Logs().v('DVChat: не удалось обновить список друзей', e);
+    }
+  }
+
+  /// События в комнатах приходят пачками, поэтому обновляем не чаще раза в 4 секунды
+  void _scheduleSilentReload() {
+    if (_reloadTimer?.isActive ?? false) return;
+    _reloadTimer = Timer(const Duration(seconds: 4), _silentReload);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _scheduleSilentReload();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _syncSub?.cancel();
+    _reloadTimer?.cancel();
+    _periodic?.cancel();
+    super.dispose();
   }
 
   Future<Profile> _profile(String userId) =>
