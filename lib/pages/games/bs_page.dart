@@ -11,6 +11,7 @@ import 'dart:math';
 
 import 'package:dvchat/pages/games/bs_logic.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
+import 'package:dvchat/pages/games/dv_game_sound.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,6 +64,8 @@ class _BsPageState extends State<BsPage> {
   Map<int, int> _marks = {};
   List<List<int>> _sunk = [];
   Set<int> _incoming = {};
+  int _lastMine = -1;
+  int _lastIn = -1;
   bool _myTurn = false;
   bool _won = false;
   bool _lost = false;
@@ -114,6 +117,21 @@ class _BsPageState extends State<BsPage> {
     _sub?.cancel();
     super.dispose();
   }
+
+  // ---------------- звук ----------------
+
+  void _playRes(String res) => unawaited(
+    DvGameSound.play(
+      res == 'm' ? DvSound.miss : (res == 's' ? DvSound.sunk : DvSound.hit),
+    ),
+  );
+
+  void _finishSound(bool won) => unawaited(
+    Future<void>.delayed(
+      const Duration(milliseconds: 700),
+      () => DvGameSound.play(won ? DvSound.win : DvSound.lose),
+    ),
+  );
 
   // ---------------- сеть ----------------
 
@@ -190,11 +208,11 @@ class _BsPageState extends State<BsPage> {
       // Не удалось прочитать историю: продолжим по новым событиям
     }
     _loading = false;
-    _rebuild();
+    _rebuild(silent: true);
   }
 
   /// Пересчитывает состояние партии по всем полученным событиям
-  void _rebuild() {
+  void _rebuild({bool silent = false}) {
     final host = widget.hostId ?? '';
     final me = _me;
     final marks = <int, int>{};
@@ -207,6 +225,10 @@ class _BsPageState extends State<BsPage> {
     var turn = host;
     var n = 0;
     var pendingN = -1;
+    var lastMine = -1;
+    var lastIn = -1;
+    String? lastMineRes;
+    String? lastInRes;
     _Shot? pending;
     if (bothReady) {
       while (_shots.containsKey(n)) {
@@ -221,6 +243,8 @@ class _BsPageState extends State<BsPage> {
         if (s.sender == me) {
           marks[s.cell] = r.res == 'm' ? 0 : 1;
           log.add((s.cell, r.res));
+          lastMine = s.cell;
+          lastMineRes = r.res;
           if (r.res == 's') {
             sunk.add(r.ship);
             for (final h in BsLogic.halo(r.ship)) {
@@ -229,6 +253,8 @@ class _BsPageState extends State<BsPage> {
           }
         } else {
           incoming.add(s.cell);
+          lastIn = s.cell;
+          lastInRes = r.res;
         }
         if (r.res == 'm') turn = turn == me ? opp : me;
         n++;
@@ -242,11 +268,16 @@ class _BsPageState extends State<BsPage> {
         _fleet.expand((s) => s).every(incoming.contains);
     final incomingBefore = Set<int>.of(incoming);
     if (!mounted) return;
+    final oldLog = _log.length;
+    final oldIn = _incoming.length;
+    final wasFinished = _finished;
     setState(() {
       _marks = marks;
       _sunk = sunk;
       _incoming = incoming;
       _log = log;
+      _lastMine = lastMine;
+      _lastIn = lastIn;
       _oppId = opp;
       _bothReady = bothReady;
       _placed = _ready.containsKey(me);
@@ -256,6 +287,14 @@ class _BsPageState extends State<BsPage> {
       _waitResult = pending != null && pending.sender == me;
       _myTurn = bothReady && !won && !lost && turn == me && pending == null;
     });
+    if (!silent) {
+      if (log.length > oldLog && lastMineRes != null) {
+        _playRes(lastMineRes);
+      } else if (incoming.length > oldIn && lastInRes != null) {
+        _playRes(lastInRes);
+      }
+      if (!wasFinished && (won || lost)) _finishSound(won);
+    }
     if (pending != null &&
         pending.sender != me &&
         _placed &&
@@ -322,7 +361,7 @@ class _BsPageState extends State<BsPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKey, '$_salt|${BsLogic.serialize(_fleet)}');
       _ready[_me] = commit;
-      _rebuild();
+      _rebuild(silent: true);
       await widget.room!.sendEvent({
         'game': 'bs',
         'id': widget.gameId,
@@ -331,7 +370,7 @@ class _BsPageState extends State<BsPage> {
       }, type: DvGameNet.eventType);
     } catch (_) {
       _ready.remove(_me);
-      _rebuild();
+      _rebuild(silent: true);
       _snack('Не удалось отправить расстановку');
     }
   }
@@ -340,7 +379,7 @@ class _BsPageState extends State<BsPage> {
     if (!_myTurn || _marks.containsKey(c)) return;
     final n = _nextN;
     _shots[n] = _Shot(c, _me);
-    _rebuild();
+    _rebuild(silent: true);
     try {
       await widget.room!.sendEvent({
         'game': 'bs',
@@ -351,7 +390,7 @@ class _BsPageState extends State<BsPage> {
       }, type: DvGameNet.eventType);
     } catch (_) {
       _shots.remove(n);
-      _rebuild();
+      _rebuild(silent: true);
       _snack('Не удалось отправить выстрел');
     }
   }
@@ -398,15 +437,18 @@ class _BsPageState extends State<BsPage> {
       _marks = marks;
       _sunk = sunk;
       _won = won;
+      _lastMine = c;
       if (r.res == 'm') _myTurn = false;
     });
+    _playRes(r.res);
+    if (won) _finishSound(true);
     if (r.res == 'm' && !won) await _pcTurn();
   }
 
   Future<void> _pcTurn() async {
     setState(() => _busy = true);
     while (mounted) {
-      await Future<void>.delayed(const Duration(milliseconds: 550));
+      await Future<void>.delayed(const Duration(milliseconds: 650));
       if (!mounted) return;
       final cell = _ai!.pick();
       final r = BsLogic.resultOf(_fleet, _ai!.shots, cell);
@@ -415,8 +457,11 @@ class _BsPageState extends State<BsPage> {
       final lost = _fleet.expand((s) => s).every(incoming.contains);
       setState(() {
         _incoming = incoming;
+        _lastIn = cell;
         _lost = lost;
       });
+      _playRes(r.res);
+      if (lost) _finishSound(false);
       if (lost || r.res == 'm') break;
     }
     if (!mounted) return;
@@ -460,6 +505,8 @@ class _BsPageState extends State<BsPage> {
       _marks = {};
       _sunk = [];
       _incoming = {};
+      _lastMine = -1;
+      _lastIn = -1;
       _won = false;
       _lost = false;
       _busy = false;
@@ -488,6 +535,75 @@ class _BsPageState extends State<BsPage> {
         : '⚠ Расстановка соперника не совпала с обещанной';
   }
 
+  // ---------------- оформление ----------------
+
+  Color _water(ThemeData theme) => Color.lerp(
+    theme.colorScheme.surfaceContainerHighest,
+    theme.colorScheme.primary,
+    0.12,
+  )!;
+
+  Widget _box(Color color, {Widget? child, Color? ring, bool small = false}) =>
+      Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(small ? 2 : 5),
+          border: ring == null
+              ? null
+              : Border.all(color: ring, width: small ? 1.5 : 2),
+        ),
+        alignment: Alignment.center,
+        child: child,
+      );
+
+  Widget _pop(String key, Color color, double size) =>
+      TweenAnimationBuilder<double>(
+        key: ValueKey(key),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.elasticOut,
+        builder: (context, t, child) => Transform.scale(
+          scale: t,
+          child: Text(
+            '✕',
+            style: TextStyle(
+              fontSize: size,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+      );
+
+  Widget _miss(String key, Color color) => TweenAnimationBuilder<double>(
+    key: ValueKey(key),
+    tween: Tween(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 550),
+    curve: Curves.easeOut,
+    builder: (context, t, child) =>
+        CustomPaint(painter: _RipplePainter(t, color), size: Size.infinite),
+  );
+
+  Widget _counter(ThemeData theme, String label, int count) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.sailing_outlined,
+          size: 18,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 6),
+        Text('$label: $count', style: theme.textTheme.labelLarge),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -497,8 +613,11 @@ class _BsPageState extends State<BsPage> {
     final showPlacement = !_loading && !_placed;
     final sunkCells = {for (final s in _sunk) ...s};
     final myCells = {for (final s in _fleet) ...s};
+    final water = _water(theme);
+    final enemyLeft = BsLogic.shipSizes.length - _sunk.length;
+    final myLeft = _fleet.where((s) => !s.every(_incoming.contains)).length;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -515,15 +634,12 @@ class _BsPageState extends State<BsPage> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(_verdict!, textAlign: TextAlign.center),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 if (showPlacement) ...[
                   _BsGrid(
                     maxWidth: 340,
-                    cell: (i) => _tile(
-                      theme,
-                      color: myCells.contains(i)
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.surfaceContainerHighest,
+                    cell: (i) => _box(
+                      myCells.contains(i) ? theme.colorScheme.primary : water,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -547,6 +663,16 @@ class _BsPageState extends State<BsPage> {
                   ),
                 ] else if (_placed) ...[
                   if (_bothReady || !_online) ...[
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _counter(theme, 'У соперника', enemyLeft),
+                        _counter(theme, 'У вас', myLeft),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
                     Text('Поле соперника', style: theme.textTheme.labelLarge),
                     const SizedBox(height: 6),
                     _BsGrid(
@@ -554,29 +680,30 @@ class _BsPageState extends State<BsPage> {
                       onTap: _online ? _shootOnline : _shootPc,
                       cell: (i) {
                         final m = _marks[i];
-                        if (m == null) {
-                          return _tile(
-                            theme,
-                            color: theme.colorScheme.surfaceContainerHighest,
-                          );
-                        }
+                        final ring = i == _lastMine
+                            ? theme.colorScheme.primary
+                            : null;
+                        if (m == null) return _box(water, ring: ring);
                         if (m == 0) {
-                          return _tile(
-                            theme,
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            glyph: '•',
-                            glyphColor: theme.colorScheme.outline,
+                          return _box(
+                            water,
+                            ring: ring,
+                            child: _miss('m$i', theme.colorScheme.outline),
                           );
                         }
-                        return _tile(
-                          theme,
-                          color: sunkCells.contains(i)
+                        final isSunk = sunkCells.contains(i);
+                        return _box(
+                          isSunk
                               ? theme.colorScheme.error
                               : theme.colorScheme.errorContainer,
-                          glyph: '✕',
-                          glyphColor: sunkCells.contains(i)
-                              ? theme.colorScheme.onError
-                              : theme.colorScheme.onErrorContainer,
+                          ring: ring,
+                          child: _pop(
+                            'h$i',
+                            isSunk
+                                ? theme.colorScheme.onError
+                                : theme.colorScheme.onErrorContainer,
+                            16,
+                          ),
                         );
                       },
                     ),
@@ -590,18 +717,28 @@ class _BsPageState extends State<BsPage> {
                     cell: (i) {
                       final ship = myCells.contains(i);
                       final shot = _incoming.contains(i);
-                      return _tile(
-                        theme,
+                      final ring = i == _lastIn
+                          ? theme.colorScheme.tertiary
+                          : null;
+                      if (ship) {
+                        return _box(
+                          shot
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.primary,
+                          ring: ring,
+                          small: true,
+                          child: shot
+                              ? _pop('o$i', theme.colorScheme.onError, 9)
+                              : null,
+                        );
+                      }
+                      return _box(
+                        water,
+                        ring: ring,
                         small: true,
-                        color: ship
-                            ? (shot
-                                  ? theme.colorScheme.error
-                                  : theme.colorScheme.primary)
-                            : theme.colorScheme.surfaceContainerHighest,
-                        glyph: shot ? (ship ? '✕' : '•') : '',
-                        glyphColor: ship
-                            ? theme.colorScheme.onError
-                            : theme.colorScheme.outline,
+                        child: shot
+                            ? _miss('om$i', theme.colorScheme.outline)
+                            : null,
                       );
                     },
                   ),
@@ -621,28 +758,31 @@ class _BsPageState extends State<BsPage> {
       ),
     );
   }
+}
 
-  Widget _tile(
-    ThemeData theme, {
-    required Color color,
-    String glyph = '',
-    Color? glyphColor,
-    bool small = false,
-  }) => Container(
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(small ? 2 : 4),
-    ),
-    alignment: Alignment.center,
-    child: Text(
-      glyph,
-      style: TextStyle(
-        fontSize: small ? 9 : 16,
-        fontWeight: FontWeight.bold,
-        color: glyphColor,
-      ),
-    ),
-  );
+/// Круги на воде от промаха: точка остаётся, кольцо расходится и гаснет
+class _RipplePainter extends CustomPainter {
+  _RipplePainter(this.t, this.color);
+
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final c = Offset(s.width / 2, s.height / 2);
+    final dot = Paint()..color = color;
+    canvas.drawCircle(c, max(1.5, s.shortestSide * 0.09), dot);
+    if (t < 1) {
+      final ring = Paint()
+        ..color = color.withValues(alpha: (1 - t) * 0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(c, s.shortestSide * (0.1 + 0.4 * t), ring);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RipplePainter old) => old.t != t || old.color != color;
 }
 
 class _BsGrid extends StatelessWidget {
