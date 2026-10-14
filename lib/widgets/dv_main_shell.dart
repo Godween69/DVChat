@@ -3,8 +3,11 @@
 // DVChat: нижняя панель вкладок на телефоне: «Чаты», «Друзья», «Игры».
 // Панель видна только на этих трёх экранах и прячется внутри чата, настроек и игр.
 // На широком экране (планшет, веб) ничего не меняется: там боковая панель.
+// Вид панели следует оформлению списков: обычный (без заливки, в цвет страницы),
+// плашки (парящая «таблетка» с лёгкой тенью) и рамки (то же с тонкой обводкой).
 
 import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
@@ -42,29 +45,101 @@ class DvMainShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: index == null
           ? null
-          : NavigationBar(
-              selectedIndex: index,
-              onDestinationSelected: (i) {
+          : _DvTabBar(
+              index: index,
+              onSelect: (i) {
                 if (i != index) context.go(_paths[i]);
               },
-              destinations: const [
-                NavigationDestination(
-                  icon: _ChatsIcon(selected: false),
-                  selectedIcon: _ChatsIcon(selected: true),
-                  label: 'Чаты',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.people_outline),
-                  selectedIcon: Icon(Icons.people),
-                  label: 'Друзья',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.sports_esports_outlined),
-                  selectedIcon: Icon(Icons.sports_esports),
-                  label: 'Игры',
-                ),
-              ],
             ),
+    );
+  }
+}
+
+class _DvTabBar extends StatelessWidget {
+  const _DvTabBar({required this.index, required this.onSelect});
+
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  static const double _height = 54;
+  static const List<String> _labels = ['Чаты', 'Друзья', 'Игры'];
+
+  Widget _icon(int i, bool selected) => switch (i) {
+    0 => _ChatsIcon(selected: selected),
+    1 => Icon(selected ? Icons.people : Icons.people_outline),
+    _ => Icon(selected ? Icons.sports_esports : Icons.sports_esports_outlined),
+  };
+
+  Widget _tab(ThemeData theme, int i) {
+    final selected = i == index;
+    final color = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    return InkResponse(
+      onTap: () => onSelect(i),
+      radius: 36,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconTheme(
+            data: IconThemeData(color: color, size: 22),
+            child: _icon(i, selected),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _labels[i],
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.1,
+              color: color,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final row = SizedBox(
+      height: _height,
+      child: Row(
+        children: [
+          for (var i = 0; i < _labels.length; i++)
+            Expanded(child: _tab(theme, i)),
+        ],
+      ),
+    );
+
+    // Обычный вид: без заливки, линии и тени, в цвет страницы
+    if (DvListStyle.isPlain) {
+      return Material(
+        color: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        child: SafeArea(top: false, child: row),
+      );
+    }
+
+    // Плашки и рамки: отдельная «таблетка», висящая над нижним краем
+    final base = DvListStyle.shape(context);
+    final side = base is RoundedRectangleBorder ? base.side : BorderSide.none;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: DvListStyle.fill(context),
+        elevation: DvListStyle.mode == DvListStyle.plates ? 3 : 0,
+        shadowColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_height / 2),
+          side: side,
+        ),
+        child: row,
+      ),
     );
   }
 }
