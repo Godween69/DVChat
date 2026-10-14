@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: вкладка «Игры». Игры с друзьями (через личный чат) и с компьютером (без интернета).
+// DVChat: вкладка «Игры». Сверху квадратные плитки игр («кубики»), ниже партии с друзьями
+// списком, как чаты. Игры с друзьями идут через личный чат, с компьютером работают без
+// интернета. Плитки и строки оформляются как остальные списки (обычный вид, плашки, рамки).
 
 import 'dart:async';
 
 import 'package:dvchat/pages/games/bs_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_list_card.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -185,6 +190,119 @@ class _GamesPageState extends State<GamesPage> {
 
   void _soon() => _snack('Эта игра появится в следующем обновлении');
 
+  Widget _heading(ThemeData theme, String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    child: Text(
+      text,
+      style: theme.textTheme.labelLarge?.copyWith(
+        color: theme.colorScheme.primary,
+      ),
+    ),
+  );
+
+  /// Квадратная плитка игры («кубик»)
+  Widget _tile(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool soon = false,
+  }) {
+    final plain = DvListStyle.isPlain;
+    return Material(
+      color: plain
+          ? theme.colorScheme.surfaceContainerHighest
+          : DvListStyle.fill(context),
+      elevation: DvListStyle.elevation,
+      shadowColor: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      shape: DvListStyle.shape(context),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                foregroundColor: theme.colorScheme.onPrimaryContainer,
+                child: Icon(icon, size: 26),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: soon ? theme.colorScheme.outline : null,
+                ),
+              ),
+              if (soon)
+                Text(
+                  'Скоро',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _time(DateTime t) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final l = t.toLocal();
+    final n = DateTime.now();
+    final today = l.year == n.year && l.month == n.month && l.day == n.day;
+    return today
+        ? '${two(l.hour)}:${two(l.minute)}'
+        : '${two(l.day)}.${two(l.month)}';
+  }
+
+  /// Партия с другом: строка, как в списке чатов
+  Widget _party(ThemeData theme, DvGameInvite inv, String? me) {
+    final def = _def(inv.game)!;
+    final name = inv.room.getLocalizedDisplayname();
+    return DvListCard(
+      child: ListTile(
+        contentPadding: DvListStyle.isPlain
+            ? null
+            : const EdgeInsets.fromLTRB(18, 8, 12, 8),
+        leading: Avatar(
+          mxContent: inv.room.avatar,
+          name: name,
+          client: _client,
+        ),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          '${def.title} · ${inv.hostId == me ? 'вы пригласили' : 'приглашает вас'}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Text(
+          _time(inv.time),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        onTap: () => _open(
+          _pageFor(
+            inv.game,
+            room: inv.room,
+            gameId: inv.gameId,
+            hostId: inv.hostId,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -202,10 +320,10 @@ class _GamesPageState extends State<GamesPage> {
       body: RefreshIndicator(
         onRefresh: _reload,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
                 'Играйте с друзьями или с компьютером. С компьютером интернет не нужен.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -213,89 +331,54 @@ class _GamesPageState extends State<GamesPage> {
                 ),
               ),
             ),
-            if (invites.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-                child: Text(
-                  'Партии с друзьями',
-                  style: theme.textTheme.titleSmall,
-                ),
+            _heading(theme, 'Игры'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: GridView.count(
+                crossAxisCount: 3,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _tile(
+                    theme,
+                    icon: _ttt.icon,
+                    title: _ttt.title,
+                    onTap: () => _start(_ttt),
+                  ),
+                  _tile(
+                    theme,
+                    icon: _bs.icon,
+                    title: _bs.title,
+                    onTap: () => _start(_bs),
+                  ),
+                  _tile(
+                    theme,
+                    icon: Icons.circle_outlined,
+                    title: 'Шашки',
+                    onTap: _soon,
+                    soon: true,
+                  ),
+                ],
               ),
-              for (final inv in invites)
-                Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: CircleAvatar(child: Icon(_def(inv.game)!.icon)),
-                    title: Text(
-                      '${_def(inv.game)!.title} · ${inv.room.getLocalizedDisplayname()}',
-                    ),
-                    subtitle: Text(
-                      inv.hostId == me ? 'Вы пригласили' : 'Приглашает вас',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _open(
-                      _pageFor(
-                        inv.game,
-                        room: inv.room,
-                        gameId: inv.gameId,
-                        hostId: inv.hostId,
-                      ),
-                    ),
+            ),
+            _heading(theme, 'Партии с друзьями'),
+            if (invites.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Пока нет партий. Выберите игру и пригласите друга.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.outline,
                   ),
                 ),
-              const SizedBox(height: 12),
-            ],
-            _gameCard(
-              theme,
-              _ttt.title,
-              'С другом или с компьютером',
-              _ttt.icon,
-              () => _start(_ttt),
-              ready: true,
-            ),
-            _gameCard(
-              theme,
-              _bs.title,
-              'С другом или с компьютером',
-              _bs.icon,
-              () => _start(_bs),
-              ready: true,
-            ),
-            _gameCard(
-              theme,
-              'Шашки',
-              'С другом или с компьютером',
-              Icons.circle_outlined,
-              _soon,
-            ),
+              )
+            else
+              for (final inv in invites) _party(theme, inv, me),
           ],
         ),
       ),
     );
   }
-
-  Widget _gameCard(
-    ThemeData theme,
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap, {
-    bool ready = false,
-  }) => Card(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.primaryContainer,
-        foregroundColor: theme.colorScheme.onPrimaryContainer,
-        child: Icon(icon),
-      ),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: ready
-          ? const Icon(Icons.chevron_right)
-          : const Chip(label: Text('Скоро')),
-      onTap: onTap,
-    ),
-  );
 }
