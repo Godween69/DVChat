@@ -107,20 +107,38 @@ class SettingsStyleView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const DvListCard(
-              child: ListTile(
+            DvListCard(
+              key: ValueKey('${DvListStyle.mode}-${DvListStyle.contrast}'),
+              child: const ListTile(
                 leading: CircleAvatar(child: Text('Д')),
                 title: Text('Дмитрий'),
                 subtitle: Text('Так выглядит список'),
               ),
             ),
-            const DvListCard(
-              child: ListTile(
+            DvListCard(
+              key: ValueKey('${DvListStyle.mode}-${DvListStyle.contrast}'),
+              child: const ListTile(
                 leading: CircleAvatar(child: Text('С')),
                 title: Text('Степан'),
                 subtitle: Text('Чаты и друзья оформляются одинаково'),
               ),
             ),
+            if (!DvListStyle.isPlain) ...[
+              const ListTile(
+                title: Text('Контраст'),
+                subtitle: Text(
+                  'Насколько плашки и рамки отличаются от фона: слева почти сливаются, справа заметнее',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Slider(
+                  value: DvListStyle.contrast,
+                  onChanged: controller.previewListContrast,
+                  onChangeEnd: controller.saveListContrast,
+                ),
+              ),
+            ],
             Divider(color: theme.dividerColor),
             ListTile(
               title: Text(

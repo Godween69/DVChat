@@ -69,6 +69,8 @@ enum AppSettings<T> {
   doubleTapReaction<String>('dvchat.double_tap_reaction', '❤️'),
   // DVChat: оформление списков: plain (обычное), plates (плашки), frames (рамки)
   listStyle<String>('dvchat.list_style', 'plain'),
+  // DVChat: контраст плашек и рамок с фоном (0..1)
+  listContrast<double>('dvchat.list_contrast', 0.4),
   benchmarksInLogs<bool>('dvchat.benchmarks_in_logs', false),
   autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
   knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),

@@ -2,6 +2,8 @@
 
 // DVChat: оформление списков (чаты, друзья, архив): обычный вид, «плашки» или «рамки».
 // Плашки: фон чуть отличается от фона страницы и лёгкая тень. Рамки: тонкая бледная обводка.
+// Ползунок «Контраст» (0..1) задаёт, насколько плашки и рамки заметны на фоне:
+// слева они почти сливаются со страницей, справа выделяются сильнее.
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
@@ -19,6 +21,13 @@ abstract class DvListStyle {
 
   static bool get isPlain => mode == plain;
 
+  /// Значение ползунка во время перетаскивания (до сохранения), иначе null
+  static double? previewContrast;
+
+  /// Контраст плашек и рамок с фоном, 0..1
+  static double get contrast =>
+      (previewContrast ?? AppSettings.listContrast.value).clamp(0.0, 1.0);
+
   static EdgeInsets get outerPadding => isPlain
       ? const EdgeInsets.symmetric(horizontal: 8)
       : const EdgeInsets.symmetric(horizontal: 10, vertical: 3);
@@ -31,7 +40,9 @@ abstract class DvListStyle {
     if (mode == frames) return base;
     final dark = theme.brightness == Brightness.dark;
     return Color.alphaBlend(
-      theme.colorScheme.onSurface.withValues(alpha: dark ? 0.07 : 0.045),
+      theme.colorScheme.onSurface.withValues(
+        alpha: (dark ? 0.14 : 0.09) * contrast,
+      ),
       base,
     );
   }
@@ -45,11 +56,11 @@ abstract class DvListStyle {
       borderRadius: radius,
       side: BorderSide(
         color: theme.colorScheme.onSurface.withValues(
-          alpha: dark ? 0.18 : 0.14,
+          alpha: (dark ? 0.34 : 0.28) * contrast,
         ),
       ),
     );
   }
 
-  static double get elevation => mode == plates ? 0.6 : 0;
+  static double get elevation => mode == plates ? 0.9 * contrast : 0;
 }

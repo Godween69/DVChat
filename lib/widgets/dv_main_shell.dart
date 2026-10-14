@@ -130,7 +130,9 @@ class _DvTabBar extends StatelessWidget {
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Material(
         color: DvListStyle.fill(context),
-        elevation: DvListStyle.mode == DvListStyle.plates ? 3 : 0,
+        elevation: DvListStyle.mode == DvListStyle.plates
+            ? 0.5 + 3 * DvListStyle.contrast
+            : 0,
         shadowColor: Colors.black,
         surfaceTintColor: Colors.transparent,
         clipBehavior: Clip.antiAlias,

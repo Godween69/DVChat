@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/account_config.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/theme_builder.dart';
@@ -33,6 +34,19 @@ class SettingsStyleController extends State<SettingsStyle> {
 
   Future<void> setListStyle(String style) async {
     await AppSettings.listStyle.setItem(style);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  // Ползунок контраста: пока тянем, показываем сразу, сохраняем в конце
+  void previewListContrast(double value) {
+    DvListStyle.previewContrast = value;
+    setState(() {});
+  }
+
+  Future<void> saveListContrast(double value) async {
+    await AppSettings.listContrast.setItem(value);
+    DvListStyle.previewContrast = null;
     if (!mounted) return;
     setState(() {});
   }
