@@ -69,6 +69,8 @@ enum AppSettings<T> {
   autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
   knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),
   checkForUpdates<bool>('dvchat.check_for_updates', true),
+  // DVChat: после выхода из аккаунта показать, что делать дальше (пока человек не нажмёт «Понятно»)
+  loggedOutNoticePending<bool>('dvchat.logged_out_notice', false),
   lastUpdateCheckDate<String>('dvchat.last_update_check_date', '');
 
   final String key;

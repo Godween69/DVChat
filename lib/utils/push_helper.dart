@@ -172,17 +172,32 @@ Future<void> _tryPushHelper(
 
   Logs().v('Push helper got notification event of type ${event.type}.');
 
-  if (!client.pushruleEvaluator.match(event).notify) {
+  // DVChat: расшифрованная реакция не подходит ни под одно правило (правила знают только
+  // сообщения и «зашифрованное событие»), поэтому для реакций правила не применяются,
+  // решение принимается ниже
+  if (event.type != EventTypes.Reaction &&
+      !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
   }
 
   // DVChat: уведомления о реакциях отключаются в настройках (в зашифрованных чатах
   // сервер не отличает реакцию от сообщения, поэтому решаем здесь, после расшифровки)
-  if (event.type == EventTypes.Reaction &&
-      !AppSettings.notifyAboutReactions.value) {
-    Logs().i('Push helper: reaction notifications are turned off.');
-    return;
+  if (event.type == EventTypes.Reaction) {
+    if (!AppSettings.notifyAboutReactions.value) {
+      Logs().i('Push helper: reaction notifications are turned off.');
+      return;
+    }
+    // Уведомляем только о реакциях других людей на МОИ сообщения
+    if (event.senderId == client.userID) return;
+    final targetId = event.relationshipEventId;
+    final target = targetId == null
+        ? null
+        : await event.room.getEventById(targetId);
+    if (target == null || target.senderId != client.userID) {
+      Logs().i('Push helper: reaction is not on my message.');
+      return;
+    }
   }
 
   if (notification.roomId != null &&

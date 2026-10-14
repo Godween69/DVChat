@@ -15,8 +15,47 @@ import 'package:dvchat/widgets/dv_logo.dart';
 import 'package:dvchat/widgets/layouts/login_scaffold.dart';
 import 'package:material_ui/material_ui.dart';
 
-class IntroPage extends StatelessWidget {
+class IntroPage extends StatefulWidget {
   const IntroPage({super.key});
+
+  @override
+  State<IntroPage> createState() => _IntroPageState();
+}
+
+class _IntroPageState extends State<IntroPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showLoggedOutNotice());
+  }
+
+  /// После выхода из аккаунта объясняем, как вернуться (окно закрывается только кнопкой)
+  Future<void> _showLoggedOutNotice() async {
+    if (!mounted || !AppSettings.loggedOutNoticePending.value) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Вы вышли из аккаунта'),
+          content: const Text(
+            'Чтобы снова войти, обратитесь к администратору: он выдаст новую ссылку или QR-код. '
+            'Другим способом войти в свой аккаунт не получится.\n\n'
+            'Администратору понадобится ваш уникальный ID аккаунта (10 цифр), '
+            'без него вход не выполнить.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await AppSettings.loggedOutNoticePending.setItem(false);
+  }
 
   @override
   Widget build(BuildContext context) {

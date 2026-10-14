@@ -247,6 +247,9 @@ class MatrixState extends State<Matrix> {
         .where((state) => state == LoginState.loggedOut)
         .listen((_) {
           final loggedInWithMultipleClients = widget.clients.length > 1;
+          if (!loggedInWithMultipleClients) {
+            unawaited(AppSettings.loggedOutNoticePending.setItem(true));
+          }
 
           _cancelSubs(c.clientName);
           widget.clients.remove(c);
