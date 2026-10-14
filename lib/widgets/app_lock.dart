@@ -73,6 +73,15 @@ class AppLock extends State<AppLockWidget> with WidgetsBindingObserver {
   bool _isLocked = false;
   bool _useBiometrics = false;
   bool _triedAutoBiometrics = false;
+
+  /// Системное окно отпечатка открыто (оно само сворачивает приложение)
+  bool _authenticating = false;
+  DateTime? _authEndedAt;
+
+  /// Сразу после окна отпечатка приходят запоздалые события сворачивания: их не считаем
+  bool get _recentlyAuthenticated =>
+      _authEndedAt != null &&
+      DateTime.now().difference(_authEndedAt!) < const Duration(seconds: 2);
   bool _paused = false;
   int _fails = 0;
   int _lockedUntilMs = 0;
@@ -104,6 +113,7 @@ class AppLock extends State<AppLockWidget> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_authenticating || _recentlyAuthenticated) return;
     if (isActive && state == AppLifecycleState.hidden && !_isLocked) {
       showLockScreen();
     }
@@ -222,14 +232,24 @@ class AppLock extends State<AppLockWidget> with WidgetsBindingObserver {
   }
 
   Future<bool> unlockWithBiometrics() async {
+    // Второй запрос, пока первый открыт, не делаем
+    if (_authenticating) return false;
+    _authenticating = true;
     _triedAutoBiometrics = true;
-    final localAuth = LocalAuthentication();
-    final unlocked = await localAuth.authenticate(
-      localizedReason: 'Please authenticate to unlock the app.',
-      persistAcrossBackgrounding: true,
-      biometricOnly: true,
-    );
-    if (unlocked) {
+    var unlocked = false;
+    try {
+      unlocked = await LocalAuthentication().authenticate(
+        localizedReason: 'Подтвердите вход в приложение',
+        persistAcrossBackgrounding: true,
+        biometricOnly: true,
+      );
+    } catch (e, s) {
+      Logs().w('DVChat: отпечаток недоступен или отменён', e, s);
+    } finally {
+      _authenticating = false;
+      _authEndedAt = DateTime.now();
+    }
+    if (unlocked && mounted) {
       setState(() {
         _isLocked = false;
         _triedAutoBiometrics = false;

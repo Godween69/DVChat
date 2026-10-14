@@ -22,7 +22,6 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   String? _errorText;
-  int _coolDownSeconds = 5;
   bool _inputBlocked = false;
   final TextEditingController _textEditingController = TextEditingController();
   bool _checking = false;
@@ -73,19 +72,6 @@ class _LockScreenState extends State<LockScreen> {
       });
       return;
     }
-
-    setState(() {
-      _errorText = L10n.of(context).wrongPinEntered(_coolDownSeconds);
-      _inputBlocked = true;
-    });
-    Future.delayed(Duration(seconds: _coolDownSeconds)).then((_) {
-      setState(() {
-        _inputBlocked = false;
-        _coolDownSeconds *= 2;
-        _errorText = null;
-      });
-    });
-    _textEditingController.clear();
   }
 
   Future<void> tryUnlock(String text) async {
@@ -93,7 +79,7 @@ class _LockScreenState extends State<LockScreen> {
     final pin = text.trim();
     setState(() => _errorText = null);
 
-    if (int.tryParse(pin) == null) {
+    if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
       setState(() => _errorText = L10n.of(context).invalidInput);
       _textEditingController.clear();
       return;
@@ -153,12 +139,12 @@ class _LockScreenState extends State<LockScreen> {
                     autofocus: true,
                     textAlign: TextAlign.center,
                     readOnly: _inputBlocked,
-                    onChanged: (text) {
-                      if (text.length >= 6) tryUnlock(text);
-                    },
                     onSubmitted: tryUnlock,
                     style: const TextStyle(fontSize: 40),
-                    inputFormatters: [LengthLimitingTextInputFormatter(6)],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(40),

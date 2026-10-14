@@ -85,13 +85,11 @@ class SettingsSecurityController extends State<SettingsSecurity> {
       useRootNavigator: false,
       context: context,
       title: l10n.pleaseChooseAPasscode,
-      message: l10n.pleaseEnter6Digits,
+      message: 'От 4 до 6 цифр',
       cancelLabel: l10n.cancel,
       validator: (text) {
-        if (text.length == 6 && int.tryParse(text)! >= 0) {
-          return null;
-        }
-        return l10n.pleaseEnter6Digits;
+        if (RegExp(r'^\d{4,6}$').hasMatch(text)) return null;
+        return 'Введите от 4 до 6 цифр';
       },
       keyboardType: TextInputType.number,
       obscureText: true,
