@@ -91,7 +91,7 @@ class DvGameNet {
     final now = DateTime.now();
     for (final room in directRooms(client)) {
       try {
-        final tl = await room.getTimeline();
+        final tl = await room.getTimeline(limit: 300);
         final events = tl.events.where((e) => e.type == eventType).toList();
         tl.cancelSubscriptions();
         final ended = <String>{};

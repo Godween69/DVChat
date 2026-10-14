@@ -89,7 +89,7 @@ class _TttPageState extends State<TttPage> {
 
   Future<void> _load() async {
     try {
-      final tl = await widget.room!.getTimeline();
+      final tl = await widget.room!.getTimeline(limit: 300);
       for (final e in tl.events) {
         _ingest(e);
       }

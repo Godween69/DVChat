@@ -181,7 +181,7 @@ class _BsPageState extends State<BsPage> {
         _salt = saved.substring(0, i);
         _fleet = BsLogic.parse(saved.substring(i + 1));
       }
-      final tl = await widget.room!.getTimeline();
+      final tl = await widget.room!.getTimeline(limit: 300);
       for (final e in tl.events) {
         _ingest(e);
       }
@@ -307,9 +307,16 @@ class _BsPageState extends State<BsPage> {
     }
   }
 
+  /// Случайная соль отпечатка: 128 бит
+  static String _newSalt() {
+    final r = Random.secure();
+    return [
+      for (var i = 0; i < 4; i++) r.nextInt(1 << 32).toRadixString(16),
+    ].join();
+  }
+
   Future<void> _confirmOnline() async {
-    _salt =
-        '${Random.secure().nextInt(1 << 32)}${DateTime.now().microsecondsSinceEpoch}';
+    _salt = _newSalt();
     final commit = BsLogic.commit(_fleet, _salt);
     try {
       final prefs = await SharedPreferences.getInstance();
