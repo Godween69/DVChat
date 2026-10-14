@@ -93,6 +93,13 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
           (room) =>
               room.canSendDefaultMessages && room.membership == Membership.join,
         )
+        // DVChat: чаты из Архива, скрытые мной и закрытые собеседником в пересылке не показываем
+        .where(
+          (room) =>
+              !room.isInArchive &&
+              !room.isHiddenByUser &&
+              room.isAbandonedDMRoom != true,
+        )
         .toList();
     final filter = _filterController.text.trim().toLowerCase();
     return Scaffold(
