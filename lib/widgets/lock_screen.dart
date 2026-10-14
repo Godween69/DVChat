@@ -25,6 +25,39 @@ class _LockScreenState extends State<LockScreen> {
   int _coolDownSeconds = 5;
   bool _inputBlocked = false;
   final TextEditingController _textEditingController = TextEditingController();
+  bool _checking = false;
+  Timer? _blockTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_syncLockout());
+  }
+
+  /// Пауза после ошибок хранится на диске, поэтому действует и после перезапуска приложения
+  Future<void> _syncLockout() async {
+    final wait = await AppLock.of(context).lockoutRemaining();
+    if (!mounted || wait == Duration.zero) return;
+    _blockFor(wait);
+  }
+
+  void _blockFor(Duration wait) {
+    _blockTimer?.cancel();
+    setState(() => _inputBlocked = true);
+    _blockTimer = Timer(wait, () {
+      if (!mounted) return;
+      setState(() {
+        _inputBlocked = false;
+        _errorText = null;
+      });
+    });
+  }
+
+  static String _waitText(Duration wait) {
+    final seconds = wait.inSeconds;
+    if (seconds < 90) return '$seconds с';
+    return '${(seconds / 60).ceil()} мин';
+  }
 
   Future<void> tryUnlockWithBiometrics() async {
     setState(() {
@@ -56,41 +89,37 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Future<void> tryUnlock(String text) async {
-    text = text.trim();
-    setState(() {
-      _errorText = null;
-    });
+    if (_checking || _inputBlocked) return;
+    final pin = text.trim();
+    setState(() => _errorText = null);
 
-    final enteredPin = int.tryParse(text);
-    if (enteredPin == null) {
-      setState(() {
-        _errorText = L10n.of(context).invalidInput;
-      });
+    if (int.tryParse(pin) == null) {
+      setState(() => _errorText = L10n.of(context).invalidInput);
       _textEditingController.clear();
       return;
     }
 
-    if (AppLock.of(context).unlock(text)) {
-      setState(() {
-        _inputBlocked = false;
-        _errorText = null;
-      });
-      _textEditingController.clear();
-      return;
-    }
-
-    setState(() {
-      _errorText = L10n.of(context).wrongPinEntered(_coolDownSeconds);
-      _inputBlocked = true;
-    });
-    Future.delayed(Duration(seconds: _coolDownSeconds)).then((_) {
-      setState(() {
-        _inputBlocked = false;
-        _coolDownSeconds *= 2;
-        _errorText = null;
-      });
-    });
+    _checking = true;
+    final result = await AppLock.of(context).tryPin(pin);
+    _checking = false;
+    if (!mounted) return;
     _textEditingController.clear();
+    if (result.ok) {
+      setState(() {
+        _inputBlocked = false;
+        _errorText = null;
+      });
+      return;
+    }
+    if (result.wiped) return;
+    final waitText = result.wait > Duration.zero
+        ? ' Подождите ${_waitText(result.wait)}.'
+        : '';
+    setState(() {
+      _errorText =
+          'Неверный PIN.$waitText Осталось попыток до выхода из аккаунта: ${result.attemptsLeft}';
+    });
+    if (result.wait > Duration.zero) _blockFor(result.wait);
   }
 
   @override
@@ -194,6 +223,7 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   void dispose() {
+    _blockTimer?.cancel();
     _textEditingController.dispose();
     super.dispose();
   }

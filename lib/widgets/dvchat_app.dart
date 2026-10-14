@@ -90,6 +90,15 @@ class DvChatApp extends StatelessWidget {
             pincode: appLockSettings.pincode,
             useBiometrics: appLockSettings.useBiometrics,
             isLoggedIn: clients.any((client) => client.isLogged()),
+            onTooManyAttempts: () async {
+              for (final client in clients) {
+                try {
+                  await client.logout();
+                } catch (e, s) {
+                  Logs().w('DVChat: выход после ошибок PIN не удался', e, s);
+                }
+              }
+            },
             // Need a navigator above the Matrix widget for
             // displaying dialogs
             child: Matrix(
