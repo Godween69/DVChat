@@ -3,10 +3,13 @@
 // DVChat: экран крестиков-ноликов. Два режима:
 //  - с компьютером (level 0..2), без интернета;
 //  - с другом (room + gameId + hostId), ходы идут через личный чат.
+// Крестики и нолики рисуются анимацией, победная линия перечёркивает выигрышные клетки.
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:dvchat/pages/games/dv_game_net.dart';
+import 'package:dvchat/pages/games/dv_game_sound.dart';
 import 'package:dvchat/pages/games/ttt_logic.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -51,6 +54,7 @@ class _TttPageState extends State<TttPage> {
   String get _me => widget.room?.client.userID ?? '';
   String get _myLetter => widget.hostId == _me ? 'X' : 'O';
   String get _humanLetter => _humanFirst ? 'X' : 'O';
+  String get _mine => _online ? _myLetter : _humanLetter;
 
   @override
   void initState() {
@@ -68,6 +72,28 @@ class _TttPageState extends State<TttPage> {
   void dispose() {
     _sub?.cancel();
     super.dispose();
+  }
+
+  // ---------------- звук ----------------
+
+  int _count(List<String> b) => b.where((c) => c != '').length;
+
+  /// Звук после изменения поля: свой ход, ход соперника или конец партии
+  void _soundFor(int oldCount, bool wasFinished) {
+    final count = _count(_board);
+    if (!wasFinished && _finished) {
+      final w = TttLogic.winner(_board);
+      unawaited(
+        DvGameSound.play(
+          w == null ? DvSound.miss : (w == _mine ? DvSound.win : DvSound.lose),
+        ),
+      );
+    } else if (count > oldCount) {
+      final lastLetter = count.isOdd ? 'X' : 'O';
+      unawaited(
+        DvGameSound.play(lastLetter == _mine ? DvSound.place : DvSound.enemy),
+      );
+    }
   }
 
   // ---------------- сетевая часть ----------------
@@ -98,11 +124,11 @@ class _TttPageState extends State<TttPage> {
       // Не удалось прочитать историю: продолжим по новым событиям
     }
     _loading = false;
-    _rebuild();
+    _rebuild(silent: true);
   }
 
   /// Собирает поле из полученных ходов, проверяя очерёдность
-  void _rebuild() {
+  void _rebuild({bool silent = false}) {
     final b = List<String>.filled(9, '');
     var n = 0;
     String? last;
@@ -118,7 +144,10 @@ class _TttPageState extends State<TttPage> {
     }
     _lastSender = last;
     if (!mounted) return;
+    final oldCount = _count(_board);
+    final wasFinished = _finished;
     setState(() => _board = b);
+    if (!silent) _soundFor(oldCount, wasFinished);
     _maybeSendEnd();
   }
 
@@ -145,7 +174,7 @@ class _TttPageState extends State<TttPage> {
     final turn = TttLogic.turnOf(_board);
     if (_online) {
       if (turn != _myLetter) return;
-      final n = _board.where((c) => c != '').length;
+      final n = _count(_board);
       _moves[n] = _Move(i, _me);
       _rebuild();
       try {
@@ -158,7 +187,7 @@ class _TttPageState extends State<TttPage> {
         );
       } catch (_) {
         _moves.remove(n);
-        _rebuild();
+        _rebuild(silent: true);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Не удалось отправить ход')),
@@ -169,7 +198,9 @@ class _TttPageState extends State<TttPage> {
     }
     // С компьютером
     if (turn != _humanLetter) return;
+    final old = _count(_board);
     setState(() => _board = List.of(_board)..[i] = turn);
+    _soundFor(old, false);
     await _aiTurn();
   }
 
@@ -178,13 +209,15 @@ class _TttPageState extends State<TttPage> {
     final ai = _humanLetter == 'X' ? 'O' : 'X';
     if (TttLogic.turnOf(_board) != ai) return;
     setState(() => _busy = true);
-    await Future<void>.delayed(const Duration(milliseconds: 450));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     final move = TttLogic.aiMove(_board, ai, widget.level ?? 1);
+    final old = _count(_board);
     setState(() {
       _board = List.of(_board)..[move] = ai;
       _busy = false;
     });
+    _soundFor(old, false);
   }
 
   Future<void> _again() async {
@@ -220,12 +253,47 @@ class _TttPageState extends State<TttPage> {
   String get _status {
     if (_loading) return 'Загрузка…';
     final w = TttLogic.winner(_board);
-    final mine = _online ? _myLetter : _humanLetter;
+    final mine = _mine;
     if (w != null) return w == mine ? 'Вы победили! 🎉' : 'Вы проиграли';
     if (TttLogic.isFull(_board)) return 'Ничья';
     final turn = TttLogic.turnOf(_board);
-    if (turn == mine) return 'Ваш ход ($mine)';
+    if (turn == mine) return 'Ваш ход';
     return _online ? 'Ход соперника…' : 'Компьютер думает…';
+  }
+
+  Widget _chip(ThemeData theme, String name, String letter, bool active) {
+    final color = letter == 'X'
+        ? theme.colorScheme.primary
+        : theme.colorScheme.tertiary;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: active ? color.withValues(alpha: 0.16) : null,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: active ? color : theme.colorScheme.outlineVariant,
+          width: active ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            letter == 'X' ? '✕' : '◯',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -235,70 +303,260 @@ class _TttPageState extends State<TttPage> {
     final title = _online
         ? 'Крестики-нолики · ${widget.room!.getLocalizedDisplayname()}'
         : 'Крестики-нолики · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
+    final mine = _mine;
+    final other = mine == 'X' ? 'O' : 'X';
+    final turn = TttLogic.turnOf(_board);
+    final playing = !_loading && !_finished;
+    final oppName = _online
+        ? widget.room!.getLocalizedDisplayname()
+        : 'Компьютер';
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_status, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 24),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: GridView.count(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    physics: const NeverScrollableScrollPhysics(),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: Row(
                     children: [
-                      for (var i = 0; i < 9; i++)
-                        _cell(theme, i, line?.contains(i) ?? false),
+                      Expanded(
+                        child: _chip(
+                          theme,
+                          'Вы',
+                          mine,
+                          playing && turn == mine,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _chip(
+                          theme,
+                          oppName,
+                          other,
+                          playing && turn == other,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              if (_finished)
-                FilledButton.icon(
-                  onPressed: _again,
-                  icon: const Icon(Icons.replay),
-                  label: Text(_online ? 'Сыграть ещё раз' : 'Новая партия'),
+                const SizedBox(height: 18),
+                Text(_status, style: theme.textTheme.titleLarge),
+                const SizedBox(height: 18),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: _TttBoard(board: _board, winLine: line, onTap: _tap),
+                  ),
                 ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _cell(ThemeData theme, int i, bool highlight) {
-    final v = _board[i];
-    final color = v == 'X'
-        ? theme.colorScheme.primary
-        : theme.colorScheme.error;
-    return Material(
-      color: highlight
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _tap(i),
-        child: Center(
-          child: Text(
-            v,
-            style: TextStyle(
-              fontSize: 56,
-              fontWeight: FontWeight.bold,
-              color: color,
+                const SizedBox(height: 24),
+                if (_finished)
+                  FilledButton.icon(
+                    onPressed: _again,
+                    icon: const Icon(Icons.replay),
+                    label: Text(_online ? 'Сыграть ещё раз' : 'Новая партия'),
+                  ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _TttBoard extends StatelessWidget {
+  const _TttBoard({
+    required this.board,
+    required this.winLine,
+    required this.onTap,
+  });
+
+  final List<String> board;
+  final List<int>? winLine;
+  final void Function(int) onTap;
+
+  Widget _cell(ThemeData theme, int i) {
+    final v = board[i];
+    final win = winLine?.contains(i) ?? false;
+    final color = v == 'X'
+        ? theme.colorScheme.primary
+        : theme.colorScheme.tertiary;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(i),
+      child: Container(
+        margin: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: win
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.6)
+              : null,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: v.isEmpty
+            ? null
+            : TweenAnimationBuilder<double>(
+                key: ValueKey('$i$v'),
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutCubic,
+                builder: (context, t, child) => CustomPaint(
+                  painter: _MarkPainter(v, t, color),
+                  size: Size.infinite,
+                ),
+              ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final line = winLine;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final cs = c.maxWidth / 3;
+        return Material(
+          color: theme.colorScheme.surfaceContainerHigh,
+          elevation: 1,
+          shadowColor: Colors.black,
+          surfaceTintColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _GridPainter(theme.colorScheme.outlineVariant),
+                ),
+              ),
+              for (var i = 0; i < 9; i++)
+                Positioned(
+                  left: (i % 3) * cs,
+                  top: (i ~/ 3) * cs,
+                  width: cs,
+                  height: cs,
+                  child: _cell(theme, i),
+                ),
+              if (line != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey(line.join(',')),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 450),
+                      curve: Curves.easeOut,
+                      builder: (context, t, child) => CustomPaint(
+                        painter: _WinPainter(
+                          line,
+                          t,
+                          theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GridPainter extends CustomPainter {
+  _GridPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    final a = s.width / 3;
+    final inset = s.width * 0.06;
+    for (var k = 1; k <= 2; k++) {
+      canvas.drawLine(Offset(a * k, inset), Offset(a * k, s.height - inset), p);
+      canvas.drawLine(Offset(inset, a * k), Offset(s.width - inset, a * k), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) => old.color != color;
+}
+
+class _MarkPainter extends CustomPainter {
+  _MarkPainter(this.letter, this.t, this.color);
+
+  final String letter;
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final c = Offset(s.width / 2, s.height / 2);
+    final r = s.shortestSide * 0.3;
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s.shortestSide * 0.11
+      ..strokeCap = StrokeCap.round;
+    if (letter == 'X') {
+      final t1 = (t * 2).clamp(0.0, 1.0);
+      final t2 = ((t - 0.5) * 2).clamp(0.0, 1.0);
+      final a = Offset(c.dx - r, c.dy - r);
+      final b = Offset(c.dx + r, c.dy + r);
+      canvas.drawLine(a, Offset.lerp(a, b, t1)!, p);
+      if (t2 > 0) {
+        final a2 = Offset(c.dx + r, c.dy - r);
+        final b2 = Offset(c.dx - r, c.dy + r);
+        canvas.drawLine(a2, Offset.lerp(a2, b2, t2)!, p);
+      }
+    } else {
+      canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r * 1.05),
+        -pi / 2,
+        2 * pi * t,
+        false,
+        p,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MarkPainter old) =>
+      old.t != t || old.letter != letter || old.color != color;
+}
+
+class _WinPainter extends CustomPainter {
+  _WinPainter(this.line, this.t, this.color);
+
+  final List<int> line;
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final cs = s.width / 3;
+    Offset center(int i) => Offset((i % 3 + 0.5) * cs, (i ~/ 3 + 0.5) * cs);
+    final a0 = center(line.first);
+    final b0 = center(line.last);
+    final d = (b0 - a0) / (b0 - a0).distance;
+    final a = a0 - d * (cs * 0.3);
+    final b = b0 + d * (cs * 0.3);
+    final p = Paint()
+      ..color = color.withValues(alpha: 0.85)
+      ..strokeWidth = cs * 0.09
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(a, Offset.lerp(a, b, t)!, p);
+  }
+
+  @override
+  bool shouldRepaint(_WinPainter old) =>
+      old.t != t || old.color != color || old.line != line;
 }

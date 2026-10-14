@@ -71,6 +71,9 @@ enum AppSettings<T> {
   listStyle<String>('dvchat.list_style', 'plain'),
   // DVChat: контраст плашек и рамок с фоном (0..1)
   listContrast<double>('dvchat.list_contrast', 0.4),
+  // DVChat: звук в играх (по умолчанию включён) и его громкость
+  gameSound<bool>('dvchat.game_sound', true),
+  gameVolume<double>('dvchat.game_volume', 0.8),
   benchmarksInLogs<bool>('dvchat.benchmarks_in_logs', false),
   autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
   knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),
