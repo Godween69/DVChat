@@ -3,19 +3,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: Экран «Безопасность» (внешний вид): только PIN-код и вход по биометрии.
-// Остальные настройки (набор текста, отметки о прочтении, отчёты о сбоях, заблокированные,
-// ключи, учётная запись) скрыты: в семейном чате они заданы раз и навсегда.
+// DVChat: Экран «Безопасность» (внешний вид): PIN-код, вход по биометрии и список устройств
+// с кнопкой «Выйти на всех устройствах, кроме этого». Остальные настройки скрыты.
 
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/widgets/app_lock.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
 
 import 'settings_security.dart';
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+String _lastSeen(int? ts) {
+  if (ts == null || ts <= 0) return 'Давно не был(а) в сети';
+  final d = DateTime.fromMillisecondsSinceEpoch(ts);
+  return 'Был(а) в сети: ${_two(d.day)}.${_two(d.month)}.${d.year} ${_two(d.hour)}:${_two(d.minute)}';
+}
 
 class SettingsSecurityView extends StatelessWidget {
   final SettingsSecurityController controller;
@@ -49,7 +58,7 @@ class SettingsSecurityView extends StatelessWidget {
                   value: lock.isActive,
                   title: const Text('PIN-код при входе в приложение'),
                   subtitle: const Text(
-                    'Приложение просит 6-значный PIN при запуске и после сворачивания. '
+                    'Приложение просит PIN (от 4 до 6 цифр) при запуске и после сворачивания. '
                     'После 10 неверных попыток подряд выполняется выход из аккаунта.',
                   ),
                   onChanged: (active) => active
@@ -76,6 +85,83 @@ class SettingsSecurityView extends StatelessWidget {
                   ),
                 ],
               ],
+              Divider(color: theme.dividerColor),
+              ListTile(
+                title: Text(
+                  'Устройства',
+                  style: TextStyle(
+                    color: theme.colorScheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Войти можно с нескольких устройств сразу. Лишние можно отключить.',
+                ),
+              ),
+              FutureBuilder<List<Device>?>(
+                future: controller.devicesFuture,
+                builder: (context, snapshot) {
+                  final devices = snapshot.data;
+                  if (devices == null) {
+                    if (snapshot.hasError) {
+                      return const ListTile(
+                        title: Text('Не удалось загрузить список устройств'),
+                      );
+                    }
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  }
+                  final myId = Matrix.of(context).client.deviceID;
+                  final sorted = [...devices]
+                    ..sort((a, b) {
+                      if (a.deviceId == myId) return -1;
+                      if (b.deviceId == myId) return 1;
+                      return (b.lastSeenTs ?? 0).compareTo(a.lastSeenTs ?? 0);
+                    });
+                  return Column(
+                    children: [
+                      for (final device in sorted)
+                        ListTile(
+                          leading: device.deviceId == myId
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                )
+                              : const Icon(Icons.smartphone_outlined),
+                          title: Text(
+                            (device.displayName ?? '').isNotEmpty
+                                ? device.displayName!
+                                : device.deviceId,
+                          ),
+                          subtitle: Text(
+                            device.deviceId == myId
+                                ? 'Это устройство'
+                                : _lastSeen(device.lastSeenTs),
+                          ),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.red),
+                        title: const Text(
+                          'Выйти на всех устройствах, кроме этого',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        subtitle: devices.length <= 1
+                            ? const Text('Других устройств нет')
+                            : null,
+                        onTap: devices.length <= 1
+                            ? null
+                            : controller.logoutOthersAction,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),

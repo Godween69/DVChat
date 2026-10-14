@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:dvchat/widgets/app_lock.dart';
@@ -26,6 +27,34 @@ class SettingsSecurity extends StatefulWidget {
 }
 
 class SettingsSecurityController extends State<SettingsSecurity> {
+  // DVChat: список устройств (загружается один раз, обновляется после выхода на других)
+  Future<List<Device>?>? _devicesFuture;
+  Future<List<Device>?> get devicesFuture =>
+      _devicesFuture ??= Matrix.of(context).client.getDevices();
+
+  /// Выйти на всех устройствах, кроме этого (пароль не нужен, сервер закрывает остальные сессии)
+  Future<void> logoutOthersAction() async {
+    final consent = await showOkCancelAlertDialog(
+      context: context,
+      title: 'Выйти на всех устройствах?',
+      message:
+          'Все устройства, кроме этого, будут отключены. Чтобы войти на них снова, '
+          'понадобятся новая ссылка от администратора и ваш ID.',
+      okLabel: 'Выйти',
+      cancelLabel: L10n.of(context).cancel,
+      isDestructive: true,
+    );
+    if (consent != OkCancelResult.ok) return;
+    if (!mounted) return;
+    final client = Matrix.of(context).client;
+    await showFutureLoadingDialog(
+      context: context,
+      future: () => DvApi(client).post('devices/logout_others', {}),
+    );
+    if (!mounted) return;
+    setState(() => _devicesFuture = null);
+  }
+
   Future<void> toggleBiometrics() async {
     AppLock.of(context).showLockScreen();
 
