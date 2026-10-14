@@ -49,6 +49,7 @@ class _TttPageState extends State<TttPage> {
   String? _lastSender;
   bool _endSent = false;
   bool _loading = false;
+  String? _surrenderBy;
 
   bool get _online => widget.room != null;
   String get _me => widget.room?.client.userID ?? '';
@@ -64,12 +65,16 @@ class _TttPageState extends State<TttPage> {
       _sub = widget.room!.client.onTimelineEvent.stream.listen((e) {
         if (_ingest(e)) _rebuild();
       });
+      DvGameNet.activeGameId = widget.gameId;
       unawaited(_load());
     }
   }
 
   @override
   void dispose() {
+    if (DvGameNet.activeGameId == widget.gameId) {
+      DvGameNet.activeGameId = null;
+    }
     _sub?.cancel();
     super.dispose();
   }
@@ -83,11 +88,12 @@ class _TttPageState extends State<TttPage> {
     final count = _count(_board);
     if (!wasFinished && _finished) {
       final w = TttLogic.winner(_board);
-      unawaited(
-        DvGameSound.play(
-          w == null ? DvSound.miss : (w == _mine ? DvSound.win : DvSound.lose),
-        ),
-      );
+      final sound = _surrenderBy != null
+          ? (_surrenderBy == _me ? DvSound.lose : DvSound.win)
+          : (w == null
+                ? DvSound.miss
+                : (w == _mine ? DvSound.win : DvSound.lose));
+      unawaited(DvGameSound.play(sound));
     } else if (count > oldCount) {
       final lastLetter = count.isOdd ? 'X' : 'O';
       unawaited(
@@ -104,6 +110,14 @@ class _TttPageState extends State<TttPage> {
     }
     final c = e.content;
     if (c['game'] != 'ttt' || '${c['id']}' != widget.gameId) return false;
+    if (c['kind'] == 'end' && c['reason'] == 'surrender') {
+      final by = c['by'];
+      if (by is String && _surrenderBy == null) {
+        _surrenderBy = by;
+        return true;
+      }
+      return false;
+    }
     if (c['kind'] != 'move') return false;
     final n = c['n'];
     final cell = c['cell'];
@@ -152,14 +166,16 @@ class _TttPageState extends State<TttPage> {
   }
 
   void _maybeSendEnd() {
-    if (!_online || _endSent || !_finished) return;
+    if (!_online || _endSent || !_finished || _surrenderBy != null) return;
     if (_lastSender != _me) return;
     _endSent = true;
+    final won = TttLogic.winner(_board) != null;
     unawaited(
       DvGameNet.sendEnd(
         widget.room!,
         game: 'ttt',
         id: widget.gameId!,
+        winner: won ? _me : '',
       ).catchError((_) => null),
     );
   }
@@ -167,7 +183,9 @@ class _TttPageState extends State<TttPage> {
   // ---------------- общая часть ----------------
 
   bool get _finished =>
-      TttLogic.winner(_board) != null || TttLogic.isFull(_board);
+      _surrenderBy != null ||
+      TttLogic.winner(_board) != null ||
+      TttLogic.isFull(_board);
 
   Future<void> _tap(int i) async {
     if (_loading || _busy || _finished || _board[i] != '') return;
@@ -184,6 +202,7 @@ class _TttPageState extends State<TttPage> {
           id: widget.gameId!,
           n: n,
           cell: i,
+          fin: _finished,
         );
       } catch (_) {
         _moves.remove(n);
@@ -252,6 +271,11 @@ class _TttPageState extends State<TttPage> {
 
   String get _status {
     if (_loading) return 'Загрузка…';
+    if (_surrenderBy != null) {
+      return _surrenderBy == _me
+          ? 'Вы сдались'
+          : 'Соперник сдался. Вы победили! 🎉';
+    }
     final w = TttLogic.winner(_board);
     final mine = _mine;
     if (w != null) return w == mine ? 'Вы победили! 🎉' : 'Вы проиграли';

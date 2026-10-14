@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // DVChat: вкладка «Игры». Сверху квадратные плитки игр («кубики»), ниже партии с друзьями
-// списком, как чаты. Игры с друзьями идут через личный чат, с компьютером работают без
-// интернета. Плитки и строки оформляются как остальные списки (обычный вид, плашки, рамки).
+// списком, как чаты. У партии есть меню (три точки или долгое нажатие): информация и счёт,
+// уведомления по этой партии, закрыть партию (засчитывается как сдача).
 
 import 'dart:async';
 
@@ -190,6 +190,147 @@ class _GamesPageState extends State<GamesPage> {
 
   void _soon() => _snack('Эта игра появится в следующем обновлении');
 
+  // ---------------- меню партии ----------------
+
+  String _dateTime(DateTime t) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final l = t.toLocal();
+    return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
+  }
+
+  Future<void> _partyMenu(DvGameInvite inv) async {
+    final muted = DvGameNet.isMuted(inv.gameId);
+    final error = Theme.of(context).colorScheme.error;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('Информация'),
+              onTap: () => Navigator.pop(context, 'info'),
+            ),
+            ListTile(
+              leading: Icon(
+                muted
+                    ? Icons.notifications_outlined
+                    : Icons.notifications_off_outlined,
+              ),
+              title: Text(
+                muted ? 'Включить уведомления' : 'Отключить уведомления',
+              ),
+              onTap: () => Navigator.pop(context, 'mute'),
+            ),
+            ListTile(
+              leading: Icon(Icons.flag_outlined, color: error),
+              title: Text('Закрыть партию', style: TextStyle(color: error)),
+              subtitle: const Text('Засчитается как сдача'),
+              onTap: () => Navigator.pop(context, 'close'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'info':
+        await _info(inv);
+      case 'mute':
+        await DvGameNet.setMuted(inv.gameId, !muted);
+        if (mounted) setState(() {});
+      case 'close':
+        await _closeParty(inv);
+    }
+  }
+
+  Future<void> _info(DvGameInvite inv) async {
+    final def = _def(inv.game)!;
+    final stats = await DvGameNet.stats(inv.room, inv.game);
+    if (!mounted) return;
+    final me = _client.userID;
+    final theme = Theme.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(def.title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Соперник: ${inv.room.getLocalizedDisplayname()}'),
+              const SizedBox(height: 6),
+              Text(
+                'Приглашение: ${_dateTime(inv.time)} '
+                '(${inv.hostId == me ? 'вы пригласили' : 'приглашает вас'})',
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Счёт в этой игре с другом',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text('Сыграно партий: ${stats.played}'),
+              Text('Побед: ${stats.wins}'),
+              Text('Поражений: ${stats.losses}'),
+              Text('Ничьих: ${stats.draws}'),
+              if (stats.quitByMe + stats.quitByOpp > 0)
+                Text('Сдач: вы ${stats.quitByMe}, соперник ${stats.quitByOpp}'),
+              const SizedBox(height: 12),
+              Text(
+                'История партий хранится в чате и очистке не подлежит.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ОК'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _closeParty(DvGameInvite inv) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Закрыть партию?'),
+        content: const Text(
+          'Партия будет засчитана как сдача: победа достанется сопернику. '
+          'Это отобразится в информации о партии.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await DvGameNet.surrender(inv.room, game: inv.game, id: inv.gameId);
+      _snack('Партия закрыта');
+      unawaited(_reload());
+    } catch (_) {
+      _snack('Не удалось закрыть партию');
+    }
+  }
+
+  // ---------------- оформление ----------------
+
   Widget _heading(ThemeData theme, String text) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Text(
@@ -226,10 +367,10 @@ class _GamesPageState extends State<GamesPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
-                radius: 24,
+                radius: 22,
                 backgroundColor: theme.colorScheme.primaryContainer,
                 foregroundColor: theme.colorScheme.onPrimaryContainer,
-                child: Icon(icon, size: 26),
+                child: Icon(icon, size: 24),
               ),
               const SizedBox(height: 8),
               Text(
@@ -237,14 +378,20 @@ class _GamesPageState extends State<GamesPage> {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: soon ? theme.colorScheme.outline : null,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                  color: soon
+                      ? theme.colorScheme.outline
+                      : theme.colorScheme.onSurface,
                 ),
               ),
               if (soon)
                 Text(
-                  'Скоро',
-                  style: theme.textTheme.labelSmall?.copyWith(
+                  'скоро',
+                  style: TextStyle(
+                    fontSize: 9,
                     color: theme.colorScheme.outline,
                   ),
                 ),
@@ -255,41 +402,51 @@ class _GamesPageState extends State<GamesPage> {
     );
   }
 
-  String _time(DateTime t) {
-    String two(int v) => v.toString().padLeft(2, '0');
-    final l = t.toLocal();
-    final n = DateTime.now();
-    final today = l.year == n.year && l.month == n.month && l.day == n.day;
-    return today
-        ? '${two(l.hour)}:${two(l.minute)}'
-        : '${two(l.day)}.${two(l.month)}';
-  }
-
-  /// Партия с другом: строка, как в списке чатов
+  /// Партия с другом: строка, как в списке чатов; три строки, чтобы ничего не обрезалось
   Widget _party(ThemeData theme, DvGameInvite inv, String? me) {
     final def = _def(inv.game)!;
     final name = inv.room.getLocalizedDisplayname();
+    final muted = DvGameNet.isMuted(inv.gameId);
+    final small = theme.textTheme.bodySmall;
     return DvListCard(
       child: ListTile(
+        isThreeLine: true,
         contentPadding: DvListStyle.isPlain
-            ? null
-            : const EdgeInsets.fromLTRB(18, 8, 12, 8),
+            ? const EdgeInsets.only(left: 16, right: 4)
+            : const EdgeInsets.fromLTRB(18, 8, 4, 8),
         leading: Avatar(
           mxContent: inv.room.avatar,
           name: name,
           client: _client,
         ),
         title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${def.title} · ${inv.hostId == me ? 'вы пригласили' : 'приглашает вас'}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(def.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(
+              inv.hostId == me ? 'Вы пригласили' : 'Приглашает вас',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: small?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ],
         ),
-        trailing: Text(
-          _time(inv.time),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (muted)
+              Icon(
+                Icons.notifications_off_outlined,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+            IconButton(
+              tooltip: 'Меню',
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _partyMenu(inv),
+            ),
+          ],
         ),
         onTap: () => _open(
           _pageFor(
@@ -299,6 +456,7 @@ class _GamesPageState extends State<GamesPage> {
             hostId: inv.hostId,
           ),
         ),
+        onLongPress: () => _partyMenu(inv),
       ),
     );
   }

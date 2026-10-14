@@ -71,6 +71,7 @@ class _BsPageState extends State<BsPage> {
   bool _lost = false;
   bool _busy = false;
   bool _loading = false;
+  String? _surrenderBy;
 
   // Компьютер
   List<List<int>> _aiFleet = [];
@@ -105,6 +106,7 @@ class _BsPageState extends State<BsPage> {
       _sub = widget.room!.client.onTimelineEvent.stream.listen((e) {
         if (_ingest(e)) _rebuild();
       });
+      DvGameNet.activeGameId = widget.gameId;
       unawaited(_load());
     } else {
       _aiFleet = BsLogic.randomFleet(_rnd);
@@ -114,6 +116,9 @@ class _BsPageState extends State<BsPage> {
 
   @override
   void dispose() {
+    if (DvGameNet.activeGameId == widget.gameId) {
+      DvGameNet.activeGameId = null;
+    }
     _sub?.cancel();
     super.dispose();
   }
@@ -173,6 +178,14 @@ class _BsPageState extends State<BsPage> {
             (res == 'm' || res == 'h' || res == 's') &&
             !_results.containsKey(n)) {
           _results[n] = _Res(e.senderId, '$res', _ints(c['ship']));
+          return true;
+        }
+      case 'end':
+        final by = c['by'];
+        if (c['reason'] == 'surrender' &&
+            by is String &&
+            _surrenderBy == null) {
+          _surrenderBy = by;
           return true;
         }
       case 'reveal':
@@ -260,12 +273,15 @@ class _BsPageState extends State<BsPage> {
         n++;
       }
     }
-    final won = sunk.length == BsLogic.shipSizes.length;
+    final surr = _surrenderBy;
+    final won =
+        sunk.length == BsLogic.shipSizes.length || (surr != null && surr != me);
     final lost =
-        bothReady &&
-        _fleet.isNotEmpty &&
-        incoming.isNotEmpty &&
-        _fleet.expand((s) => s).every(incoming.contains);
+        (surr != null && surr == me) ||
+        (bothReady &&
+            _fleet.isNotEmpty &&
+            incoming.isNotEmpty &&
+            _fleet.expand((s) => s).every(incoming.contains));
     final incomingBefore = Set<int>.of(incoming);
     if (!mounted) return;
     final oldLog = _log.length;
@@ -302,7 +318,7 @@ class _BsPageState extends State<BsPage> {
         !_answered.contains(pendingN)) {
       unawaited(_respond(pendingN, pending.cell, incomingBefore));
     }
-    if ((won || lost) && !_revealSent) {
+    if ((won || lost) && !_revealSent && _surrenderBy == null) {
       _revealSent = true;
       unawaited(_sendReveal(won));
     }
@@ -339,7 +355,12 @@ class _BsPageState extends State<BsPage> {
         'salt': _salt,
       }, type: DvGameNet.eventType);
       if (winner) {
-        await DvGameNet.sendEnd(widget.room!, game: 'bs', id: widget.gameId!);
+        await DvGameNet.sendEnd(
+          widget.room!,
+          game: 'bs',
+          id: widget.gameId!,
+          winner: _me,
+        );
       }
     } catch (_) {
       _revealSent = false;
@@ -517,6 +538,11 @@ class _BsPageState extends State<BsPage> {
 
   String get _status {
     if (_loading) return 'Загрузка…';
+    if (_surrenderBy != null) {
+      return _surrenderBy == _me
+          ? 'Вы сдались'
+          : 'Соперник сдался. Вы победили! 🎉';
+    }
     if (!_placed) return 'Расставьте корабли';
     if (_online && !_bothReady) return 'Ждём, пока соперник расставит корабли…';
     if (_won) return 'Вы победили! 🎉';
@@ -610,7 +636,7 @@ class _BsPageState extends State<BsPage> {
     final title = _online
         ? 'Морской бой · ${widget.room!.getLocalizedDisplayname()}'
         : 'Морской бой · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
-    final showPlacement = !_loading && !_placed;
+    final showPlacement = !_loading && !_placed && !_finished;
     final sunkCells = {for (final s in _sunk) ...s};
     final myCells = {for (final s in _fleet) ...s};
     final water = _water(theme);
@@ -661,7 +687,7 @@ class _BsPageState extends State<BsPage> {
                       ),
                     ],
                   ),
-                ] else if (_placed) ...[
+                ] else if (_placed || _finished) ...[
                   if (_bothReady || !_online) ...[
                     Wrap(
                       spacing: 10,

@@ -41,7 +41,10 @@ enum AppSettings<T> {
   archiveDeleteConfirm<bool>('dvchat.archive_delete_confirm', true),
   notifyAboutReactions<bool>('dvchat.notify_about_reactions', true),
   // DVChat: «хочу получать уведомления о прочтении посланных сообщений» (серверная часть позже)
-  notifyAboutReadReceipts<bool>('dvchat.notify_read_receipts', false),
+  notifyAboutReadReceipts<bool>('dvchat.notify_read_receipts', true),
+  // DVChat: уведомления от игр (ваш ход) и отключённые партии
+  notifyAboutGames<bool>('dvchat.notify_games', true),
+  mutedGames<List<String>>('dvchat.muted_games', []),
   sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
   sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),
   swipeRightToLeftToReply<bool>('dvchat.swipeRightToLeftToReply', true),

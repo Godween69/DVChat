@@ -8,6 +8,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
 import 'package:dvchat/utils/best_friends.dart';
 import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -298,6 +299,9 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
       final name = profile?.displayName ?? id.localpart ?? id;
       return DvListCard(
         child: ListTile(
+          contentPadding: DvListStyle.isPlain
+              ? null
+              : const EdgeInsets.fromLTRB(18, 8, 8, 8),
           leading: Avatar(
             mxContent: profile?.avatarUrl,
             name: name,
@@ -316,6 +320,11 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     id,
     onTap: () => _openChat(id),
     onLongPress: () => _friendMenu(id, allUsers),
+    trailing: IconButton(
+      tooltip: 'Меню',
+      icon: const Icon(Icons.more_vert),
+      onPressed: () => _friendMenu(id, allUsers),
+    ),
   );
 
   Future<String> _nameOf(String id) async {
