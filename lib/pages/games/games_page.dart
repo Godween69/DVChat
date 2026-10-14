@@ -46,6 +46,7 @@ class GamesPage extends StatefulWidget {
 class _GamesPageState extends State<GamesPage> {
   List<DvGameInvite> _invites = const [];
   StreamSubscription<Event>? _sub;
+  Timer? _debounce;
   bool _scanning = false;
 
   Client get _client => Matrix.of(context).client;
@@ -58,7 +59,10 @@ class _GamesPageState extends State<GamesPage> {
     if (_sub == null) {
       _sub = _client.onTimelineEvent.stream
           .where((e) => e.type == DvGameNet.eventType)
-          .listen((_) => _reload());
+          .listen((_) {
+            _debounce?.cancel();
+            _debounce = Timer(const Duration(milliseconds: 1500), _reload);
+          });
       unawaited(_reload());
     }
   }
@@ -66,6 +70,7 @@ class _GamesPageState extends State<GamesPage> {
   @override
   void dispose() {
     _sub?.cancel();
+    _debounce?.cancel();
     super.dispose();
   }
 

@@ -39,11 +39,13 @@ class DvMainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     if (DvThemes.isColumnMode(context)) return child;
     final index = indexFor(path);
+    // Пока открыта клавиатура, панель прячется (как в Telegram), иначе экран сжимается лишний раз
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       // Клавиатуру обрабатывают сами экраны внутри
       resizeToAvoidBottomInset: false,
       body: child,
-      bottomNavigationBar: index == null
+      bottomNavigationBar: index == null || keyboardOpen
           ? null
           : _DvTabBar(
               index: index,
