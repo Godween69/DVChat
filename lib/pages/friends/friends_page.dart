@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
 import 'package:dvchat/utils/best_friends.dart';
@@ -436,9 +437,10 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Друзья'),
-        leading: Center(
-          child: BackButton(onPressed: () => context.go('/rooms')),
-        ),
+        automaticallyImplyLeading: false,
+        leading: DvThemes.isColumnMode(context)
+            ? Center(child: BackButton(onPressed: () => context.go('/rooms')))
+            : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add_alt_1_outlined),

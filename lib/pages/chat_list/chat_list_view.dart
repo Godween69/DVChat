@@ -11,7 +11,6 @@
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/chat_list/navigation_rail.dart';
-import 'package:dvchat/pages/chat_list/start_chat_fab.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'chat_list_body.dart';
@@ -44,7 +43,6 @@ class ChatListView extends StatelessWidget {
             excludeFromSemantics: true,
             behavior: HitTestBehavior.translucent,
             child: Scaffold(
-              floatingActionButton: isColumnMode ? null : const StartChatFab(),
               body: Material(child: ChatListViewBody(controller)),
             ),
           ),

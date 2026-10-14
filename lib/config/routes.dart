@@ -21,6 +21,7 @@ import 'package:dvchat/pages/chat_permissions_settings/chat_permissions_settings
 import 'package:dvchat/pages/chat_search/chat_search_page.dart';
 import 'package:dvchat/pages/device_settings/device_settings.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
+import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/pages/intro/intro_page_presenter.dart';
 import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
 import 'package:dvchat/pages/new_group/new_group.dart';
@@ -36,6 +37,7 @@ import 'package:dvchat/pages/settings_notifications/settings_notifications.dart'
 import 'package:dvchat/pages/settings_password/settings_password.dart';
 import 'package:dvchat/pages/settings_security/settings_security.dart';
 import 'package:dvchat/pages/settings_style/settings_style.dart';
+import 'package:dvchat/widgets/dv_main_shell.dart';
 import 'package:dvchat/widgets/layouts/empty_page.dart';
 import 'package:dvchat/widgets/layouts/two_column_layout.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -97,7 +99,7 @@ abstract class AppRoutes {
                 mainView: ChatList(activeChat: state.pathParameters['roomid']),
                 sideView: child,
               )
-            : child,
+            : DvMainShell(path: state.uri.path, child: child),
       ),
       routes: [
         GoRoute(
@@ -134,10 +136,17 @@ abstract class AppRoutes {
               ],
               redirect: loggedOutRedirect,
             ),
+            // Вкладки нижней панели переключаются без анимации перехода
             GoRoute(
               path: 'friends',
               pageBuilder: (context, state) =>
-                  defaultPageBuilder(context, state, const FriendsPage()),
+                  noTransitionPageBuilder(context, state, const FriendsPage()),
+              redirect: loggedOutRedirect,
+            ),
+            GoRoute(
+              path: 'games',
+              pageBuilder: (context, state) =>
+                  noTransitionPageBuilder(context, state, const GamesPage()),
               redirect: loggedOutRedirect,
             ),
             GoRoute(
