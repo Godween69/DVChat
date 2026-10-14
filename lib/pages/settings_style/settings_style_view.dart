@@ -31,6 +31,15 @@ class SettingsStyleView extends StatelessWidget {
 
   const SettingsStyleView(this.controller, {super.key});
 
+  /// Пример строки списка. Не const, чтобы перерисовывался при смене оформления.
+  Widget _sampleCard(String letter, String name, String text) => DvListCard(
+    child: ListTile(
+      leading: CircleAvatar(child: Text(letter)),
+      title: Text(name),
+      subtitle: Text(text),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -107,22 +116,8 @@ class SettingsStyleView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            DvListCard(
-              key: ValueKey('${DvListStyle.mode}-${DvListStyle.contrast}'),
-              child: const ListTile(
-                leading: CircleAvatar(child: Text('Д')),
-                title: Text('Дмитрий'),
-                subtitle: Text('Так выглядит список'),
-              ),
-            ),
-            DvListCard(
-              key: ValueKey('${DvListStyle.mode}-${DvListStyle.contrast}'),
-              child: const ListTile(
-                leading: CircleAvatar(child: Text('С')),
-                title: Text('Степан'),
-                subtitle: Text('Чаты и друзья оформляются одинаково'),
-              ),
-            ),
+            _sampleCard('Д', 'Дмитрий', 'Так выглядит список'),
+            _sampleCard('С', 'Степан', 'Чаты и друзья оформляются одинаково'),
             if (!DvListStyle.isPlain) ...[
               const ListTile(
                 title: Text('Контраст'),

@@ -38,6 +38,12 @@ class SettingsStyleController extends State<SettingsStyle> {
     setState(() {});
   }
 
+  @override
+  void dispose() {
+    DvListStyle.previewContrast = null;
+    super.dispose();
+  }
+
   // Ползунок контраста: пока тянем, показываем сразу, сохраняем в конце
   void previewListContrast(double value) {
     DvListStyle.previewContrast = value;
