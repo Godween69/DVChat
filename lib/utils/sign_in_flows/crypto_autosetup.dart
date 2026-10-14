@@ -61,12 +61,12 @@ Future<bool> setupCryptoSilently(Client client, String passphrase) async {
     return false;
   } catch (e, s) {
     Logs().w('DVChat: тихая настройка шифрования не удалась', e, s);
-    _showFailure('$e');
+    _showFailure('сбой настройки, сообщите администратору');
     return false;
   }
 }
 
-// Временно показываем причину сбоя (потом заменим на короткое сообщение)
+// Показываем короткое сообщение о сбое, подробности остаются только в журнале
 void _showFailure(String reason) {
   final context = DvChatApp.router.routerDelegate.navigatorKey.currentContext;
   if (context == null || !context.mounted) return;

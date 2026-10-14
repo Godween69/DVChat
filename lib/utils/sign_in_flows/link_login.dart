@@ -1,4 +1,4 @@
-// DVChat: вход по ссылке dvchat://login#<base64url(JSON {"u":..,"p":..,"k":..})>
+// DVChat: вход по ссылке dvchat://login#<base64url(JSON {"c":"одноразовый код"})>
 // Источники ссылки: буфер обмена, QR-код, системная ссылка (intent)
 
 import 'dart:async';
@@ -49,15 +49,8 @@ LoginLinkData? parseLoginLink(String raw) {
     // Новый формат: в ссылке только одноразовый код, остальное выдаёт сервер
     final c = json['c'];
     if (c is String && c.isNotEmpty) return LoginLinkData(code: c);
-    final u = json['u'];
-    final p = json['p'];
-    if (u is! String || p is! String || u.isEmpty || p.isEmpty) return null;
-    final k = json['k'];
-    return LoginLinkData(
-      username: u,
-      password: p,
-      cryptoPassphrase: k is String && k.isNotEmpty ? k : null,
-    );
+    // Прежний формат (логин и пароль прямо в ссылке) больше не принимается
+    return null;
   } catch (_) {
     return null;
   }
