@@ -31,6 +31,12 @@ class SettingsStyleController extends State<SettingsStyle> {
     ThemeController.of(context).setPrimaryColor(color);
   }
 
+  Future<void> setListStyle(String style) async {
+    await AppSettings.listStyle.setItem(style);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   Future<void> setWallpaper() async {
     final client = Matrix.of(context).client;
     final picked = await selectFiles(context, type: FileType.image);

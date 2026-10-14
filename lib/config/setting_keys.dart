@@ -67,6 +67,8 @@ enum AppSettings<T> {
   // DVChat: цвет фона чата (ARGB, 0 = по умолчанию)
   chatBackgroundColorInt<int>('dvchat.chat_background_color', 0),
   doubleTapReaction<String>('dvchat.double_tap_reaction', '❤️'),
+  // DVChat: оформление списков: plain (обычное), plates (плашки), frames (рамки)
+  listStyle<String>('dvchat.list_style', 'plain'),
   benchmarksInLogs<bool>('dvchat.benchmarks_in_logs', false),
   autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
   knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),

@@ -8,6 +8,7 @@
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/unread_bubble.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_status_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
@@ -51,7 +52,7 @@ class _ChatListItemBody extends StatelessWidget {
     final hasNotifications = room.notificationCount > 0;
     final backgroundColor = activeChat
         ? theme.colorScheme.secondaryContainer
-        : null;
+        : DvListStyle.fill(context);
     final displayname = room.getLocalizedDisplayname(
       MatrixLocals(L10n.of(context)),
     );
@@ -65,11 +66,14 @@ class _ChatListItemBody extends StatelessWidget {
         room.getState(EventTypes.RoomMember, lastEvent.senderId) == null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: DvListStyle.outerPadding,
       child: Material(
-        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        shape: DvListStyle.shape(context),
         clipBehavior: Clip.hardEdge,
         color: backgroundColor,
+        elevation: DvListStyle.elevation,
+        shadowColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
         child: FutureBuilder(
           future: room.name.isEmpty ? room.loadHeroUsers() : null,
           builder: (context, _) => HoverBuilder(

@@ -80,16 +80,16 @@ class SettingsController extends State<Settings> {
   }
 
   Future<void> logoutAction() async {
-    final l10n = L10n.of(context);
     final matrix = Matrix.of(context);
     final consent = await showOkCancelAlertDialog(
       useRootNavigator: false,
       context: context,
-      title: l10n.areYouSureYouWantToLogout,
-      message: l10n.noBackupWarning,
-      isDestructive: cryptoIdentityConnected == false,
-      okLabel: l10n.logout,
-      cancelLabel: l10n.cancel,
+      title: 'Выйти из аккаунта?',
+      message:
+          'Чтобы войти снова, понадобятся ваш уникальный ID и новая ссылка или QR-код от администратора.',
+      isDestructive: true,
+      okLabel: 'ОК',
+      cancelLabel: 'Отмена',
     );
     if (consent != OkCancelResult.ok) return;
     if (!mounted) return;

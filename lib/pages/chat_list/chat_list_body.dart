@@ -15,6 +15,7 @@ import 'package:dvchat/pages/chat_list/dummy_chat_list_item.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:dvchat/widgets/closed_chat_notice.dart';
+import 'package:dvchat/widgets/dv_encryption_note.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -198,6 +199,8 @@ class ChatListViewBody extends StatelessWidget {
                   },
                 ),
               ),
+            if (client.prevBatch != null)
+              const SliverToBoxAdapter(child: DvEncryptionNote()),
           ],
         );
       },

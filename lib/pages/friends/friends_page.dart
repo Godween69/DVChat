@@ -10,6 +10,7 @@ import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_list_card.dart';
 import 'package:dvchat/widgets/dv_my_id.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -294,16 +295,18 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     builder: (context, snapshot) {
       final profile = snapshot.data;
       final name = profile?.displayName ?? id.localpart ?? id;
-      return ListTile(
-        leading: Avatar(
-          mxContent: profile?.avatarUrl,
-          name: name,
-          client: _client,
+      return DvListCard(
+        child: ListTile(
+          leading: Avatar(
+            mxContent: profile?.avatarUrl,
+            name: name,
+            client: _client,
+          ),
+          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: onTap,
+          onLongPress: onLongPress,
+          trailing: trailing,
         ),
-        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: onTap,
-        onLongPress: onLongPress,
-        trailing: trailing,
       );
     },
   );

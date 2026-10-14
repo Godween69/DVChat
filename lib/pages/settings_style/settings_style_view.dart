@@ -13,7 +13,9 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/state_message.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/color_value.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_list_card.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
@@ -69,6 +71,54 @@ class SettingsStyleView extends StatelessWidget {
                     icon: const Icon(Icons.auto_mode_outlined),
                   ),
                 ],
+              ),
+            ),
+            Divider(color: theme.dividerColor),
+            ListTile(
+              title: Text(
+                'Оформление списков',
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text('Как выглядят чаты, друзья и архив'),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: SegmentedButton<String>(
+                selected: {DvListStyle.mode},
+                onSelectionChanged: (selected) =>
+                    controller.setListStyle(selected.single),
+                segments: const [
+                  ButtonSegment(
+                    value: DvListStyle.plain,
+                    label: Text('Обычный'),
+                  ),
+                  ButtonSegment(
+                    value: DvListStyle.plates,
+                    label: Text('Плашки'),
+                  ),
+                  ButtonSegment(
+                    value: DvListStyle.frames,
+                    label: Text('Рамки'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const DvListCard(
+              child: ListTile(
+                leading: CircleAvatar(child: Text('Д')),
+                title: Text('Дмитрий'),
+                subtitle: Text('Так выглядит список'),
+              ),
+            ),
+            const DvListCard(
+              child: ListTile(
+                leading: CircleAvatar(child: Text('С')),
+                title: Text('Степан'),
+                subtitle: Text('Чаты и друзья оформляются одинаково'),
               ),
             ),
             Divider(color: theme.dividerColor),
