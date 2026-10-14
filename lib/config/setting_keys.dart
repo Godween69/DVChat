@@ -40,6 +40,8 @@ enum AppSettings<T> {
   voiceMessageSpeedPercent<int>('dvchat.voice_message_speed', 100),
   archiveDeleteConfirm<bool>('dvchat.archive_delete_confirm', true),
   notifyAboutReactions<bool>('dvchat.notify_about_reactions', true),
+  // DVChat: «хочу получать уведомления о прочтении посланных сообщений» (серверная часть позже)
+  notifyAboutReadReceipts<bool>('dvchat.notify_read_receipts', false),
   sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
   sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),
   swipeRightToLeftToReply<bool>('dvchat.swipeRightToLeftToReply', true),

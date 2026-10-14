@@ -3,22 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: Экран «Безопасность» (внешний вид): блокировка PIN, ключи, сессии.
+// DVChat: Экран «Безопасность» (внешний вид): только PIN-код и вход по биометрии.
+// Остальные настройки (набор текста, отметки о прочтении, отчёты о сбоях, заблокированные,
+// ключи, учётная запись) скрыты: в семейном чате они заданы раз и навсегда.
 
-import 'package:dvchat/config/app_config.dart';
-import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
-import 'package:dvchat/utils/beautify_string_extension.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/widgets/app_lock.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
-import 'package:dvchat/widgets/matrix.dart';
-import 'package:dvchat/widgets/settings_switch_list_tile.dart';
-import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart';
 
 import 'settings_security.dart';
 
@@ -30,9 +25,7 @@ class SettingsSecurityView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final client = Matrix.of(context).client;
-    final publicMasterKey =
-        client.userDeviceKeys[client.userID]?.masterKey?.publicKey;
+    final lock = PlatformInfos.supportsAppLock ? AppLock.of(context) : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -43,186 +36,50 @@ class SettingsSecurityView extends StatelessWidget {
       body: ListTileTheme(
         iconColor: theme.colorScheme.onSurface,
         child: MaxWidthBody(
-          child: FutureBuilder(
-            future: Matrix.of(
-              context,
-            ).client.getCapabilities().timeout(const Duration(seconds: 10)),
-            builder: (context, snapshot) {
-              final capabilities = snapshot.data;
-              final error = snapshot.error;
-              if (error == null && capabilities == null) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+          child: Column(
+            children: [
+              if (lock == null)
+                const ListTile(
+                  title: Text(
+                    'На этом устройстве блокировка PIN-кодом недоступна',
                   ),
-                );
-              }
-              return Column(
-                children: [
-                  ListTile(
-                    title: Text(
-                      L10n.of(context).privacy,
-                      style: TextStyle(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                )
+              else ...[
+                SwitchListTile.adaptive(
+                  value: lock.isActive,
+                  title: const Text('PIN-код при входе в приложение'),
+                  subtitle: const Text(
+                    'Приложение просит 6-значный PIN при запуске и после сворачивания. '
+                    'После 10 неверных попыток подряд выполняется выход из аккаунта.',
                   ),
-                  SettingsSwitchListTile.adaptive(
-                    title: L10n.of(context).sendTypingNotifications,
-                    subtitle: L10n.of(
-                      context,
-                    ).sendTypingNotificationsDescription,
-                    setting: AppSettings.sendTypingNotifications,
-                  ),
-                  SettingsSwitchListTile.adaptive(
-                    title: L10n.of(context).sendReadReceipts,
-                    subtitle: L10n.of(context).sendReadReceiptsDescription,
-                    setting: AppSettings.sendPublicReadReceipts,
-                  ),
-                  SettingsSwitchListTile.adaptive(
-                    title: L10n.of(context).shareCrashReports,
-                    subtitle: L10n.of(context).shareCrashReportsDescription,
-                    setting: AppSettings.autoSendErrorReports,
-                    defaultValue: false,
+                  onChanged: (active) => active
+                      ? controller.setAppLockAction()
+                      : controller.disableAppLockAction(),
+                ),
+                if (lock.isActive) ...[
+                  FutureBuilder(
+                    future: LocalAuthentication().canCheckBiometrics,
+                    builder: (context, snapshot) {
+                      if (snapshot.data != true) return const SizedBox.shrink();
+                      return SwitchListTile.adaptive(
+                        value: lock.useBiometrics,
+                        onChanged: (_) => controller.toggleBiometrics(),
+                        title: const Text('Вход по отпечатку или лицу'),
+                        subtitle: const Text('Вместо ввода PIN-кода'),
+                      );
+                    },
                   ),
                   ListTile(
-                    trailing: const Icon(Icons.chevron_right_outlined),
-                    title: Text(L10n.of(context).blockedUsers),
-                    subtitle: Text(
-                      L10n.of(context).thereAreCountUsersBlocked(
-                        Matrix.of(context).client.ignoredUsers.length,
-                      ),
-                    ),
-                    onTap: () =>
-                        context.go('/rooms/settings/security/ignorelist'),
+                    trailing: const Icon(Icons.lock_reset_outlined),
+                    title: const Text('Изменить PIN-код'),
+                    onTap: controller.setAppLockAction,
                   ),
-                  if (PlatformInfos.supportsAppLock) ...[
-                    Divider(color: theme.dividerColor),
-                    ListTile(
-                      title: Text(
-                        L10n.of(context).appLock,
-                        style: TextStyle(
-                          color: theme.colorScheme.secondary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(L10n.of(context).appLockDescription),
-                    ),
-                    SwitchListTile.adaptive(
-                      value: AppLock.of(context).isActive,
-                      title: Text(L10n.of(context).useAppLock),
-                      onChanged: (active) => active
-                          ? controller.setAppLockAction()
-                          : controller.disableAppLockAction(),
-                    ),
-                    if (AppLock.of(context).isActive) ...[
-                      FutureBuilder(
-                        future: LocalAuthentication().canCheckBiometrics,
-                        builder: (context, snapshot) {
-                          if (snapshot.data != true) return SizedBox.shrink();
-                          return SwitchListTile.adaptive(
-                            value: AppLock.of(context).useBiometrics,
-                            onChanged: (_) => controller.toggleBiometrics(),
-                            title: Text(L10n.of(context).unlockWithBiometrics),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        trailing: const Icon(Icons.lock_reset_outlined),
-                        title: Text(L10n.of(context).resetPin),
-                        onTap: controller.setAppLockAction,
-                      ),
-                    ],
-                  ],
-
-                  Divider(color: theme.dividerColor),
-                  ListTile(
-                    title: Text(
-                      L10n.of(context).shareKeysWith,
-                      style: TextStyle(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(L10n.of(context).shareKeysWithDescription),
-                  ),
-                  ListTile(
-                    title: Material(
-                      borderRadius: BorderRadius.circular(
-                        AppConfig.borderRadius / 2,
-                      ),
-                      color: theme.colorScheme.onInverseSurface,
-                      child: DropdownButton<ShareKeysWith>(
-                        isExpanded: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        borderRadius: BorderRadius.circular(
-                          AppConfig.borderRadius / 2,
-                        ),
-                        underline: const SizedBox.shrink(),
-                        value: Matrix.of(context).client.shareKeysWith,
-                        items: ShareKeysWith.values
-                            .map(
-                              (share) => DropdownMenuItem(
-                                value: share,
-                                child: Text(share.localized(L10n.of(context))),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: controller.changeShareKeysWith,
-                      ),
-                    ),
-                  ),
-                  Divider(color: theme.dividerColor),
-                  ListTile(
-                    title: Text(
-                      L10n.of(context).account,
-                      style: TextStyle(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (publicMasterKey != null)
-                    ListTile(
-                      title: Text(L10n.of(context).yourPublicKey),
-                      leading: const Icon(Icons.verified_user_outlined),
-                      subtitle: SelectableText(
-                        publicMasterKey.beautified,
-                        style: const TextStyle(fontFamily: 'RobotoMono'),
-                      ),
-                    ),
-                  ListTile(
-                    title: Text(L10n.of(context).deviceIdentityKey),
-                    leading: const Icon(Icons.mobile_friendly_outlined),
-                    subtitle: SelectableText(
-                      Matrix.of(context).client.fingerprintKey.beautified,
-                      style: const TextStyle(fontFamily: 'RobotoMono'),
-                    ),
-                  ),
-                  // DVChat: смена пароля и удаление аккаунта скрыты, аккаунтами управляет администратор
                 ],
-              );
-            },
+              ],
+            ],
           ),
         ),
       ),
     );
-  }
-}
-
-extension on ShareKeysWith {
-  String localized(L10n l10n) {
-    switch (this) {
-      case ShareKeysWith.all:
-        return l10n.allDevices;
-      case ShareKeysWith.crossVerifiedIfEnabled:
-        return l10n.crossVerifiedDevicesIfEnabled;
-      case ShareKeysWith.crossVerified:
-        return l10n.crossVerifiedDevices;
-      case ShareKeysWith.directlyVerifiedOnly:
-        return l10n.verifiedDevicesOnly;
-    }
   }
 }

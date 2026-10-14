@@ -79,6 +79,18 @@ class SettingsNotificationsView extends StatelessWidget {
                         : controller.setReactionNotifications,
                   ),
                 ),
+                ListTile(
+                  title: const Text(
+                    'Хочу получать уведомления о прочтении посланных сообщений',
+                  ),
+                  subtitle: const Text(
+                    'Придёт уведомление, когда собеседник прочитал ваше сообщение',
+                  ),
+                  trailing: Switch.adaptive(
+                    value: AppSettings.notifyAboutReadReceipts.value,
+                    onChanged: controller.setReadReceiptNotifications,
+                  ),
+                ),
               ],
             );
           },
