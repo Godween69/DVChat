@@ -4,11 +4,37 @@
 
 import 'dart:async';
 
+import 'package:dvchat/pages/games/bs_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
+
+class _GameDef {
+  const _GameDef(this.id, this.title, this.inviteTitle, this.icon, this.levels);
+
+  final String id;
+  final String title;
+  final String inviteTitle;
+  final IconData icon;
+  final List<String> levels;
+}
+
+const _ttt = _GameDef(
+  'ttt',
+  'Крестики-нолики',
+  'крестики-нолики',
+  Icons.grid_3x3,
+  ['Лёгкий', 'Средний', 'Непобедимый'],
+);
+const _bs = _GameDef(
+  'bs',
+  'Морской бой',
+  'морской бой',
+  Icons.sailing_outlined,
+  ['Лёгкий', 'Средний', 'Сильный'],
+);
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -23,6 +49,8 @@ class _GamesPageState extends State<GamesPage> {
   bool _scanning = false;
 
   Client get _client => Matrix.of(context).client;
+
+  _GameDef? _def(String id) => id == 'ttt' ? _ttt : (id == 'bs' ? _bs : null);
 
   @override
   void didChangeDependencies() {
@@ -56,17 +84,27 @@ class _GamesPageState extends State<GamesPage> {
     ).push(MaterialPageRoute(builder: (_) => page)).then((_) => _reload());
   }
 
-  Future<void> _tttStart() async {
+  Widget _pageFor(
+    String game, {
+    int? level,
+    Room? room,
+    String? gameId,
+    String? hostId,
+  }) => game == 'bs'
+      ? BsPage(level: level, room: room, gameId: gameId, hostId: hostId)
+      : TttPage(level: level, room: room, gameId: gameId, hostId: hostId);
+
+  Future<void> _start(_GameDef g) async {
     final mode = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ListTile(
+            ListTile(
               title: Text(
-                'Крестики-нолики',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                g.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             ListTile(
@@ -91,30 +129,21 @@ class _GamesPageState extends State<GamesPage> {
         builder: (context) => SimpleDialog(
           title: const Text('Сложность'),
           children: [
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 0),
-              child: const Text('Лёгкий'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 1),
-              child: const Text('Средний'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 2),
-              child: const Text('Непобедимый'),
-            ),
+            for (var i = 0; i < g.levels.length; i++)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, i),
+                child: Text(g.levels[i]),
+              ),
           ],
         ),
       );
       if (level == null || !mounted) return;
-      _open(TttPage(level: level));
+      _open(_pageFor(g.id, level: level));
       return;
     }
     final rooms = DvGameNet.directRooms(_client);
     if (rooms.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Сначала добавьте друзей')));
+      _snack('Сначала добавьте друзей');
       return;
     }
     final room = await showDialog<Room>(
@@ -134,28 +163,31 @@ class _GamesPageState extends State<GamesPage> {
     try {
       final id = await DvGameNet.sendInvite(
         room,
-        game: 'ttt',
-        gameTitle: 'крестики-нолики',
+        game: g.id,
+        gameTitle: g.inviteTitle,
       );
       if (!mounted) return;
-      _open(TttPage(room: room, gameId: id, hostId: _client.userID));
+      _open(_pageFor(g.id, room: room, gameId: id, hostId: _client.userID));
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось отправить приглашение')),
-        );
-      }
+      _snack('Не удалось отправить приглашение');
     }
   }
 
-  void _soon() => ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Эта игра появится в следующем обновлении')),
-  );
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  void _soon() => _snack('Эта игра появится в следующем обновлении');
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final me = _client.userID;
+    final invites = [
+      for (final i in _invites)
+        if (_def(i.game) != null) i,
+    ];
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -176,7 +208,7 @@ class _GamesPageState extends State<GamesPage> {
                 ),
               ),
             ),
-            if (_invites.isNotEmpty) ...[
+            if (invites.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
                 child: Text(
@@ -184,20 +216,21 @@ class _GamesPageState extends State<GamesPage> {
                   style: theme.textTheme.titleSmall,
                 ),
               ),
-              for (final inv in _invites)
+              for (final inv in invites)
                 Card(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.grid_3x3)),
+                    leading: CircleAvatar(child: Icon(_def(inv.game)!.icon)),
                     title: Text(
-                      'Крестики-нолики · ${inv.room.getLocalizedDisplayname()}',
+                      '${_def(inv.game)!.title} · ${inv.room.getLocalizedDisplayname()}',
                     ),
                     subtitle: Text(
                       inv.hostId == me ? 'Вы пригласили' : 'Приглашает вас',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _open(
-                      TttPage(
+                      _pageFor(
+                        inv.game,
                         room: inv.room,
                         gameId: inv.gameId,
                         hostId: inv.hostId,
@@ -209,18 +242,19 @@ class _GamesPageState extends State<GamesPage> {
             ],
             _gameCard(
               theme,
-              'Крестики-нолики',
+              _ttt.title,
               'С другом или с компьютером',
-              Icons.grid_3x3,
-              _tttStart,
+              _ttt.icon,
+              () => _start(_ttt),
               ready: true,
             ),
             _gameCard(
               theme,
-              'Морской бой',
+              _bs.title,
               'С другом или с компьютером',
-              Icons.sailing_outlined,
-              _soon,
+              _bs.icon,
+              () => _start(_bs),
+              ready: true,
             ),
             _gameCard(
               theme,
