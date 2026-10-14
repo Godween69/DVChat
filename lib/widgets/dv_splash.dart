@@ -47,7 +47,15 @@ class _DvSplashState extends State<DvSplash>
 
   @override
   Widget build(BuildContext context) {
-    if (!_visible) return widget.child;
+    // Структура одна и та же до и после заставки. Если убрать «коробку» (Stack), Flutter
+    // пересоздаёт всё приложение: блокировка заново закрывалась и просила отпечаток второй раз.
+    if (!_visible) {
+      return Stack(
+        textDirection: TextDirection.ltr,
+        fit: StackFit.expand,
+        children: [widget.child],
+      );
+    }
     // Цвет фона совпадает с системной заставкой (день — белый, ночь — тёмно-синий)
     final dark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final background = dark ? const Color(0xFF0D1522) : const Color(0xFFFFFFFF);
@@ -57,6 +65,7 @@ class _DvSplashState extends State<DvSplash>
     );
     return Stack(
       textDirection: TextDirection.ltr,
+      fit: StackFit.expand,
       children: [
         widget.child,
         Positioned.fill(
