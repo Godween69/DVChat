@@ -84,7 +84,7 @@ class SettingsNotificationsView extends StatelessWidget {
                     'Хочу получать уведомления о прочтении посланных сообщений',
                   ),
                   subtitle: const Text(
-                    'Придёт уведомление, когда собеседник прочитал ваше сообщение',
+                    'Придёт уведомление, когда собеседник прочитал ваше сообщение (в личных чатах, если у него свежая версия приложения)',
                   ),
                   trailing: Switch.adaptive(
                     value: AppSettings.notifyAboutReadReceipts.value,

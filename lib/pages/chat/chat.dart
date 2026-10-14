@@ -21,6 +21,7 @@ import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/event_extension.dart';
@@ -596,6 +597,14 @@ class ChatController extends State<ChatPageWithRoom>
         .whenComplete(() {
           if (_setReadMarkerEventId == eventId) _setReadMarkerEventId = null;
         });
+    // DVChat: скрытое событие «прочитал» для автора сообщения (личные чаты)
+    final readEvent = timeline.events.firstWhereOrNull(
+      (e) => e.eventId == eventId,
+    );
+    if (readEvent != null) {
+      // ignore: unawaited_futures
+      sendReadNotice(room, readEvent);
+    }
   }
 
   @override

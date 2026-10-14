@@ -84,7 +84,7 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
     }
   }
 
-  // DVChat: уведомления о прочтении посланных мной сообщений (пока только сохраняет выбор)
+  // DVChat: уведомления о прочтении посланных мной сообщений (приходят скрытым событием dv.read)
   Future<void> setReadReceiptNotifications(bool on) async {
     await AppSettings.notifyAboutReadReceipts.setItem(on);
     if (!mounted) return;

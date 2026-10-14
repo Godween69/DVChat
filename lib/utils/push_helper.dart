@@ -16,6 +16,7 @@ import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/notification_avatar_extension.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
@@ -176,6 +177,7 @@ Future<void> _tryPushHelper(
   // сообщения и «зашифрованное событие»), поэтому для реакций правила не применяются,
   // решение принимается ниже
   if (event.type != EventTypes.Reaction &&
+      event.type != dvReadEventType &&
       !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
@@ -200,6 +202,23 @@ Future<void> _tryPushHelper(
     }
   }
 
+  // DVChat: «собеседник прочитал ваше сообщение» (скрытое событие dv.read)
+  if (event.type == dvReadEventType) {
+    if (!AppSettings.notifyAboutReadReceipts.value) {
+      Logs().i('Push helper: read notifications are turned off.');
+      return;
+    }
+    if (event.senderId == client.userID) return;
+    final readId = event.content['event_id'];
+    final readTarget = readId is String
+        ? await event.room.getEventById(readId)
+        : null;
+    if (readTarget == null || readTarget.senderId != client.userID) {
+      Logs().i('Push helper: read notice is not about my message.');
+      return;
+    }
+  }
+
   if (notification.roomId != null &&
       activeRoomId == notification.roomId &&
       WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
@@ -210,7 +229,9 @@ Future<void> _tryPushHelper(
   final matrixLocals = MatrixLocals(l10n);
 
   // Calculate the body
-  final body = event.type == EventTypes.Encrypted
+  final body = event.type == dvReadEventType
+      ? 'Прочитал(а) ваше сообщение'
+      : event.type == EventTypes.Encrypted
       ? 'Новое сообщение'
       : await event.calcLocalizedBody(
           matrixLocals,

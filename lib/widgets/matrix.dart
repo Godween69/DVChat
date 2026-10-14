@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/init_with_restore.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/uia_request_manager.dart';
@@ -168,6 +169,7 @@ class MatrixState extends State<Matrix> {
   final onRoomKeyRequestSub = <String, StreamSubscription>{};
   final onKeyVerificationRequestSub = <String, StreamSubscription>{};
   final onNotification = <String, StreamSubscription>{};
+  final onHiddenEventsSub = <String, StreamSubscription<Event>>{};
   final onLogoutSub = <String, StreamSubscription<LoginState>>{};
   final onUiaRequest = <String, StreamSubscription<UiaRequest>>{};
 
@@ -271,6 +273,7 @@ class MatrixState extends State<Matrix> {
           DvChatApp.router.go('/');
         });
     onUiaRequest[name] ??= c.onUiaRequest.stream.listen(uiaRequestHandler);
+    onHiddenEventsSub[name] ??= attachHiddenEventCleaner(c);
     if (PlatformInfos.isWeb) {
       c.onSync.stream.first.then((s) {
         html.Notification.requestPermission();
@@ -290,6 +293,8 @@ class MatrixState extends State<Matrix> {
     onLogoutSub.remove(name);
     onNotification[name]?.cancel();
     onNotification.remove(name);
+    onHiddenEventsSub[name]?.cancel();
+    onHiddenEventsSub.remove(name);
   }
 
   void initMatrix() {
