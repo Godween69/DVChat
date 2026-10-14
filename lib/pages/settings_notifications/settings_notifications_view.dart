@@ -91,6 +91,16 @@ class SettingsNotificationsView extends StatelessWidget {
                     onChanged: controller.setReadReceiptNotifications,
                   ),
                 ),
+                ListTile(
+                  title: const Text('Уведомления от игр'),
+                  subtitle: const Text(
+                    'Когда друг сделал ход или ждёт вашего. Для отдельной партии можно отключить в её меню',
+                  ),
+                  trailing: Switch.adaptive(
+                    value: AppSettings.notifyAboutGames.value,
+                    onChanged: controller.setGameNotifications,
+                  ),
+                ),
               ],
             );
           },

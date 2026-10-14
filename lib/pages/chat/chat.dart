@@ -546,6 +546,10 @@ class ChatController extends State<ChatPageWithRoom>
     final timeline = this.timeline;
     if (timeline == null || timeline.events.isEmpty) return;
 
+    // DVChat: скрытое событие «прочитал» для автора сообщения (личные чаты)
+    // ignore: unawaited_futures
+    sendReadNotice(room, timeline);
+
     eventId ??= timeline.events.firstWhereOrNull((event) {
       if (event.eventId == room.lastEvent?.eventId) return true;
       if (room.client.pushruleEvaluator.match(event).notify) {
@@ -597,14 +601,6 @@ class ChatController extends State<ChatPageWithRoom>
         .whenComplete(() {
           if (_setReadMarkerEventId == eventId) _setReadMarkerEventId = null;
         });
-    // DVChat: скрытое событие «прочитал» для автора сообщения (личные чаты)
-    final readEvent = timeline.events.firstWhereOrNull(
-      (e) => e.eventId == eventId,
-    );
-    if (readEvent != null) {
-      // ignore: unawaited_futures
-      sendReadNotice(room, readEvent);
-    }
   }
 
   @override

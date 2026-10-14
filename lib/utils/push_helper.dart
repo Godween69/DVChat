@@ -14,6 +14,7 @@ import 'package:collection/collection.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
@@ -23,6 +24,7 @@ import 'package:dvchat/utils/notification_background_handler.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/start_push_foreground_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_new_badger/flutter_new_badger.dart';
 import 'package:flutter_shortcuts_new/flutter_shortcuts_new.dart';
@@ -178,6 +180,7 @@ Future<void> _tryPushHelper(
   // решение принимается ниже
   if (event.type != EventTypes.Reaction &&
       event.type != dvReadEventType &&
+      event.type != DvGameNet.eventType &&
       !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
@@ -202,6 +205,29 @@ Future<void> _tryPushHelper(
     }
   }
 
+  var customBody = '';
+
+  // DVChat: ход в игре с другом (скрытое событие dv.game): «ваш ход»
+  if (event.type == DvGameNet.eventType) {
+    if (!AppSettings.notifyAboutGames.value) {
+      Logs().i('Push helper: game notifications are turned off.');
+      return;
+    }
+    if (event.senderId == client.userID) return;
+    final gameId = '${event.content['id']}';
+    if (DvGameNet.isMuted(gameId)) {
+      Logs().i('Push helper: this game is muted.');
+      return;
+    }
+    if (DvGameNet.activeGameId == gameId &&
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    final text = DvGameNet.notificationText(event);
+    if (text == null) return;
+    customBody = text;
+  }
+
   // DVChat: «собеседник прочитал ваше сообщение» (скрытое событие dv.read)
   if (event.type == dvReadEventType) {
     if (!AppSettings.notifyAboutReadReceipts.value) {
@@ -217,6 +243,7 @@ Future<void> _tryPushHelper(
       Logs().i('Push helper: read notice is not about my message.');
       return;
     }
+    customBody = 'Прочитал(а) ваше сообщение';
   }
 
   if (notification.roomId != null &&
@@ -229,7 +256,9 @@ Future<void> _tryPushHelper(
   final matrixLocals = MatrixLocals(l10n);
 
   // Calculate the body
-  final body = event.type == dvReadEventType
+  final body = customBody.isNotEmpty
+      ? customBody
+      : event.type == dvReadEventType
       ? 'Прочитал(а) ваше сообщение'
       : event.type == EventTypes.Encrypted
       ? 'Новое сообщение'

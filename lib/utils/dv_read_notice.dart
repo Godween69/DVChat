@@ -7,24 +7,41 @@
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:matrix/matrix.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String dvReadEventType = 'dv.read';
 
-final Map<String, String> _lastNotified = {};
+final Set<String> _inFlight = {};
 
-/// Сообщает автору, что я прочитал его сообщение (только личные чаты)
-Future<void> sendReadNotice(Room room, Event event) async {
+/// Сообщает автору, что я прочитал его последнее сообщение (только личные чаты).
+/// Вызывается, когда чат открыт на экране; одно уведомление на одно сообщение
+/// (запоминается на диске, чтобы не повторяться после перезапуска).
+Future<void> sendReadNotice(Room room, Timeline timeline) async {
   final me = room.client.userID;
-  if (me == null || event.senderId == me) return;
-  if (!room.isDirectChat || room.membership != Membership.join) return;
-  if (event.type != EventTypes.Message) return;
-  if (_lastNotified[room.id] == event.eventId) return;
-  _lastNotified[room.id] = event.eventId;
+  if (me == null || !room.isDirectChat || room.membership != Membership.join) {
+    return;
+  }
+  // Берём последнее настоящее сообщение собеседника, а не служебное событие
+  final msg = timeline.events.firstWhereOrNull(
+    (e) =>
+        e.type == EventTypes.Message && e.senderId != me && e.status.isSynced,
+  );
+  if (msg == null) return;
+  if (!_inFlight.add(room.id)) return;
+  final key = 'dv_read_notified_${room.id}';
   try {
-    await room.sendEvent({'event_id': event.eventId}, type: dvReadEventType);
-  } catch (_) {
-    _lastNotified.remove(room.id);
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(key) == msg.eventId) return;
+    await prefs.setString(key, msg.eventId);
+    try {
+      await room.sendEvent({'event_id': msg.eventId}, type: dvReadEventType);
+    } catch (_) {
+      await prefs.remove(key);
+    }
+  } finally {
+    _inFlight.remove(room.id);
   }
 }
 

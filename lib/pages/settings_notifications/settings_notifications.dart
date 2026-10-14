@@ -91,6 +91,13 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
     setState(() {});
   }
 
+  // DVChat: уведомления от игр (ваш ход)
+  Future<void> setGameNotifications(bool on) async {
+    await AppSettings.notifyAboutGames.setItem(on);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) => SettingsNotificationsView(this);
 }
