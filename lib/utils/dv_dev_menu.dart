@@ -5,6 +5,7 @@
 
 import 'dart:async';
 
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -19,6 +20,7 @@ abstract class DvDevMenu {
 
   /// Вызывается при каждом нажатии на заголовок
   static void tap(BuildContext context) {
+    if (!PlatformInfos.isAndroid) return;
     final now = DateTime.now();
     _taps
       ..add(now)

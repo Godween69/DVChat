@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -38,7 +39,7 @@ abstract class DvUpdateChecker {
     bool manual = false,
     bool startup = false,
   }) async {
-    if (!Platform.isAndroid) return;
+    if (!PlatformInfos.isAndroid) return;
     if (_checking) {
       if (manual) _say(context, 'Проверка уже идёт');
       return;
