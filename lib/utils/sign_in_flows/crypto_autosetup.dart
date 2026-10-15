@@ -3,6 +3,7 @@
 
 import 'dart:async';
 
+import 'package:dvchat/utils/dv_decrypt_state.dart';
 import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
@@ -19,6 +20,7 @@ Future<bool> setupCryptoSilently(
   bool quiet = false,
 }) async {
   if (!_running.add(client)) return false;
+  DvDecryptState.begin();
   try {
     // 1. Ждём первую синхронизацию: сразу после входа account data ещё не загружена
     if (client.prevBatch == null) {
@@ -73,6 +75,7 @@ Future<bool> setupCryptoSilently(
     return false;
   } finally {
     _running.remove(client);
+    DvDecryptState.end();
   }
 }
 

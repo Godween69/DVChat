@@ -9,11 +9,13 @@ import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/unread_bubble.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_decrypt_state.dart';
 import 'package:dvchat/utils/dv_last_event.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_status_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/dv_decrypting_line.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/hover_builder.dart';
 import 'package:dvchat/widgets/typing_animation.dart';
@@ -103,7 +105,11 @@ class _ChatListItemBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([DvLastEvent.tick, DvListStyle.revision]),
+    listenable: Listenable.merge([
+      DvLastEvent.tick,
+      DvListStyle.revision,
+      DvDecryptState.busy,
+    ]),
     builder: (context, _) => _buildItem(context),
   );
 
@@ -113,6 +119,12 @@ class _ChatListItemBody extends StatelessWidget {
     final isMuted = room.pushRuleState != PushRuleState.notify;
     final typingText = room.getLocalizedTypingText(context);
     final lastEvent = DvLastEvent.of(room);
+    // DVChat: пока открываются ключи шифрования, вместо «не расшифровано» крутится индикатор
+    final decrypting =
+        DvDecryptState.busy.value &&
+        lastEvent != null &&
+        (lastEvent.messageType == MessageTypes.BadEncrypted ||
+            lastEvent.type == EventTypes.Encrypted);
     final ownMessage = lastEvent?.senderId == room.client.userID;
     final directChatMatrixId = room.directChatMatrixID;
     final isDirectChat = directChatMatrixId != null;
@@ -321,6 +333,8 @@ class _ChatListItemBody extends StatelessWidget {
                             maxLines: 1,
                             softWrap: false,
                           )
+                        : decrypting
+                        ? const DvDecryptingLine()
                         : FutureBuilder(
                             key: ValueKey(
                               '${lastEvent?.eventId}_${lastEvent?.type}_${lastEvent?.redacted}',
