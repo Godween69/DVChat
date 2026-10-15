@@ -30,6 +30,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../utils/account_bundles.dart';
 import '../../config/setting_keys.dart';
@@ -674,34 +675,37 @@ class ChatListController extends State<ChatList>
     setState(() {
       waitForFirstSync = true;
     });
-
-    if (client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
-          (device) => !device.verified && !device.blocked,
+    // DVChat: один раз сообщаем, что в аккаунт вошли и на других устройствах.
+    // Спокойным сообщением с кнопкой в «Устройства»: дальше решает сам человек.
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('dv_other_devices_notice') ?? false) return;
+    final myDevice = client.deviceID;
+    final hasOthers =
+        client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
+          (d) => d.deviceId != myDevice,
         ) ??
-        false) {
-      late final ScaffoldFeatureController controller;
-      final theme = Theme.of(context);
-      controller = ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 15),
-          showCloseIcon: true,
-          backgroundColor: theme.colorScheme.errorContainer,
-          closeIconColor: theme.colorScheme.onErrorContainer,
-          content: Text(
-            L10n.of(context).oneOfYourDevicesIsNotVerified,
-            style: TextStyle(color: theme.colorScheme.onErrorContainer),
-          ),
-          action: SnackBarAction(
-            onPressed: () {
-              controller.close();
-              router.go('/rooms/settings/devices');
-            },
-            textColor: theme.colorScheme.onErrorContainer,
-            label: L10n.of(context).settings,
-          ),
+        false;
+    if (!hasOthers || !mounted) return;
+    await prefs.setBool('dv_other_devices_notice', true);
+    if (!mounted) return;
+    late final ScaffoldFeatureController controller;
+    controller = ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 20),
+        showCloseIcon: true,
+        content: const Text(
+          'Вы вошли в этот аккаунт не только на этом устройстве. '
+          'Если вы не узнаёте другие входы, откройте список устройств и завершите их.',
         ),
-      );
-    }
+        action: SnackBarAction(
+          label: 'Устройства',
+          onPressed: () {
+            controller.close();
+            router.go('/rooms/settings/devices');
+          },
+        ),
+      ),
+    );
   }
 
   void setActiveFilter(ActiveFilter filter, String? tag) {
