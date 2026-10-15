@@ -5,9 +5,12 @@
 
 // DVChat: Экран «Оформление» (логика): тема, цвета, шрифт, фон чата.
 
+import 'dart:math';
+
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_wallpaper.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/theme_builder.dart';
@@ -68,21 +71,45 @@ class SettingsStyleController extends State<SettingsStyle> {
     if (pickedFile == null) return;
     if (!mounted) return;
 
+    // DVChat: подгоняем фото под экран (масштаб + обрезка по центру, JPEG): такие обои
+    // почти ничего не стоят при отрисовке ленты и быстро грузятся
+    final screen =
+        MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    final longSide = max(screen.width, screen.height).round();
+    final shortSide = min(screen.width, screen.height).round();
     await showFutureLoadingDialog(
       context: context,
+      title: 'Оптимизация обоев под экран…',
       future: () async {
-        // DVChat: фото для обоев сжимаем перед загрузкой (длинная сторона до 2000 точек, JPEG):
-        // оно быстро грузится и не занимает лишней памяти в чате
-        final image = await MatrixImageFile.shrink(
-          bytes: await pickedFile.readAsBytes(),
-          name: pickedFile.name,
-          maxDimension: 2000,
-          customImageResizer: client.customImageResizer,
+        final original = await pickedFile.readAsBytes();
+        var bytes = original;
+        var name = pickedFile.name;
+        String? mimeType;
+        final fitted = await DvWallpaper.fitToScreen(
+          original,
+          width: shortSide,
+          height: longSide,
         );
+        if (fitted != null) {
+          bytes = fitted;
+          name = 'wallpaper.jpg';
+          mimeType = 'image/jpeg';
+        } else {
+          // Фото меньше экрана или не вышло: обычное сжатие (длинная сторона до 2000 точек)
+          final image = await MatrixImageFile.shrink(
+            bytes: original,
+            name: pickedFile.name,
+            maxDimension: 2000,
+            customImageResizer: client.customImageResizer,
+          );
+          bytes = image.bytes;
+          name = image.name;
+          mimeType = image.mimeType;
+        }
         final url = await client.uploadContent(
-          image.bytes,
-          filename: image.name,
-          contentType: image.mimeType,
+          bytes,
+          filename: name,
+          contentType: mimeType,
         );
         await client.updateApplicationAccountConfig(
           ApplicationAccountConfig(wallpaperUrl: url),
