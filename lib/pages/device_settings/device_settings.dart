@@ -10,6 +10,7 @@ import 'package:collection/collection.dart' show IterableExtension;
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/device_settings/device_settings_view.dart';
 import 'package:dvchat/pages/key_verification/key_verification_dialog.dart';
+import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
@@ -88,9 +89,10 @@ class DevicesSettingsController extends State<DevicesSettings> {
     await showFutureLoadingDialog(
       context: context,
       delay: false,
-      future: () => matrix.client.uiaRequestBackground(
-        (auth) => matrix.client.deleteDevices(deviceIds, auth: auth),
-      ),
+      // DVChat: пароля у людей нет (вход по ссылке), поэтому удаление идёт через сервер
+      future: () => DvApi(
+        matrix.client,
+      ).post('devices/logout_others', {'device_ids': deviceIds}),
     );
     reload();
   }
