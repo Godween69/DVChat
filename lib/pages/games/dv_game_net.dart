@@ -75,6 +75,11 @@ class DvGameNet {
     final c = e.content;
     final title = gameTitle('${c['game']}');
     switch (c['kind']) {
+      case 'invite':
+        // Обычное приглашение уже сопровождается сообщением в чате; уведомляем о реванше
+        return c['silent'] == true
+            ? '🎮 $title: предлагает сыграть ещё раз'
+            : null;
       case 'move':
         return c['fin'] == true
             ? '🎮 $title: партия окончена'
@@ -98,16 +103,21 @@ class DvGameNet {
     Room room, {
     required String game,
     required String gameTitle,
+    bool announce = true,
   }) async {
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     await room.sendEvent({
       'game': game,
       'id': id,
       'kind': 'invite',
+      if (!announce) 'silent': true,
     }, type: eventType);
-    await room.sendTextEvent(
-      '🎮 Приглашение сыграть: $gameTitle. Откройте вкладку «Игры».',
-    );
+    // Видимое сообщение в чат только при первом приглашении, не при реванше
+    if (announce) {
+      await room.sendTextEvent(
+        '🎮 Приглашение сыграть: $gameTitle. Откройте вкладку «Игры».',
+      );
+    }
     return id;
   }
 

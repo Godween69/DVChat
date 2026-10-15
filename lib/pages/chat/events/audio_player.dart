@@ -8,7 +8,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:async/async.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
@@ -17,6 +16,7 @@ import 'package:dvchat/utils/file_description.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/url_launcher.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
@@ -49,7 +49,8 @@ class AudioPlayerWidget extends StatefulWidget {
 
 enum AudioPlayerStatus { notDownloaded, downloading, downloaded }
 
-class AudioPlayerState extends State<AudioPlayerWidget> {
+class AudioPlayerState extends State<AudioPlayerWidget>
+    with SingleTickerProviderStateMixin {
   static const double buttonSize = 44;
 
   AudioPlayerStatus status = AudioPlayerStatus.notDownloaded;
@@ -59,8 +60,67 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
   List<int>? _waveform;
   String? _durationString;
 
+  // DVChat: плавная шкала. Положение читается каждый кадр (just_audio сам досчитывает его
+  // между обновлениями), поэтому закраска идёт без рывков и без перестройки виджетов.
+  late final Ticker _ticker = createTicker(_onTick);
+  final ValueNotifier<double> _progress = ValueNotifier(0);
+  final ValueNotifier<int> _seconds = ValueNotifier(0);
+  final ValueNotifier<double?> _drag = ValueNotifier(null);
+
+  AudioPlayer? get _player =>
+      matrix.voiceMessageEventId.value == widget.event.eventId
+      ? matrix.audioPlayer
+      : null;
+
+  void _publish(AudioPlayer p) {
+    final d = p.duration?.inMilliseconds ?? 0;
+    final pos = p.position.inMilliseconds;
+    _progress.value = d <= 0 ? 0.0 : (pos / d).clamp(0.0, 1.0);
+    final s = pos ~/ 1000;
+    if (_seconds.value != s) _seconds.value = s;
+  }
+
+  void _onTick(Duration _) {
+    final p = _player;
+    if (p == null) {
+      _ticker.stop();
+      return;
+    }
+    _publish(p);
+    if (!p.playing || p.processingState == ProcessingState.completed) {
+      _ticker.stop();
+    }
+  }
+
+  void _kick(AudioPlayer p) {
+    _publish(p);
+    if (p.playing &&
+        p.processingState != ProcessingState.completed &&
+        !_ticker.isActive) {
+      _ticker.start();
+    }
+  }
+
+  Future<void> _seekTo(AudioPlayer? p, double fraction) async {
+    if (p == null) {
+      await _onButtonTap();
+      return;
+    }
+    final d = p.duration?.inMilliseconds ?? 0;
+    if (d <= 0) return;
+    _progress.value = fraction;
+    await p.seek(Duration(milliseconds: (fraction * d).round()));
+  }
+
+  String _clock(int seconds) =>
+      '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
+
   @override
   void dispose() {
+    _ticker.dispose();
+    _progress.dispose();
+    _seconds.dispose();
+    _drag.dispose();
     super.dispose();
     final audioPlayer = matrix.voiceMessageEventId.value != widget.event.eventId
         ? null
@@ -302,14 +362,14 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
     }
   }
 
-  // DVChat: доля закраски палочки шкалы (0..1)
-  double _barFill(double wavePosition, int i) =>
-      (wavePosition - i).clamp(0.0, 1.0);
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final waveform = _waveform;
+    // Высоты палочек 0..1; без готовой формы звука рисуем ровную шкалу
+    final bars = <double>[
+      for (var i = 0; i < AudioPlayerWidget.wavesCount; i++)
+        waveform == null ? 0.3 : (waveform[i] / _maxWaveForm).clamp(0.12, 1.0),
+    ];
 
     return ValueListenableBuilder(
       valueListenable: matrix.voiceMessageEventId,
@@ -317,34 +377,16 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
         final audioPlayer = eventId != widget.event.eventId
             ? null
             : matrix.audioPlayer;
-
         final fileDescription = widget.event.fileDescription;
 
-        return StreamBuilder<Object>(
-          stream: audioPlayer == null
-              ? null
-              : StreamGroup.merge([
-                  audioPlayer
-                      .createPositionStream(
-                        minPeriod: const Duration(milliseconds: 30),
-                        maxPeriod: const Duration(milliseconds: 60),
-                      )
-                      .asBroadcastStream(),
-                  audioPlayer.playerStateStream.asBroadcastStream(),
-                ]),
+        return StreamBuilder<PlayerState>(
+          stream: audioPlayer?.playerStateStream,
           builder: (context, _) {
-            final maxPosition =
-                audioPlayer?.duration?.inMilliseconds.toDouble() ?? 1.0;
-            var currentPosition =
-                audioPlayer?.position.inMilliseconds.toDouble() ?? 0.0;
-            if (currentPosition > maxPosition) currentPosition = maxPosition;
-
-            final wavePosition =
-                (currentPosition / maxPosition) * AudioPlayerWidget.wavesCount;
-
-            final statusText = audioPlayer == null
-                ? _durationString ?? '00:00'
-                : audioPlayer.position.minuteSecondString;
+            if (audioPlayer != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _kick(audioPlayer);
+              });
+            }
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Column(
@@ -387,108 +429,57 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                                   ),
                                 ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Stack(
-                                children: [
-                                  if (waveform != null)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          for (
-                                            var i = 0;
-                                            i < AudioPlayerWidget.wavesCount;
-                                            i++
-                                          )
-                                            Expanded(
-                                              child: Container(
-                                                height: 32,
-                                                alignment: Alignment.center,
-                                                child: Container(
-                                                  margin:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 1,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      colors: [
-                                                        widget.color,
-                                                        widget.color,
-                                                        widget.color.withAlpha(
-                                                          128,
-                                                        ),
-                                                        widget.color.withAlpha(
-                                                          128,
-                                                        ),
-                                                      ],
-                                                      stops: [
-                                                        0.0,
-                                                        _barFill(
-                                                          wavePosition,
-                                                          i,
-                                                        ),
-                                                        _barFill(
-                                                          wavePosition,
-                                                          i,
-                                                        ),
-                                                        1.0,
-                                                      ],
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          64,
-                                                        ),
-                                                  ),
-                                                  height:
-                                                      32 *
-                                                      (waveform[i] /
-                                                          _maxWaveForm),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width = constraints.maxWidth;
+                                  double fraction(double dx) =>
+                                      (dx / width).clamp(0.0, 1.0);
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTapUp: (d) => _seekTo(
+                                      audioPlayer,
+                                      fraction(d.localPosition.dx),
+                                    ),
+                                    onHorizontalDragStart: (d) => _drag.value =
+                                        fraction(d.localPosition.dx),
+                                    onHorizontalDragUpdate: (d) => _drag.value =
+                                        fraction(d.localPosition.dx),
+                                    onHorizontalDragCancel: () =>
+                                        _drag.value = null,
+                                    onHorizontalDragEnd: (_) {
+                                      final f = _drag.value;
+                                      _drag.value = null;
+                                      if (f != null) _seekTo(audioPlayer, f);
+                                    },
+                                    child: SizedBox(
+                                      width: width,
+                                      height: 32,
+                                      child: CustomPaint(
+                                        painter: _WavePainter(
+                                          bars: bars,
+                                          progress: _progress,
+                                          drag: _drag,
+                                          color: widget.color,
+                                          zero: audioPlayer == null,
+                                        ),
                                       ),
                                     ),
-                                  SizedBox(
-                                    height: 32,
-                                    child: Slider(
-                                      thumbColor:
-                                          widget.event.senderId ==
-                                              widget.event.room.client.userID
-                                          ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.primary,
-                                      activeColor: waveform == null
-                                          ? widget.color
-                                          : Colors.transparent,
-                                      inactiveColor: waveform == null
-                                          ? widget.color.withAlpha(128)
-                                          : Colors.transparent,
-                                      max: maxPosition,
-                                      value: currentPosition,
-                                      onChanged: (position) =>
-                                          audioPlayer == null
-                                          ? _onButtonTap()
-                                          : audioPlayer.seek(
-                                              Duration(
-                                                milliseconds: position.round(),
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
                               // DVChat: время под шкалой, у левого края
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16),
-                                child: Text(
-                                  statusText,
+                              ValueListenableBuilder<int>(
+                                valueListenable: _seconds,
+                                builder: (context, seconds, _) => Text(
+                                  audioPlayer == null
+                                      ? _durationString ?? '00:00'
+                                      : _clock(seconds),
                                   style: TextStyle(
                                     color: widget.color,
                                     fontSize: 12,
@@ -577,6 +568,62 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
       },
     );
   }
+}
+
+/// Шкала голосового: тонкие скруглённые палочки, пройденная часть закрашивается плавно
+/// (граница идёт по палочкам непрерывно, а не скачками по одной).
+class _WavePainter extends CustomPainter {
+  _WavePainter({
+    required this.bars,
+    required this.progress,
+    required this.drag,
+    required this.color,
+    required this.zero,
+  }) : super(repaint: Listenable.merge([progress, drag]));
+
+  final List<double> bars;
+  final ValueListenable<double> progress;
+  final ValueListenable<double?> drag;
+  final Color color;
+  final bool zero;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = bars.length;
+    if (n == 0) return;
+    final step = size.width / n;
+    final barWidth = step * 0.58;
+    final p = zero ? 0.0 : (drag.value ?? progress.value);
+    final idle = Paint()..color = color.withAlpha(100);
+    final done = Paint()..color = color;
+
+    void draw(Paint paint) {
+      for (var i = 0; i < n; i++) {
+        final h = (size.height * bars[i]).clamp(3.0, size.height);
+        final x = i * step + (step - barWidth) / 2;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, (size.height - h) / 2, barWidth, h),
+            Radius.circular(barWidth / 2),
+          ),
+          paint,
+        );
+      }
+    }
+
+    draw(idle);
+    if (p > 0) {
+      canvas
+        ..save()
+        ..clipRect(Rect.fromLTWH(0, 0, size.width * p, size.height));
+      draw(done);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter old) =>
+      old.color != color || old.zero != zero || !listEquals(old.bars, bars);
 }
 
 extension on AudioPlayer {

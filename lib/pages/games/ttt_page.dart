@@ -246,6 +246,7 @@ class _TttPageState extends State<TttPage> {
           widget.room!,
           game: 'ttt',
           gameTitle: 'крестики-нолики',
+          announce: false,
         );
         if (!mounted) return;
         await Navigator.of(context).pushReplacement(

@@ -170,6 +170,22 @@ class _GamesPageState extends State<GamesPage> {
       ),
     );
     if (room == null || !mounted) return;
+    // Партия с этим другом в эту игру уже идёт: открываем её, а не шлём новое приглашение
+    final current = await DvGameNet.scan(_client);
+    if (!mounted) return;
+    for (final inv in current) {
+      if (inv.room.id == room.id && inv.game == g.id) {
+        _open(
+          _pageFor(
+            inv.game,
+            room: inv.room,
+            gameId: inv.gameId,
+            hostId: inv.hostId,
+          ),
+        );
+        return;
+      }
+    }
     try {
       final id = await DvGameNet.sendInvite(
         room,

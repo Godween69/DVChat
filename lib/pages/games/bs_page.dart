@@ -507,6 +507,7 @@ class _BsPageState extends State<BsPage> {
           widget.room!,
           game: 'bs',
           gameTitle: 'морской бой',
+          announce: false,
         );
         if (!mounted) return;
         await Navigator.of(context).pushReplacement(
