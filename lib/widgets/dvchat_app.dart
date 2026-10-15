@@ -11,6 +11,7 @@ import 'package:dvchat/config/routes.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_dev_menu.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
 import 'package:dvchat/widgets/app_lock.dart';
 import 'package:dvchat/widgets/dv_splash.dart';
@@ -71,40 +72,48 @@ class DvChatApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ThemeBuilder(
-      builder: (context, themeMode, primaryColor) => MaterialApp.router(
-        title: AppSettings.applicationName.value,
-        themeMode: themeMode,
-        theme: DvThemes.buildTheme(context, Brightness.light, primaryColor),
-        darkTheme: DvThemes.buildTheme(context, Brightness.dark, primaryColor),
-        scrollBehavior: CustomScrollBehavior(),
-        localizationsDelegates: [
-          ...L10n.localizationsDelegates,
-          ...GlobalMaterialLocalizations.delegates,
-          ...GlobalCupertinoLocalizations.delegates,
-        ],
-        supportedLocales: L10n.supportedLocales,
-        routerConfig: router,
-        builder: (context, child) => DvSplash(
-          child: AppLockWidget(
-            pincode: appLockSettings.pincode,
-            useBiometrics: appLockSettings.useBiometrics,
-            isLoggedIn: clients.any((client) => client.isLogged()),
-            onTooManyAttempts: () async {
-              for (final client in clients) {
-                try {
-                  await client.logout();
-                } catch (e, s) {
-                  Logs().w('DVChat: выход после ошибок PIN не удался', e, s);
+    return ValueListenableBuilder<bool>(
+      valueListenable: DvDevMenu.perfOverlay,
+      builder: (context, perf, _) => ThemeBuilder(
+        builder: (context, themeMode, primaryColor) => MaterialApp.router(
+          title: AppSettings.applicationName.value,
+          themeMode: themeMode,
+          theme: DvThemes.buildTheme(context, Brightness.light, primaryColor),
+          darkTheme: DvThemes.buildTheme(
+            context,
+            Brightness.dark,
+            primaryColor,
+          ),
+          scrollBehavior: CustomScrollBehavior(),
+          localizationsDelegates: [
+            ...L10n.localizationsDelegates,
+            ...GlobalMaterialLocalizations.delegates,
+            ...GlobalCupertinoLocalizations.delegates,
+          ],
+          supportedLocales: L10n.supportedLocales,
+          routerConfig: router,
+          showPerformanceOverlay: perf,
+          builder: (context, child) => DvSplash(
+            child: AppLockWidget(
+              pincode: appLockSettings.pincode,
+              useBiometrics: appLockSettings.useBiometrics,
+              isLoggedIn: clients.any((client) => client.isLogged()),
+              onTooManyAttempts: () async {
+                for (final client in clients) {
+                  try {
+                    await client.logout();
+                  } catch (e, s) {
+                    Logs().w('DVChat: выход после ошибок PIN не удался', e, s);
+                  }
                 }
-              }
-            },
-            // Need a navigator above the Matrix widget for
-            // displaying dialogs
-            child: Matrix(
-              clients: clients,
-              store: store,
-              child: testWidget ?? child ?? const SizedBox.shrink(),
+              },
+              // Need a navigator above the Matrix widget for
+              // displaying dialogs
+              child: Matrix(
+                clients: clients,
+                store: store,
+                child: testWidget ?? child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         ),

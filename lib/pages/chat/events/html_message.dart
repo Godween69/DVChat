@@ -97,6 +97,18 @@ class HtmlMessage extends StatelessWidget {
 
   static const Set<String> ignoredHtmlTags = {'mx-reply'};
 
+  /// DVChat: разобранный HTML держим в кэше: при каждой перерисовке чата (закрепили, ответили,
+  /// выделили) все видимые сообщения раньше разбирались заново, и кадры пропускались.
+  static final Map<String, dom.Element> _parsed = {};
+
+  static dom.Element _parseBody(String html) {
+    final element =
+        _parsed.remove(html) ?? parser.parse(html).body ?? dom.Element.html('');
+    _parsed[html] = element;
+    if (_parsed.length > 300) _parsed.remove(_parsed.keys.first);
+    return element;
+  }
+
   /// We add line breaks before these tags:
   static const Set<String> blockHtmlTags = {
     'p',
@@ -588,7 +600,7 @@ class HtmlMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final element = parser.parse(html).body ?? dom.Element.html('');
+    final element = _parseBody(html);
     final configuredMaxLines = AppSettings.messagePreviewMaxLines.value;
     final maxLines = configuredMaxLines <= 0 ? null : configuredMaxLines;
     final span = _renderHtml(element, context);

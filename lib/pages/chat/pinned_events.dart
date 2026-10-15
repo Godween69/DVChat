@@ -62,27 +62,32 @@ class PinnedEvents extends StatelessWidget {
       future: controller.room.getEventById(pinnedEventIds.last),
       builder: (context, snapshot) {
         final event = snapshot.data;
-        return ChatAppBarListTile(
-          title:
-              event
-                  ?.calcLocalizedBodyFallback(
-                    MatrixLocals(L10n.of(context)),
-                    withSenderNamePrefix: true,
-                    hideReply: true,
-                  )
-                  .replaceAll('\n', ' ') ??
-              L10n.of(context).loadingPleaseWait,
-          leading: IconButton(
-            splashRadius: 18,
-            iconSize: 18,
-            color: theme.colorScheme.onSurfaceVariant,
-            icon: const Icon(Icons.push_pin),
-            tooltip: L10n.of(context).unpin,
-            onPressed: controller.room.canSendEvent(EventTypes.RoomPinnedEvents)
-                ? () => controller.unpinEvent(pinnedEventIds.last)
-                : null,
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: ChatAppBarListTile(
+            key: ValueKey(pinnedEventIds.last),
+            title:
+                event
+                    ?.calcLocalizedBodyFallback(
+                      MatrixLocals(L10n.of(context)),
+                      withSenderNamePrefix: true,
+                      hideReply: true,
+                    )
+                    .replaceAll('\n', ' ') ??
+                L10n.of(context).loadingPleaseWait,
+            leading: IconButton(
+              splashRadius: 18,
+              iconSize: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+              icon: const Icon(Icons.push_pin),
+              tooltip: L10n.of(context).unpin,
+              onPressed:
+                  controller.room.canSendEvent(EventTypes.RoomPinnedEvents)
+                  ? () => controller.unpinEvent(pinnedEventIds.last)
+                  : null,
+            ),
+            onTap: () => _displayPinnedEventsDialog(context),
           ),
-          onTap: () => _displayPinnedEventsDialog(context),
         );
       },
     );

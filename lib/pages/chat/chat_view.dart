@@ -181,51 +181,57 @@ class ChatView extends StatelessWidget {
                 ],
                 bottom: PreferredSize(
                   preferredSize: Size.fromHeight(appbarBottomHeight),
-                  child: Column(
-                    mainAxisSize: .min,
-                    children: [
-                      PinnedEvents(controller),
-                      if (activeThreadId != null)
-                        SizedBox(
-                          height: ChatAppBarListTile.fixedHeight,
-                          child: Center(
-                            child: TextButton.icon(
-                              onPressed: () =>
-                                  controller.scrollToEventId(activeThreadId),
-                              icon: const Icon(Icons.message),
-                              label: Text(L10n.of(context).replyInThread),
-                              style: TextButton.styleFrom(
-                                foregroundColor:
-                                    theme.colorScheme.onSecondaryContainer,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
+                  child: AnimatedSize(
+                    duration: DvThemes.animationDuration,
+                    curve: DvThemes.animationCurve,
+                    child: Column(
+                      mainAxisSize: .min,
+                      children: [
+                        PinnedEvents(controller),
+                        if (activeThreadId != null)
+                          SizedBox(
+                            height: ChatAppBarListTile.fixedHeight,
+                            child: Center(
+                              child: TextButton.icon(
+                                onPressed: () =>
+                                    controller.scrollToEventId(activeThreadId),
+                                icon: const Icon(Icons.message),
+                                label: Text(L10n.of(context).replyInThread),
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      theme.colorScheme.onSecondaryContainer,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      if (scrollUpBannerEventId != null &&
-                          activeThreadId == null)
-                        ChatAppBarListTile(
-                          leading: IconButton(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            icon: const Icon(Icons.close),
-                            tooltip: L10n.of(context).close,
-                            onPressed: () {
-                              controller.discardScrollUpBannerEventId();
-                              controller.setReadMarker();
-                            },
+                        if (scrollUpBannerEventId != null &&
+                            activeThreadId == null)
+                          ChatAppBarListTile(
+                            leading: IconButton(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              icon: const Icon(Icons.close),
+                              tooltip: L10n.of(context).close,
+                              onPressed: () {
+                                controller.discardScrollUpBannerEventId();
+                                controller.setReadMarker();
+                              },
+                            ),
+                            title: L10n.of(context).jumpToLastReadMessage,
+                            trailing: TextButton(
+                              onPressed: () {
+                                controller.scrollToEventId(
+                                  scrollUpBannerEventId,
+                                );
+                                controller.discardScrollUpBannerEventId();
+                              },
+                              child: Text(L10n.of(context).jump),
+                            ),
                           ),
-                          title: L10n.of(context).jumpToLastReadMessage,
-                          trailing: TextButton(
-                            onPressed: () {
-                              controller.scrollToEventId(scrollUpBannerEventId);
-                              controller.discardScrollUpBannerEventId();
-                            },
-                            child: Text(L10n.of(context).jump),
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
