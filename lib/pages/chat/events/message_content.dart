@@ -8,6 +8,7 @@
 import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/poll.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
@@ -36,6 +37,9 @@ class MessageContent extends StatelessWidget {
   final bool selected;
   final Set<String> bigEmojis;
 
+  /// Ширина метки (время, галочки) внутри пузыря; 0 — метки в пузыре нет
+  final double metaWidth;
+
   const MessageContent(
     this.event, {
     this.onInfoTab,
@@ -46,10 +50,20 @@ class MessageContent extends StatelessWidget {
     required this.borderRadius,
     required this.selected,
     required this.bigEmojis,
+    this.metaWidth = 0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final core = _core(context);
+    // Всё, кроме текста (голосовые, файлы, опросы), получает свободную строку под метку
+    if (metaWidth > 0 && core is! _InlineMeta) {
+      return Padding(padding: const EdgeInsets.only(bottom: 16), child: core);
+    }
+    return core;
+  }
+
+  Widget _core(BuildContext context) {
     const fontSize = AppConfig.messageFontSize;
     final buttonTextColor = textColor;
     switch (event.type) {
@@ -177,8 +191,16 @@ class MessageContent extends StatelessWidget {
             final bigEmotes =
                 !event.isRichMessage && bigEmojis.contains(event.body);
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            return _InlineMeta(
+              metaWidth: metaWidth,
+              text:
+                  (AppSettings.renderHtml.value && event.isRichMessage) ||
+                      bigEmotes
+                  ? null
+                  : (event.messageType == MessageTypes.Emote
+                        ? '* ${event.body}'
+                        : event.body),
+              fontSize: AppConfig.messageFontSize,
               child: HtmlMessage(
                 html: html,
                 textColor: textColor,
@@ -303,6 +325,59 @@ class _ButtonContent extends StatelessWidget {
           '$icon  $label',
           style: TextStyle(color: textColor, fontSize: fontSize),
         ),
+      ),
+    );
+  }
+}
+
+/// DVChat: текст сообщения с местом под время и галочки. Если метка помещается
+/// в последнюю строку, пузырь только чуть шире; иначе под текстом свободная строка.
+class _InlineMeta extends StatelessWidget {
+  const _InlineMeta({
+    required this.metaWidth,
+    required this.text,
+    required this.fontSize,
+    required this.child,
+  });
+
+  final double metaWidth;
+  final String? text;
+  final double fontSize;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    var minWidth = 0.0;
+    var extra = 0.0;
+    if (metaWidth > 0) {
+      final screen = MediaQuery.sizeOf(context).width;
+      final maxW = min(DvThemes.columnWidth * 1.5, screen - 72) - 32;
+      final t = text;
+      if (t == null) {
+        extra = 14;
+      } else {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: t,
+            style: TextStyle(fontSize: fontSize),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: maxW);
+        final lines = tp.computeLineMetrics();
+        final last = lines.isEmpty ? 0.0 : lines.last.width;
+        if (last + metaWidth <= maxW) {
+          minWidth = last + metaWidth + 32;
+        } else {
+          extra = 14;
+        }
+        tp.dispose();
+      }
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: minWidth),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + extra),
+        child: child,
       ),
     );
   }

@@ -11,7 +11,7 @@ import 'package:collection/collection.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
-import 'package:dvchat/pages/chat/events/message_ticks.dart';
+import 'package:dvchat/pages/chat/events/bubble_meta.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
 import 'package:dvchat/utils/file_description.dart';
@@ -114,10 +114,6 @@ class Message extends StatelessWidget {
     final alignment = ownMessage ? Alignment.topRight : Alignment.topLeft;
 
     var color = theme.colorScheme.surfaceContainerHigh;
-    final displayTime =
-        event.type == EventTypes.RoomCreate ||
-        previousEvent == null ||
-        !event.originServerTs.sameEnvironment(previousEvent!.originServerTs);
 
     final nextEventSameSender =
         nextEvent != null &&
@@ -223,7 +219,25 @@ class Message extends StatelessWidget {
               color: theme.colorScheme.surface,
             ),
           ];
-    final eventStateTextColor = theme.colorScheme.onSurface;
+
+    // DVChat: время и галочки внутри пузыря, справа внизу
+    final bubbleMeta = BubbleMeta(
+      event: event,
+      timeline: timeline,
+      ownMessage: ownMessage,
+      edited: isEdited,
+      color: noBubble ? Colors.white : textColor.withAlpha(170),
+      onMedia: noBubble,
+    );
+    final metaWidth =
+        8.0 +
+        (event.status == EventStatus.sending
+            ? 90
+            : event.status == EventStatus.error
+            ? 110
+            : 34) +
+        (isEdited ? 60 : 0) +
+        (ownMessage ? 20 : 0);
 
     return Center(
       child: DvReplySwipe(
@@ -466,7 +480,12 @@ class Message extends StatelessWidget {
                                               gradient: LinearGradient(
                                                 begin: Alignment.topCenter,
                                                 end: Alignment.bottomCenter,
-                                                colors: [_lift(color), color],
+                                                colors: [
+                                                  _lift(color),
+                                                  color,
+                                                  _sink(color),
+                                                ],
+                                                stops: const [0, 0.45, 1],
                                               ),
                                               borderRadius: borderRadius,
                                               boxShadow: [
@@ -496,96 +515,104 @@ class Message extends StatelessWidget {
                                             maxWidth:
                                                 DvThemes.columnWidth * 1.5,
                                           ),
-                                          child: Column(
-                                            mainAxisSize: .min,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: <Widget>[
-                                              if (event.inReplyToEventId(
-                                                    includingFallback: false,
-                                                  ) !=
-                                                  null)
-                                                FutureBuilder<Event?>(
-                                                  future: event.getReplyEvent(
-                                                    timeline,
-                                                  ),
-                                                  builder:
-                                                      (
-                                                        BuildContext context,
-                                                        snapshot,
-                                                      ) {
-                                                        final replyEvent =
-                                                            snapshot.hasData
-                                                            ? snapshot.data!
-                                                            : Event(
-                                                                eventId:
-                                                                    event
-                                                                        .inReplyToEventId() ??
-                                                                    '\$fake_event_id',
-                                                                content: {
-                                                                  'msgtype':
-                                                                      'm.text',
-                                                                  'body': '...',
-                                                                },
-                                                                senderId: event
-                                                                    .senderId,
-                                                                type:
-                                                                    'm.room.message',
-                                                                room:
-                                                                    event.room,
-                                                                status:
-                                                                    EventStatus
-                                                                        .sent,
-                                                                originServerTs:
-                                                                    DateTime.now(),
-                                                              );
-                                                        return Padding(
-                                                          padding:
-                                                              const EdgeInsets.only(
-                                                                left: 16,
-                                                                right: 16,
-                                                                top: 8,
-                                                              ),
-                                                          child: Material(
-                                                            color: Colors
-                                                                .transparent,
-                                                            borderRadius:
-                                                                ReplyContent
-                                                                    .borderRadius,
-                                                            child: InkWell(
+                                          child: _MetaStack(
+                                            meta: bubbleMeta,
+                                            onMedia: noBubble,
+                                            child: Column(
+                                              mainAxisSize: .min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                if (event.inReplyToEventId(
+                                                      includingFallback: false,
+                                                    ) !=
+                                                    null)
+                                                  FutureBuilder<Event?>(
+                                                    future: event.getReplyEvent(
+                                                      timeline,
+                                                    ),
+                                                    builder:
+                                                        (
+                                                          BuildContext context,
+                                                          snapshot,
+                                                        ) {
+                                                          final replyEvent =
+                                                              snapshot.hasData
+                                                              ? snapshot.data!
+                                                              : Event(
+                                                                  eventId:
+                                                                      event
+                                                                          .inReplyToEventId() ??
+                                                                      '\$fake_event_id',
+                                                                  content: {
+                                                                    'msgtype':
+                                                                        'm.text',
+                                                                    'body':
+                                                                        '...',
+                                                                  },
+                                                                  senderId: event
+                                                                      .senderId,
+                                                                  type:
+                                                                      'm.room.message',
+                                                                  room: event
+                                                                      .room,
+                                                                  status:
+                                                                      EventStatus
+                                                                          .sent,
+                                                                  originServerTs:
+                                                                      DateTime.now(),
+                                                                );
+                                                          return Padding(
+                                                            padding:
+                                                                const EdgeInsets.only(
+                                                                  left: 16,
+                                                                  right: 16,
+                                                                  top: 8,
+                                                                ),
+                                                            child: Material(
+                                                              color: Colors
+                                                                  .transparent,
                                                               borderRadius:
                                                                   ReplyContent
                                                                       .borderRadius,
-                                                              onTap: () =>
-                                                                  scrollToEventId(
-                                                                    replyEvent
-                                                                        .eventId,
+                                                              child: InkWell(
+                                                                borderRadius:
+                                                                    ReplyContent
+                                                                        .borderRadius,
+                                                                onTap: () =>
+                                                                    scrollToEventId(
+                                                                      replyEvent
+                                                                          .eventId,
+                                                                    ),
+                                                                child: AbsorbPointer(
+                                                                  child: ReplyContent(
+                                                                    replyEvent,
+                                                                    ownMessage:
+                                                                        ownMessage,
+                                                                    timeline:
+                                                                        timeline,
                                                                   ),
-                                                              child: AbsorbPointer(
-                                                                child: ReplyContent(
-                                                                  replyEvent,
-                                                                  ownMessage:
-                                                                      ownMessage,
-                                                                  timeline:
-                                                                      timeline,
                                                                 ),
                                                               ),
                                                             ),
-                                                          ),
-                                                        );
-                                                      },
+                                                          );
+                                                        },
+                                                  ),
+                                                MessageContent(
+                                                  displayEvent,
+                                                  textColor: textColor,
+                                                  linkColor: linkColor,
+                                                  onInfoTab: onInfoTab,
+                                                  borderRadius: borderRadius,
+                                                  timeline: timeline,
+                                                  selected: selected,
+                                                  bigEmojis: bigEmojis,
+                                                  metaWidth: noBubble
+                                                      ? 0
+                                                      : metaWidth,
                                                 ),
-                                              MessageContent(
-                                                displayEvent,
-                                                textColor: textColor,
-                                                linkColor: linkColor,
-                                                onInfoTab: onInfoTab,
-                                                borderRadius: borderRadius,
-                                                timeline: timeline,
-                                                selected: selected,
-                                                bigEmojis: bigEmojis,
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -612,89 +639,6 @@ class Message extends StatelessWidget {
                                       ),
                                       child: MessageReactions(event, timeline),
                                     ),
-                            ),
-                            Row(
-                              mainAxisAlignment: ownMessage ? .end : .start,
-                              children: [
-                                const SizedBox(width: 8),
-                                if (event.status.isSent &&
-                                    (displayTime ||
-                                        !previousEventSameSender ||
-                                        selected))
-                                  Text(
-                                    ' ${selected ? event.originServerTs.localizedDetailedTime(context) : event.originServerTs.localizedTimeOfDay(context)}',
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                if (isEdited) ...[
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Text(
-                                    L10n.of(context).edited,
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                ],
-                                // DVChat: галочки статуса у своих сообщений
-                                if (ownMessage && event.status.isSent) ...[
-                                  const SizedBox(width: 4),
-                                  MessageTicks(
-                                    event: event,
-                                    timeline: timeline,
-                                    color: eventStateTextColor,
-                                  ),
-                                ],
-                                if (event.status == EventStatus.error) ...[
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Text(
-                                    L10n.of(context).couldNotBeSent,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: theme.colorScheme.error,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Icon(
-                                    Icons.error_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.error,
-                                    shadows: wallpaperTextShadow,
-                                  ),
-                                ],
-                                if (event.status == EventStatus.sending) ...[
-                                  Text(
-                                    switch (event.fileSendingStatus) {
-                                      null => L10n.of(context).sending,
-                                      FileSendingStatus.generatingThumbnail =>
-                                        L10n.of(context).generatingThumbnail,
-                                      FileSendingStatus.encrypting => L10n.of(
-                                        context,
-                                      ).encrypting,
-                                      FileSendingStatus.uploading => L10n.of(
-                                        context,
-                                      ).uploading,
-                                    },
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  SizedBox.square(
-                                    dimension: 11,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1,
-                                    ),
-                                  ),
-                                ],
-                              ],
                             ),
                             Align(
                               alignment: ownMessage
@@ -1098,7 +1042,34 @@ const double _bubbleRadius = 11;
 /// DVChat: верхний цвет едва заметного градиента пузыря (чуть светлее основного)
 Color _lift(Color c) {
   final hsl = HSLColor.fromColor(c);
-  return hsl.withLightness((hsl.lightness + 0.035).clamp(0.0, 1.0)).toColor();
+  return hsl.withLightness((hsl.lightness + 0.055).clamp(0.0, 1.0)).toColor();
+}
+
+/// DVChat: нижний цвет градиента пузыря (чуть темнее основного)
+Color _sink(Color c) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness - 0.04).clamp(0.0, 1.0)).toColor();
+}
+
+/// DVChat: метка (время, галочки) лежит поверх пузыря справа внизу
+class _MetaStack extends StatelessWidget {
+  const _MetaStack({
+    required this.meta,
+    required this.onMedia,
+    required this.child,
+  });
+
+  final Widget meta;
+  final bool onMedia;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      child,
+      Positioned(right: onMedia ? 6 : 10, bottom: onMedia ? 6 : 5, child: meta),
+    ],
+  );
 }
 
 /// DVChat: «носик» пузыря сообщения (как в WhatsApp): вверху, у первого сообщения серии.
