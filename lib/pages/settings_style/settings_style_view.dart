@@ -217,17 +217,19 @@ class SettingsStyleView extends StatelessWidget {
                 children: [
                   for (final c in <int>[
                     0,
-                    0xFFFFD6D6,
-                    0xFFFFE0B8,
-                    0xFFFFF1A8,
-                    0xFFC8EBBB,
-                    0xFFB5E6DC,
-                    0xFFB7D6FF,
-                    0xFFD3C2FF,
-                    0xFF7A2E3E,
-                    0xFF2F6B4F,
-                    0xFF1F3F7A,
-                    0xFF4A2F7A,
+                    // DVChat: спокойные светлые тона
+                    0xFFF2F2F2,
+                    0xFFE3E3E0,
+                    0xFFDCE1E6,
+                    0xFFE4E8DF,
+                    0xFFE8E0DA,
+                    // DVChat: спокойные тёмные тона
+                    0xFF2B2B2E,
+                    0xFF1F2429,
+                    0xFF2A3230,
+                    0xFF2D2F3A,
+                    0xFF35302E,
+                    0xFF121212,
                   ])
                     InkWell(
                       borderRadius: BorderRadius.circular(colorPickerSize),
