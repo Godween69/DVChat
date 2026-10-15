@@ -28,6 +28,17 @@ abstract class DvListStyle {
   static double get contrast =>
       (previewContrast ?? AppSettings.listContrast.value).clamp(0.0, 1.0);
 
+  /// Цвет тонкого кольца вокруг аватарки с фото (цвет рамки из персонализации).
+  /// Не слабее половины силы, чтобы тёмное фото не сливалось с тёмным фоном.
+  static Color avatarRing(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final k = contrast < 0.5 ? 0.5 : contrast;
+    return theme.colorScheme.onSurface.withValues(
+      alpha: (dark ? 0.34 : 0.28) * k,
+    );
+  }
+
   static EdgeInsets get outerPadding => isPlain
       ? const EdgeInsets.symmetric(horizontal: 8)
       : const EdgeInsets.symmetric(horizontal: 10, vertical: 3);

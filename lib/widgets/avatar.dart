@@ -5,6 +5,7 @@
 
 // DVChat: Аватар пользователя или чата: картинка либо цветная плашка с первой буквой.
 
+import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/string_color.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:dvchat/widgets/presence_builder.dart';
@@ -75,7 +76,12 @@ class Avatar extends StatelessWidget {
                 shapeBorder ??
                 RoundedSuperellipseBorder(
                   borderRadius: borderRadius,
-                  side: BorderSide.none,
+                  side: noPic
+                      ? BorderSide.none
+                      : BorderSide(
+                          color: DvListStyle.avatarRing(context),
+                          width: 1.2,
+                        ),
                 ),
             clipBehavior: Clip.antiAlias,
             child: MxcImage(
