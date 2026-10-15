@@ -21,13 +21,13 @@ import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/utils/single_reaction_extension.dart';
 import 'package:dvchat/utils/string_color.dart';
 import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_reply_swipe.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:swipe_to_action/swipe_to_action.dart';
 
 import '../../../config/app_config.dart';
 import '../sticker_picker_dialog.dart';
@@ -226,34 +226,12 @@ class Message extends StatelessWidget {
     final eventStateTextColor = theme.colorScheme.onSurface;
 
     return Center(
-      child: Swipeable(
+      child: DvReplySwipe(
         key: ValueKey(event.transactionId ?? event.eventId),
-        background: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Align(
-            alignment: AppSettings.swipeRightToLeftToReply.value
-                ? .centerRight
-                : .centerLeft,
-            child: Material(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(64),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Icon(
-                  Icons.reply_outlined,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-            ),
-          ),
-        ),
         // Закрытый чат: жест не работает вовсе
-        direction: event.room.isHistoryOnly
-            ? SwipeDirection.none
-            : AppSettings.swipeRightToLeftToReply.value
-            ? SwipeDirection.endToStart
-            : SwipeDirection.startToEnd,
-        onSwipe: (_) => onSwipe(),
+        enabled: !event.room.isHistoryOnly,
+        leftwards: AppSettings.swipeRightToLeftToReply.value,
+        onReply: onSwipe,
         child: Container(
           constraints: const BoxConstraints(
             maxWidth: DvThemes.maxTimelineWidth,
