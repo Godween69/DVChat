@@ -432,7 +432,7 @@ class AudioPlayerState extends State<AudioPlayerWidget>
               });
             }
             return Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 mainAxisSize: .min,
                 crossAxisAlignment: .start,

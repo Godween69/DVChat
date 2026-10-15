@@ -9,6 +9,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/pages/chat_details/participant_list_item.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_pins.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
@@ -161,6 +162,18 @@ class ChatDetailsView extends StatelessWidget {
                             ),
                           ),
                         ),
+                        // DVChat: когда создан чат (с этого дня люди переписываются)
+                        if (room.getState(EventTypes.RoomCreate)
+                            case final Event create)
+                          Center(
+                            child: Text(
+                              'Чат создан: ${DvPins.day(create.originServerTs.millisecondsSinceEpoch)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: 16),
                         if (room.canChangeStateEvent(EventTypes.RoomTopic) ||
                             room.topic.isNotEmpty) ...[

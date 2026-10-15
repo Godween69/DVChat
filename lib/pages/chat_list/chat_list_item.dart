@@ -24,6 +24,66 @@ import '../../config/themes.dart';
 import '../../utils/date_time_extension.dart';
 import '../../widgets/avatar.dart';
 
+/// DVChat: справа в строке чата: время (слева от него колокольчик, если уведомления
+/// выключены) и под ним три точки: то же меню, что открывается долгим нажатием.
+class _ChatTrailing extends StatelessWidget {
+  const _ChatTrailing({
+    required this.room,
+    required this.isMuted,
+    required this.onMenu,
+  });
+
+  final Room room;
+  final bool isMuted;
+  final VoidCallback onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dim = theme.colorScheme.onSurfaceVariant;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isMuted)
+              Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: Icon(
+                  Icons.notifications_off_outlined,
+                  size: 13,
+                  color: dim,
+                ),
+              ),
+            Text(
+              room.latestEventReceivedTime.localizedTimeShort(context),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: room.hasNewMessages ? FontWeight.bold : null,
+                color: room.highlightCount >= 1
+                    ? theme.colorScheme.error
+                    : room.hasNewMessages
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
+            ),
+          ],
+        ),
+        InkResponse(
+          onTap: onMenu,
+          radius: 18,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+            child: Icon(Icons.more_horiz, size: 20, color: dim),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ChatListItemBody extends StatelessWidget {
   final Room room;
   final bool activeChat;
@@ -150,7 +210,7 @@ class _ChatListItemBody extends StatelessWidget {
                       softWrap: false,
                     ),
                   ),
-                  if (isMuted)
+                  if (isMuted && onForget != null)
                     const Padding(
                       padding: EdgeInsets.only(left: 4.0),
                       child: Icon(Icons.notifications_off_outlined, size: 16),
@@ -177,7 +237,7 @@ class _ChatListItemBody extends StatelessWidget {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                  if (room.membership != Membership.invite)
+                  if (room.membership != Membership.invite && onForget != null)
                     Padding(
                       padding: const EdgeInsets.only(left: 4.0),
                       child: Text(
@@ -317,8 +377,9 @@ class _ChatListItemBody extends StatelessWidget {
                               maxLines: room.notificationCount >= 1 ? 2 : 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                decoration: lastEvent?.redacted == true
-                                    ? TextDecoration.lineThrough
+                                color: lastEvent?.redacted == true
+                                    ? theme.colorScheme.onSurfaceVariant
+                                          .withAlpha(110)
                                     : null,
                               ),
                             ),
@@ -351,7 +412,11 @@ class _ChatListItemBody extends StatelessWidget {
                               );
                             },
                           )
-                        : null
+                        : _ChatTrailing(
+                            room: room,
+                            isMuted: isMuted,
+                            onMenu: () => onLongPress?.call(context),
+                          )
                   : IconButton(
                       icon: const Icon(Icons.delete_outlined),
                       onPressed: onForget,

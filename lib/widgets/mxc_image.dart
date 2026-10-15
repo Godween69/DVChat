@@ -205,20 +205,28 @@ class _MxcImageState extends State<MxcImage> {
                   errorBuilder: errorFallback,
                 ));
 
-    return AnimatedCrossFade(
+    // DVChat: картинка проявляется на месте. AnimatedCrossFade ещё и менял размер от верхнего
+    // края, и большое фото (аватарка на весь экран) «падало» сверху.
+    return AnimatedSwitcher(
       duration: DvThemes.animationDuration,
-      firstChild: ClipRRect(
-        borderRadius: widget.borderRadius,
-        child: imageChild,
-      ),
-      secondChild: _MxcImagePlaceholder(
-        width: widget.width,
-        height: widget.height,
-        placeholder: widget.placeholder,
-      ),
-      crossFadeState: hasData
-          ? CrossFadeState.showFirst
-          : CrossFadeState.showSecond,
+      layoutBuilder: (current, previous) =>
+          Stack(alignment: Alignment.center, children: [...previous, ?current]),
+      child: hasData
+          ? KeyedSubtree(
+              key: const ValueKey('image'),
+              child: ClipRRect(
+                borderRadius: widget.borderRadius,
+                child: imageChild,
+              ),
+            )
+          : KeyedSubtree(
+              key: const ValueKey('placeholder'),
+              child: _MxcImagePlaceholder(
+                width: widget.width,
+                height: widget.height,
+                placeholder: widget.placeholder,
+              ),
+            ),
     );
   }
 }

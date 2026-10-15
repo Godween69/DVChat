@@ -131,7 +131,9 @@ class Message extends StatelessWidget {
         previousEvent!.senderId == event.senderId &&
         previousEvent!.originServerTs.sameEnvironment(event.originServerTs);
 
-    final textColor = ownMessage
+    final textColor = event.redacted
+        ? theme.colorScheme.onSurface
+        : ownMessage
         ? theme.onBubbleColor
         : theme.colorScheme.onSurface;
 
@@ -170,6 +172,14 @@ class Message extends StatelessWidget {
       color = displayEvent.status.isError
           ? Colors.redAccent
           : theme.bubbleColor;
+    }
+
+    // DVChat: удалённое сообщение: серый пузырь вместо цветного
+    if (event.redacted) {
+      color = Color.alphaBlend(
+        theme.colorScheme.onSurface.withAlpha(26),
+        theme.colorScheme.surface,
+      );
     }
 
     final sentReactions = <String>{};

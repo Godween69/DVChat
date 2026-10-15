@@ -61,4 +61,10 @@ abstract class DvPins {
     final mm = d.minute.toString().padLeft(2, '0');
     return '${d.day} ${_months[d.month - 1]}$year, $hh:$mm';
   }
+
+  /// «15 октября 2026»
+  static String day(int millis) {
+    final d = DateTime.fromMillisecondsSinceEpoch(millis);
+    return '${d.day} ${_months[d.month - 1]} ${d.year}';
+  }
 }

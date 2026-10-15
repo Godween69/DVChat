@@ -20,16 +20,24 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'settings.dart';
 
 /// DVChat: настройки пользователя: профиль, персонализация, уведомления, чат, выход.
-class SettingsView extends StatelessWidget {
+class SettingsView extends StatefulWidget {
   final SettingsController controller;
 
   const SettingsView(this.controller, {super.key});
 
-  /// Размер маленькой аватарки вверху (от неё профиль «вылетает» к центру)
-  static const double _avatarSize = 52;
+  @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
 
-  /// По этому ключу находим место аватарки на экране (откуда «вылетает» профиль)
-  static final GlobalKey _avatarKey = GlobalKey();
+class _SettingsViewState extends State<SettingsView> {
+  SettingsController get controller => widget.controller;
+
+  /// Размер маленькой аватарки вверху (от неё профиль «вылетает» к центру)
+  static const double _avatarSize = 48;
+
+  /// По этому ключу находим место аватарки на экране (откуда «вылетает» профиль).
+  /// Ключ свой у каждой копии экрана, чтобы две копии не конфликтовали.
+  final GlobalKey _avatarKey = GlobalKey();
 
   /// Открывает свой профиль: большая аватарка плавно «вылетает» от маленькой
   Future<void> _openProfile(BuildContext context, String mxid) async {
@@ -39,6 +47,7 @@ class SettingsView extends StatelessWidget {
       from = box.localToGlobal(Offset.zero) & box.size;
     }
     await DvProfilePage.open(context, mxid, from: from);
+    if (!mounted || !controller.mounted) return;
     controller.updateProfile();
   }
 
@@ -51,65 +60,65 @@ class SettingsView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 84,
         title: Text(L10n.of(context).settings),
         leading: Center(
           child: BackButton(onPressed: () => context.go('/rooms')),
         ),
+        actions: [
+          FutureBuilder<Profile>(
+            future: controller.profileFuture,
+            builder: (context, snapshot) {
+              final profile = snapshot.data;
+              final mxid =
+                  Matrix.of(context).client.userID ?? L10n.of(context).user;
+              final displayname =
+                  profile?.displayName ?? mxid.localpart ?? mxid;
+              return InkWell(
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                onTap: () => _openProfile(context, mxid),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      KeyedSubtree(
+                        key: _avatarKey,
+                        child: Avatar(
+                          mxContent: profile?.avatarUrl,
+                          name: displayname,
+                          size: _avatarSize,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 90),
+                        child: Text(
+                          displayname,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: ListTileTheme(
         iconColor: theme.colorScheme.onSurface,
         child: ListView(
           key: const Key('SettingsListViewContent'),
           children: <Widget>[
-            FutureBuilder<Profile>(
-              future: controller.profileFuture,
-              builder: (context, snapshot) {
-                final profile = snapshot.data;
-                final mxid =
-                    Matrix.of(context).client.userID ?? L10n.of(context).user;
-                final displayname =
-                    profile?.displayName ?? mxid.localpart ?? mxid;
-                return InkWell(
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  onTap: () => _openProfile(context, mxid),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          KeyedSubtree(
-                            key: _avatarKey,
-                            child: Avatar(
-                              mxContent: profile?.avatarUrl,
-                              name: displayname,
-                              size: _avatarSize,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 220),
-                            child: Text(
-                              displayname,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Профиль'),

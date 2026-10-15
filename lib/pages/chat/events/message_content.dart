@@ -177,11 +177,14 @@ class MessageContent extends StatelessWidget {
           textmessage:
           default:
             if (event.redacted) {
-              return RedactionWidget(
-                event: event,
-                buttonTextColor: buttonTextColor,
-                onInfoTab: onInfoTab,
-                fontSize: fontSize,
+              return _InlineMeta(
+                metaWidth: metaWidth,
+                child: RedactionWidget(
+                  event: event,
+                  buttonTextColor: buttonTextColor,
+                  onInfoTab: onInfoTab,
+                  fontSize: fontSize,
+                ),
               );
             }
             var html = AppSettings.renderHtml.value && event.isRichMessage
@@ -218,11 +221,14 @@ class MessageContent extends StatelessWidget {
         }
       case PollEventContent.startType:
         if (event.redacted) {
-          return RedactionWidget(
-            event: event,
-            buttonTextColor: buttonTextColor,
-            onInfoTab: onInfoTab,
-            fontSize: fontSize,
+          return _InlineMeta(
+            metaWidth: metaWidth,
+            child: RedactionWidget(
+              event: event,
+              buttonTextColor: buttonTextColor,
+              onInfoTab: onInfoTab,
+              fontSize: fontSize,
+            ),
           );
         }
         return PollWidget(
@@ -285,12 +291,15 @@ class RedactionWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // DVChat: как в WhatsApp — просто «Сообщение удалено», без имени и причины
-    return _ButtonContent(
-      label: 'Сообщение удалено',
-      icon: '🚫',
-      textColor: buttonTextColor.withAlpha(128),
-      onPressed: () => onInfoTab?.call(event),
-      fontSize: fontSize,
+    return InkWell(
+      onTap: () => onInfoTab?.call(event),
+      child: Text(
+        '🚫  Сообщение удалено',
+        style: TextStyle(
+          color: buttonTextColor.withAlpha(150),
+          fontSize: fontSize,
+        ),
+      ),
     );
   }
 }

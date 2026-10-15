@@ -8,6 +8,7 @@
 
 import 'dart:async';
 
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
@@ -288,7 +289,9 @@ class _ChatsIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = Matrix.of(context).client;
-    final icon = Icon(selected ? Icons.chat_bubble : Icons.chat_bubble_outline);
+    final icon = Icon(
+      selected ? CupertinoIcons.chat_bubble_fill : CupertinoIcons.chat_bubble,
+    );
     return StreamBuilder(
       stream: client.onSync.stream.where((s) => s.hasRoomUpdate),
       builder: (context, _) {
