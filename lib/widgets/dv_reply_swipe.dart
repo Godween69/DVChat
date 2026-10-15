@@ -8,7 +8,6 @@
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -83,16 +82,13 @@ class _DvReplySwipeState extends State<DvReplySwipe>
     _raw = 0;
     _armed = false;
     if (reply) widget.onReply();
-    final v = widget.leftwards
-        ? -d.velocity.pixelsPerSecond.dx
-        : d.velocity.pixelsPerSecond.dx;
+    // Возврат резкий: короткий отскок без раскачки
     _spring.value = _dx.value;
-    _spring.animateWith(
-      SpringSimulation(
-        const SpringDescription(mass: 1, stiffness: 420, damping: 32),
-        _dx.value,
+    unawaited(
+      _spring.animateTo(
         0,
-        v.clamp(-2000.0, 2000.0),
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
