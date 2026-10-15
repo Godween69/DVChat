@@ -228,7 +228,12 @@ class _DvTabBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: DvListStyle.revision,
+    builder: (context, _, _) => _bar(context),
+  );
+
+  Widget _bar(BuildContext context) {
     final theme = Theme.of(context);
     final row = SizedBox(
       height: _height,

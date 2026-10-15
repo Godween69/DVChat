@@ -8,6 +8,7 @@
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/pages/chat_details/participant_list_item.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
@@ -92,7 +93,12 @@ class ChatDetailsView extends StatelessWidget {
                                   mxContent: room.avatar,
                                   name: displayname,
                                   size: Avatar.defaultSize * 2.5,
-                                  onTap: roomAvatar != null
+                                  onTap: room.directChatMatrixID != null
+                                      ? () => DvProfilePage.open(
+                                          context,
+                                          room.directChatMatrixID!,
+                                        )
+                                      : roomAvatar != null
                                       ? () => showDialog(
                                           context: context,
                                           builder: (_) =>

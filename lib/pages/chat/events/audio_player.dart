@@ -43,6 +43,9 @@ class AudioPlayerWidget extends StatefulWidget {
     super.key,
   });
 
+  /// Есть подпись под голосовым: тогда метка времени получает свою строку
+  bool get hasCaption => event.fileDescription != null;
+
   @override
   AudioPlayerState createState() => AudioPlayerState();
 }
@@ -490,44 +493,47 @@ class AudioPlayerState extends State<AudioPlayerWidget>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        AnimatedCrossFade(
-                          firstChild: Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: Icon(
-                              Icons.mic_none_outlined,
-                              color: widget.color,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: AnimatedCrossFade(
+                            firstChild: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Icon(
+                                Icons.mic_none_outlined,
+                                color: widget.color,
+                              ),
                             ),
-                          ),
-                          secondChild: Material(
-                            color: widget.color.withAlpha(64),
-                            borderRadius: BorderRadius.circular(
-                              AppConfig.borderRadius,
-                            ),
-                            child: InkWell(
+                            secondChild: Material(
+                              color: widget.color.withAlpha(64),
                               borderRadius: BorderRadius.circular(
                                 AppConfig.borderRadius,
                               ),
-                              onTap: _toggleSpeed,
-                              child: SizedBox(
-                                width: 44,
-                                height: 28,
-                                child: Center(
-                                  child: Text(
-                                    '${audioPlayer?.speed}x',
-                                    style: TextStyle(
-                                      color: widget.color,
-                                      fontSize: 12,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(
+                                  AppConfig.borderRadius,
+                                ),
+                                onTap: _toggleSpeed,
+                                child: SizedBox(
+                                  width: 44,
+                                  height: 28,
+                                  child: Center(
+                                    child: Text(
+                                      '${audioPlayer?.speed}x',
+                                      style: TextStyle(
+                                        color: widget.color,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
+                            alignment: Alignment.center,
+                            crossFadeState: audioPlayer == null
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            duration: DvThemes.animationDuration,
                           ),
-                          alignment: Alignment.center,
-                          crossFadeState: audioPlayer == null
-                              ? CrossFadeState.showFirst
-                              : CrossFadeState.showSecond,
-                          duration: DvThemes.animationDuration,
                         ),
                       ],
                     ),
@@ -570,8 +576,8 @@ class AudioPlayerState extends State<AudioPlayerWidget>
   }
 }
 
-/// Шкала голосового: тонкие скруглённые палочки, пройденная часть закрашивается плавно
-/// (граница идёт по палочкам непрерывно, а не скачками по одной).
+/// Шкала голосового: толстые скруглённые палочки, как при записи. Их число зависит от
+/// ширины; пройденная часть закрашивается плавно, без скачков по одной палочке.
 class _WavePainter extends CustomPainter {
   _WavePainter({
     required this.bars,
@@ -587,24 +593,40 @@ class _WavePainter extends CustomPainter {
   final Color color;
   final bool zero;
 
+  static const double _barWidth = 5;
+  static const double _minStep = 9;
+
+  /// Высота палочки i из n: самое громкое из исходных значений, попавших в неё
+  double _peak(int i, int n) {
+    final src = bars.length;
+    final from = i * src ~/ n;
+    var to = (i + 1) * src ~/ n;
+    if (to <= from) to = from + 1;
+    var peak = 0.0;
+    for (var k = from; k < to && k < src; k++) {
+      if (bars[k] > peak) peak = bars[k];
+    }
+    return peak;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final n = bars.length;
-    if (n == 0) return;
+    if (bars.isEmpty) return;
+    final n = size.width ~/ _minStep;
+    if (n < 1) return;
     final step = size.width / n;
-    final barWidth = step * 0.58;
     final p = zero ? 0.0 : (drag.value ?? progress.value);
     final idle = Paint()..color = color.withAlpha(100);
     final done = Paint()..color = color;
 
     void draw(Paint paint) {
       for (var i = 0; i < n; i++) {
-        final h = (size.height * bars[i]).clamp(3.0, size.height);
-        final x = i * step + (step - barWidth) / 2;
+        final h = (size.height * _peak(i, n)).clamp(5.0, size.height);
+        final x = i * step + (step - _barWidth) / 2;
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromLTWH(x, (size.height - h) / 2, barWidth, h),
-            Radius.circular(barWidth / 2),
+            Rect.fromLTWH(x, (size.height - h) / 2, _barWidth, h),
+            const Radius.circular(_barWidth / 2),
           ),
           paint,
         );

@@ -6,6 +6,7 @@
 // DVChat: Экран «Настройки» (внешний вид): главная страница настроек.
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/update_checker.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -16,7 +17,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../widgets/mxc_image_viewer.dart';
 import 'settings.dart';
 
 /// DVChat: настройки пользователя: профиль, персонализация, уведомления, чат, выход.
@@ -48,73 +48,45 @@ class SettingsView extends StatelessWidget {
               future: controller.profileFuture,
               builder: (context, snapshot) {
                 final profile = snapshot.data;
-                final avatar = profile?.avatarUrl;
                 final mxid =
                     Matrix.of(context).client.userID ?? L10n.of(context).user;
                 final displayname =
                     profile?.displayName ?? mxid.localpart ?? mxid;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      children: [
-                        Avatar(
-                          mxContent: avatar,
-                          name: displayname,
-                          size: Avatar.defaultSize * 2.5,
-                          onTap: avatar != null
-                              ? () => showDialog(
-                                  context: context,
-                                  builder: (_) => MxcImageViewer(avatar),
-                                )
-                              : null,
-                        ),
-                        if (profile != null)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: Material(
-                                color: theme.colorScheme.primaryContainer,
-                                elevation: 2,
-                                borderRadius: BorderRadius.circular(12),
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: controller.setAvatarAction,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.camera_alt_outlined,
-                                      color:
-                                          theme.colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: controller.setDisplaynameAction,
-                      icon: const Icon(Icons.edit_outlined, size: 16),
-                      style: TextButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurface,
-                        iconColor: theme.colorScheme.onSurface,
+                return InkWell(
+                  onTap: () async {
+                    await DvProfilePage.open(context, mxid);
+                    controller.updateProfile();
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Avatar(
+                        mxContent: profile?.avatarUrl,
+                        name: displayname,
+                        size: Avatar.defaultSize * 2.5,
                       ),
-                      label: Text(
+                      const SizedBox(height: 8),
+                      Text(
                         displayname,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 18),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Профиль'),
+              onTap: () async {
+                await DvProfilePage.open(
+                  context,
+                  Matrix.of(context).client.userID ?? '',
+                );
+                controller.updateProfile();
               },
             ),
             const DvMyIdTile(),

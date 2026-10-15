@@ -8,6 +8,7 @@
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -70,6 +71,7 @@ class SettingsNotificationsView extends StatelessWidget {
                           ),
                   ),
                 ),
+                const DvBirthdayNotifyTile(),
                 ListTile(
                   title: const Text('Уведомления о реакциях'),
                   trailing: Switch.adaptive(

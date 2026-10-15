@@ -57,7 +57,9 @@ class MessageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final core = _core(context);
     // Всё, кроме текста (голосовые, файлы, опросы), получает свободную строку под метку
-    if (metaWidth > 0 && core is! _InlineMeta) {
+    if (metaWidth > 0 &&
+        core is! _InlineMeta &&
+        !(core is AudioPlayerWidget && !core.hasCaption)) {
       return Padding(padding: const EdgeInsets.only(bottom: 16), child: core);
     }
     return core;

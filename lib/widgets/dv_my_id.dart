@@ -16,6 +16,7 @@ class DvMyIdTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = Matrix.of(context).client;
     return FutureBuilder<String>(
+      initialData: DvApi.cachedId(client),
       future: DvApi(client).myId(),
       builder: (context, snapshot) {
         final id = snapshot.data;

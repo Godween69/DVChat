@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -29,12 +30,15 @@ class ParticipantListItem extends StatelessWidget {
       Membership.leave => L10n.of(context).leftTheChat,
     };
 
-    final permissionBatch = switch (user.powerLevel.role) {
-      PowerLevelRole.user => null,
-      PowerLevelRole.moderator => L10n.of(context).moderator,
-      PowerLevelRole.admin => L10n.of(context).admin,
-      PowerLevelRole.owner => L10n.of(context).owner,
-    };
+    // В личном чате все равны: ярлыков «Владелец» и «Админ» нет
+    final permissionBatch = user.room.isDirectChat
+        ? null
+        : switch (user.powerLevel.role) {
+            PowerLevelRole.user => null,
+            PowerLevelRole.moderator => L10n.of(context).moderator,
+            PowerLevelRole.admin => L10n.of(context).admin,
+            PowerLevelRole.owner => L10n.of(context).owner,
+          };
 
     final isAdminOrOwner =
         user.powerLevel.role == PowerLevelRole.admin ||
@@ -106,6 +110,7 @@ class ParticipantListItem extends StatelessWidget {
           mxContent: user.avatarUrl,
           name: user.calcDisplayname(),
           presenceUserId: user.stateKey,
+          onTap: () => DvProfilePage.open(context, user.id),
         ),
       ),
     );

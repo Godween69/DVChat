@@ -12,6 +12,7 @@ import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/bubble_meta.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
 import 'package:dvchat/utils/file_description.dart';
@@ -254,10 +255,10 @@ class Message extends StatelessWidget {
           padding: EdgeInsets.only(
             left: 8.0,
             right: 8.0,
-            top: nextEventSameSender ? 1.0 : 8.0,
+            top: nextEventSameSender ? 2.5 : 9.0,
             bottom: previousEventSameSender || previousEvent == null
-                ? 1.0
-                : 8.0,
+                ? 2.5
+                : 9.0,
           ),
           child: Column(
             mainAxisSize: .min,
@@ -321,6 +322,7 @@ class Message extends StatelessWidget {
                               name: user.calcDisplayname(),
 
                               size: avatarSize,
+                              onTap: () => DvProfilePage.open(context, user.id),
                               presenceUserId: user.stateKey,
                               presenceBackgroundColor: wallpaperMode
                                   ? Colors.transparent

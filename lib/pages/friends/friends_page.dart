@@ -6,6 +6,7 @@ import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/best_friends.dart';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
@@ -76,6 +77,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    DvListStyle.revision.addListener(_styleChanged);
     final cached = _friendsCache;
     _future = cached != null ? Future.value(cached) : _fetch();
     if (cached != null) Future.microtask(_silentReload);
@@ -89,6 +91,10 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
       const Duration(minutes: 1),
       (_) => _silentReload(),
     );
+  }
+
+  void _styleChanged() {
+    if (mounted) setState(() {});
   }
 
   StreamSubscription<SyncUpdate>? _syncSub;
@@ -120,6 +126,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    DvListStyle.revision.removeListener(_styleChanged);
     WidgetsBinding.instance.removeObserver(this);
     _syncSub?.cancel();
     _reloadTimer?.cancel();
@@ -127,8 +134,14 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  Future<Profile> _profile(String userId) =>
-      _profiles.putIfAbsent(userId, () => _client.getProfileFromUserId(userId));
+  static final Map<String, Profile> _profileData = {};
+
+  Future<Profile> _profile(String userId) => _profiles.putIfAbsent(
+    userId,
+    () => _client
+        .getProfileFromUserId(userId)
+        .then((p) => _profileData[userId] = p),
+  );
 
   static List<String> _ids(Object? value) => value is List
       ? value
@@ -300,6 +313,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     VoidCallback? onLongPress,
     Widget? trailing,
   }) => FutureBuilder<Profile>(
+    initialData: _profileData[id],
     future: _profile(id),
     builder: (context, snapshot) {
       final profile = snapshot.data;
@@ -313,6 +327,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
             mxContent: profile?.avatarUrl,
             name: name,
             client: _client,
+            onTap: () => DvProfilePage.open(context, id),
           ),
           title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: onTap,

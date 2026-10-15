@@ -65,6 +65,9 @@ class DvApi {
     return _check(response);
   }
 
+  /// Сохранённый ID без запроса (null, если ещё не загружали)
+  static String? cachedId(Client client) => _idCache[client.userID ?? ''];
+
   /// Мой ID (10 цифр)
   Future<String> myId() async {
     final userId = client.userID ?? '';

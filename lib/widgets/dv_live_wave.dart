@@ -75,7 +75,7 @@ class _WavePainter extends CustomPainter {
   final double Function() progress;
 
   static const double _barW = 5;
-  static const double _step = 9;
+  static const double _step = 12;
 
   double _smooth(int i) {
     final n = samples.length;

@@ -58,6 +58,16 @@ class _GamesPageState extends State<GamesPage> {
 
   _GameDef? _def(String id) => id == 'ttt' ? _ttt : (id == 'bs' ? _bs : null);
 
+  void _styleChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    DvListStyle.revision.addListener(_styleChanged);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -74,6 +84,7 @@ class _GamesPageState extends State<GamesPage> {
 
   @override
   void dispose() {
+    DvListStyle.revision.removeListener(_styleChanged);
     _sub?.cancel();
     _debounce?.cancel();
     super.dispose();

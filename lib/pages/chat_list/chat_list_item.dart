@@ -8,6 +8,7 @@
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/unread_bubble.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/dv_last_event.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
@@ -41,9 +42,9 @@ class _ChatListItemBody extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<int>(
-    valueListenable: DvLastEvent.tick,
-    builder: (context, _, _) => _buildItem(context),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([DvLastEvent.tick, DvListStyle.revision]),
+    builder: (context, _) => _buildItem(context),
   );
 
   Widget _buildItem(BuildContext context) {
@@ -106,7 +107,12 @@ class _ChatListItemBody extends StatelessWidget {
                             name: displayname,
                             presenceUserId: directChatMatrixId,
                             presenceBackgroundColor: backgroundColor,
-                            onTap: () => onLongPress?.call(context),
+                            onTap: directChatMatrixId == null
+                                ? () => onLongPress?.call(context)
+                                : () => DvProfilePage.open(
+                                    context,
+                                    directChatMatrixId,
+                                  ),
                           ),
                         ),
                         Positioned(

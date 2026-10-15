@@ -34,6 +34,7 @@ class SettingsStyleController extends State<SettingsStyle> {
 
   Future<void> setListStyle(String style) async {
     await AppSettings.listStyle.setItem(style);
+    DvListStyle.changed();
     if (!mounted) return;
     setState(() {});
   }
@@ -47,12 +48,14 @@ class SettingsStyleController extends State<SettingsStyle> {
   // Ползунок контраста: пока тянем, показываем сразу, сохраняем в конце
   void previewListContrast(double value) {
     DvListStyle.previewContrast = value;
+    DvListStyle.changed();
     setState(() {});
   }
 
   Future<void> saveListContrast(double value) async {
     await AppSettings.listContrast.setItem(value);
     DvListStyle.previewContrast = null;
+    DvListStyle.changed();
     if (!mounted) return;
     setState(() {});
   }

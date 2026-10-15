@@ -14,6 +14,12 @@ abstract class DvListStyle {
   static const String plates = 'plates';
   static const String frames = 'frames';
 
+  /// Растёт при любой смене стиля или контраста: экраны со списками подписаны на него
+  /// и перерисовываются сразу, не дожидаясь, пока их снова откроют.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  static void changed() => revision.value++;
+
   static String get mode {
     final value = AppSettings.listStyle.value;
     return value == plates || value == frames ? value : plain;

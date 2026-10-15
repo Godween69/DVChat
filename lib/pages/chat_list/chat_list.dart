@@ -12,6 +12,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/chat_list_view.dart';
+import 'package:dvchat/utils/dv_dm_rights.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -215,6 +216,7 @@ class ChatListController extends State<ChatList>
 
     scrollController.addListener(_onScroll);
     _waitForFirstSync();
+    DvDmRights.watch(Matrix.of(context).client);
     WidgetsBinding.instance.addObserver(this);
     _updateTimer = Timer.periodic(const Duration(hours: 1), (_) {
       if (mounted) DvUpdateChecker.check(context);

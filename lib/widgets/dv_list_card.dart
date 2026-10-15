@@ -11,7 +11,12 @@ class DvListCard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: DvListStyle.revision,
+    builder: (context, _, _) => _card(context),
+  );
+
+  Widget _card(BuildContext context) {
     if (DvListStyle.isPlain) return child;
     return Padding(
       padding: DvListStyle.outerPadding,
