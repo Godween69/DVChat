@@ -38,47 +38,52 @@ class DvMyIdTile extends StatelessWidget {
                     );
                   },
                 ),
-          onTap: id == null ? null : () => _showCode(context, id),
+          onTap: id == null ? null : () => showCode(context, id),
         );
       },
     );
   }
 
-  Future<void> _showCode(BuildContext context, String id) => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Мой код'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(12),
-            child: DvQr(data: dvAddLink(id), size: 220, color: Colors.black),
+  static Future<void> showCode(BuildContext context, String id) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Мой код'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.all(12),
+                child: DvQr(
+                  data: dvAddLink(id),
+                  size: 220,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                id,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Покажите код тому, кого хотите добавить в друзья: '
+                'он отсканирует его или введёт ID вручную.',
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          SelectableText(
-            id,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(L10n.of(context).close),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Покажите код тому, кого хотите добавить в друзья: '
-            'он отсканирует его или введёт ID вручную.',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(L10n.of(context).close),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }

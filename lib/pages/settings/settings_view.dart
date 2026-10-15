@@ -9,12 +9,9 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/update_checker.dart';
-import 'package:dvchat/widgets/avatar.dart';
-import 'package:dvchat/widgets/dv_my_id.dart';
-import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/dv_settings_header.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'settings.dart';
@@ -31,9 +28,6 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   SettingsController get controller => widget.controller;
-
-  /// Размер маленькой аватарки вверху (от неё профиль «вылетает» к центру)
-  static const double _avatarSize = 48;
 
   /// По этому ключу находим место аватарки на экране (откуда «вылетает» профиль).
   /// Ключ свой у каждой копии экрана, чтобы две копии не конфликтовали.
@@ -60,72 +54,22 @@ class _SettingsViewState extends State<SettingsView> {
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 84,
         title: Text(L10n.of(context).settings),
         leading: Center(
           child: BackButton(onPressed: () => context.go('/rooms')),
         ),
-        actions: [
-          FutureBuilder<Profile>(
-            future: controller.profileFuture,
-            builder: (context, snapshot) {
-              final profile = snapshot.data;
-              final mxid =
-                  Matrix.of(context).client.userID ?? L10n.of(context).user;
-              final displayname =
-                  profile?.displayName ?? mxid.localpart ?? mxid;
-              return InkWell(
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                onTap: () => _openProfile(context, mxid),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      KeyedSubtree(
-                        key: _avatarKey,
-                        child: Avatar(
-                          mxContent: profile?.avatarUrl,
-                          name: displayname,
-                          size: _avatarSize,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 90),
-                        child: Text(
-                          displayname,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: ListTileTheme(
         iconColor: theme.colorScheme.onSurface,
         child: ListView(
           key: const Key('SettingsListViewContent'),
           children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Профиль'),
-              onTap: () =>
-                  _openProfile(context, Matrix.of(context).client.userID ?? ''),
+            DvSettingsHeader(
+              profileFuture: controller.profileFuture,
+              avatarKey: _avatarKey,
+              onOpenProfile: (mxid) => _openProfile(context, mxid),
             ),
-            const DvMyIdTile(),
+            Divider(height: 1, color: theme.dividerColor),
             ListTile(
               leading: const Icon(Icons.format_paint_outlined),
               title: Text(L10n.of(context).changeTheme),
