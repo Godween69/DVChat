@@ -326,7 +326,6 @@ class _TabFx extends StatelessWidget {
           ? (controller.page ?? index)
           : controller.initialPage;
       final d = (page - index).abs().clamp(0.0, 1.0);
-      if (d == 0) return child!;
       return Opacity(
         opacity: (1 - d * 1.15).clamp(0.0, 1.0),
         child: Transform.scale(scale: 1 - 0.1 * d, child: child),

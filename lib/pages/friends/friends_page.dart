@@ -61,6 +61,9 @@ class _FriendsData {
   const _FriendsData(this.friends, this.requests, this.allUsers);
 }
 
+/// Последний полученный список: при повторном открытии экрана показывается сразу, без крутилки
+_FriendsData? _friendsCache;
+
 class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
   late Future<_FriendsData> _future;
   final Map<String, Future<Profile>> _profiles = {};
@@ -73,7 +76,9 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _future = _fetch();
+    final cached = _friendsCache;
+    _future = cached != null ? Future.value(cached) : _fetch();
+    if (cached != null) Future.microtask(_silentReload);
     _best = {..._client.bestFriends};
     // Список обновляется сам: служебная запись о закрытии чата, возврат в приложение, таймер
     WidgetsBinding.instance.addObserver(this);
@@ -137,11 +142,13 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     final api = DvApi(_client);
     final friends = await api.get('friends');
     final requests = await api.get('requests');
-    return _FriendsData(
+    final data = _FriendsData(
       _ids(friends['friends']),
       _ids(requests['requests']),
       friends['all_users'] == true,
     );
+    _friendsCache = data;
+    return data;
   }
 
   void _reload() {
@@ -460,6 +467,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
       ),
       body: FutureBuilder<_FriendsData>(
         future: _future,
+        initialData: _friendsCache,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(

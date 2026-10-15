@@ -230,7 +230,8 @@ class Message extends StatelessWidget {
         key: ValueKey(event.transactionId ?? event.eventId),
         // Закрытый чат: жест не работает вовсе
         enabled: !event.room.isHistoryOnly,
-        leftwards: AppSettings.swipeRightToLeftToReply.value,
+        // Тянем к свободному месту: свои сообщения влево, чужие вправо
+        leftwards: ownMessage,
         onReply: onSwipe,
         child: Container(
           constraints: const BoxConstraints(
