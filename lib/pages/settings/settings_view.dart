@@ -26,7 +26,21 @@ class SettingsView extends StatelessWidget {
   const SettingsView(this.controller, {super.key});
 
   /// Размер маленькой аватарки вверху (от неё профиль «вылетает» к центру)
-  static const double _avatarSize = 44;
+  static const double _avatarSize = 52;
+
+  /// По этому ключу находим место аватарки на экране (откуда «вылетает» профиль)
+  static final GlobalKey _avatarKey = GlobalKey();
+
+  /// Открывает свой профиль: большая аватарка плавно «вылетает» от маленькой
+  Future<void> _openProfile(BuildContext context, String mxid) async {
+    Rect? from;
+    final box = _avatarKey.currentContext?.findRenderObject();
+    if (box is RenderBox && box.hasSize) {
+      from = box.localToGlobal(Offset.zero) & box.size;
+    }
+    await DvProfilePage.open(context, mxid, from: from);
+    controller.updateProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,46 +72,39 @@ class SettingsView extends StatelessWidget {
                 return InkWell(
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
-                  onTap: () async {
-                    // Где сейчас маленькая аватарка: от этого места профиль плавно раскрывается
-                    Rect? from;
-                    final box = context.findRenderObject();
-                    if (box is RenderBox && box.hasSize) {
-                      final origin = box.localToGlobal(Offset.zero);
-                      from = Rect.fromLTWH(
-                        origin.dx + box.size.width - 16 - _avatarSize,
-                        origin.dy + (box.size.height - _avatarSize) / 2,
-                        _avatarSize,
-                        _avatarSize,
-                      );
-                    }
-                    await DvProfilePage.open(context, mxid, from: from);
-                    controller.updateProfile();
-                  },
+                  onTap: () => _openProfile(context, mxid),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            displayname,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                            style: const TextStyle(fontSize: 18),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          KeyedSubtree(
+                            key: _avatarKey,
+                            child: Avatar(
+                              mxContent: profile?.avatarUrl,
+                              name: displayname,
+                              size: _avatarSize,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Avatar(
-                          mxContent: profile?.avatarUrl,
-                          name: displayname,
-                          size: _avatarSize,
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 220),
+                            child: Text(
+                              displayname,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -106,13 +113,8 @@ class SettingsView extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Профиль'),
-              onTap: () async {
-                await DvProfilePage.open(
-                  context,
-                  Matrix.of(context).client.userID ?? '',
-                );
-                controller.updateProfile();
-              },
+              onTap: () =>
+                  _openProfile(context, Matrix.of(context).client.userID ?? ''),
             ),
             const DvMyIdTile(),
             ListTile(

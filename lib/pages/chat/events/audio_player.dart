@@ -402,15 +402,13 @@ class AudioPlayerState extends State<AudioPlayerWidget>
               });
             }
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
               child: Column(
                 mainAxisSize: .min,
                 crossAxisAlignment: .start,
                 children: [
                   ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: DvThemes.columnWidth,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 270),
                     child: Row(
                       mainAxisSize: .min,
                       children: <Widget>[
@@ -428,17 +426,35 @@ class AudioPlayerState extends State<AudioPlayerWidget>
                                   onLongPress: () =>
                                       widget.event.saveFile(context),
                                   onTap: _onButtonTap,
-                                  child: Material(
-                                    color: widget.color.withAlpha(64),
-                                    borderRadius: BorderRadius.circular(64),
-                                    child: Icon(
-                                      audioPlayer?.playing == true &&
-                                              audioPlayer?.isAtEndPosition ==
-                                                  false
-                                          ? Icons.pause_outlined
-                                          : Icons.play_arrow_outlined,
-                                      color: widget.color,
-                                      size: 28,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          widget.color.withAlpha(104),
+                                          widget.color.withAlpha(46),
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha(60),
+                                          blurRadius: 3,
+                                          offset: const Offset(0, 1.5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        audioPlayer?.playing == true &&
+                                                audioPlayer?.isAtEndPosition ==
+                                                    false
+                                            ? Icons.pause_outlined
+                                            : Icons.play_arrow_outlined,
+                                        color: widget.color,
+                                        size: 28,
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -45,8 +45,8 @@ class DvProfilePage extends StatefulWidget {
     final fly = from != null;
     return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder<void>(
-        transitionDuration: Duration(milliseconds: fly ? 340 : 180),
-        reverseTransitionDuration: Duration(milliseconds: fly ? 280 : 150),
+        transitionDuration: Duration(milliseconds: fly ? 600 : 180),
+        reverseTransitionDuration: Duration(milliseconds: fly ? 500 : 150),
         pageBuilder: (_, _, _) => DvProfilePage(userId: userId, from: from),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: fly

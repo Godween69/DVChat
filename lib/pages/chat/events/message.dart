@@ -240,6 +240,12 @@ class Message extends StatelessWidget {
         (isEdited ? 60 : 0) +
         (ownMessage ? 18 : 0);
 
+    // DVChat: как в WhatsApp, пузырь не шире ~80% экрана (примерно до начала пузыря собеседника)
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final bubbleMaxWidth = screenWidth * 0.8 < DvThemes.columnWidth * 1.5
+        ? screenWidth * 0.8
+        : DvThemes.columnWidth * 1.5;
+
     return Center(
       child: DvReplySwipe(
         key: ValueKey(event.transactionId ?? event.eventId),
@@ -310,9 +316,7 @@ class Message extends StatelessWidget {
                             onPressed: () => onSelect(event),
                           ),
                         )
-                      else if (ownMessage)
-                        const SizedBox.shrink()
-                      else if (nextEventSameSender)
+                      else if (nextEventSameSender || ownMessage)
                         SizedBox(width: avatarSize)
                       else
                         FutureBuilder<User?>(
@@ -515,9 +519,8 @@ class Message extends StatelessWidget {
                                           decoration: BoxDecoration(
                                             borderRadius: borderRadius,
                                           ),
-                                          constraints: const BoxConstraints(
-                                            maxWidth:
-                                                DvThemes.columnWidth * 1.5,
+                                          constraints: BoxConstraints(
+                                            maxWidth: bubbleMaxWidth,
                                           ),
                                           child: _MetaStack(
                                             meta: bubbleMeta,
