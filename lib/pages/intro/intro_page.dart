@@ -10,6 +10,7 @@
 // она в utils/sign_in_flows/link_login.dart.
 
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
 import 'package:dvchat/widgets/dv_logo.dart';
 import 'package:dvchat/widgets/layouts/login_scaffold.dart';
@@ -92,18 +93,26 @@ class _IntroPageState extends State<IntroPage> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Вход по QR-коду от администратора
-                          TextButton.icon(
-                            onPressed: () => scanAndLogin(context),
-                            icon: const Icon(Icons.qr_code_scanner),
-                            label: const Text('Сканировать QR'),
-                          ),
+                          // Вход по QR-коду от администратора (нужна камера, в вебе её нет)
+                          if (!PlatformInfos.isWeb)
+                            TextButton.icon(
+                              onPressed: () => scanAndLogin(context),
+                              icon: const Icon(Icons.qr_code_scanner),
+                              label: const Text('Сканировать QR'),
+                            ),
                           // Вход по ссылке из буфера обмена
                           TextButton.icon(
                             onPressed: () => pasteAndLogin(context),
                             icon: const Icon(Icons.content_paste_outlined),
                             label: const Text('Вставить ссылку'),
                           ),
+                          // Веб-версия: ссылку можно вставить в поле вручную
+                          if (PlatformInfos.isWeb)
+                            TextButton.icon(
+                              onPressed: () => typeLinkAndLogin(context),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Ввести ссылку вручную'),
+                            ),
                         ],
                       ),
                     ),

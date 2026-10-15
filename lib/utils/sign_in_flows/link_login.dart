@@ -208,6 +208,22 @@ Future<void> pasteAndLogin(BuildContext context) async {
   }
 }
 
+/// Ссылка вводится или вставляется в поле вручную (запасной путь для веб-версии,
+/// например на iPhone, где вставка из буфера обмена бывает капризной).
+Future<void> typeLinkAndLogin(BuildContext context) async {
+  final text = await showTextInputDialog(
+    context: context,
+    title: 'Ссылка для входа',
+    hintText: 'dvchat://login#…',
+    okLabel: 'Войти',
+    cancelLabel: 'Отмена',
+    keyboardType: TextInputType.url,
+    autocorrect: false,
+  );
+  if (text == null || text.trim().isEmpty || !context.mounted) return;
+  await loginByLink(context, text);
+}
+
 /// Открывает сканер QR, строку из кода отдаёт в loginByLink.
 Future<void> scanAndLogin(BuildContext context) async {
   await Navigator.of(context).push(
