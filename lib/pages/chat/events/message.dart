@@ -231,14 +231,14 @@ class Message extends StatelessWidget {
       onMedia: noBubble,
     );
     final metaWidth =
-        8.0 +
+        16.0 +
         (event.status == EventStatus.sending
             ? 90
             : event.status == EventStatus.error
             ? 110
-            : 34) +
+            : 30) +
         (isEdited ? 60 : 0) +
-        (ownMessage ? 20 : 0);
+        (ownMessage ? 18 : 0);
 
     return Center(
       child: DvReplySwipe(
@@ -283,7 +283,7 @@ class Message extends StatelessWidget {
                         borderRadius: BorderRadius.circular(
                           AppConfig.borderRadius / 2,
                         ),
-                        color: selected || highlightMarker
+                        color: selected
                             ? theme.colorScheme.secondaryContainer.withAlpha(
                                 128,
                               )
@@ -310,7 +310,9 @@ class Message extends StatelessWidget {
                             onPressed: () => onSelect(event),
                           ),
                         )
-                      else if (nextEventSameSender || ownMessage)
+                      else if (ownMessage)
+                        const SizedBox.shrink()
+                      else if (nextEventSameSender)
                         SizedBox(width: avatarSize)
                       else
                         FutureBuilder<User?>(
@@ -520,6 +522,14 @@ class Message extends StatelessWidget {
                                           child: _MetaStack(
                                             meta: bubbleMeta,
                                             onMedia: noBubble,
+                                            flash: highlightMarker
+                                                ? (noBubble
+                                                      ? Colors.white.withAlpha(
+                                                          70,
+                                                        )
+                                                      : textColor.withAlpha(46))
+                                                : null,
+                                            radius: borderRadius,
                                             child: Column(
                                               mainAxisSize: .min,
                                               crossAxisAlignment:
@@ -1059,18 +1069,80 @@ class _MetaStack extends StatelessWidget {
     required this.meta,
     required this.onMedia,
     required this.child,
+    this.flash,
+    this.radius = BorderRadius.zero,
   });
 
   final Widget meta;
   final bool onMedia;
   final Widget child;
 
+  /// Цвет мягкой вспышки поверх пузыря после перехода к сообщению (null — без вспышки)
+  final Color? flash;
+  final BorderRadius radius;
+
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      child,
-      Positioned(right: onMedia ? 6 : 10, bottom: onMedia ? 6 : 5, child: meta),
-    ],
+  Widget build(BuildContext context) {
+    final flashColor = flash;
+    return Stack(
+      children: [
+        child,
+        if (flashColor != null)
+          Positioned.fill(
+            child: _Flash(color: flashColor, radius: radius),
+          ),
+        Positioned(
+          right: onMedia ? 6 : 10,
+          bottom: onMedia ? 6 : 5,
+          child: meta,
+        ),
+      ],
+    );
+  }
+}
+
+/// DVChat: затемнение/высветление пузыря, которое плавно гаснет
+class _Flash extends StatefulWidget {
+  const _Flash({required this.color, required this.radius});
+
+  final Color color;
+  final BorderRadius radius;
+
+  @override
+  State<_Flash> createState() => _FlashState();
+}
+
+class _FlashState extends State<_Flash> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+      value: 1,
+    );
+    _controller.reverse().ignore();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: FadeTransition(
+      opacity: _controller.drive(CurveTween(curve: Curves.easeOut)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: widget.radius,
+        ),
+      ),
+    ),
   );
 }
 

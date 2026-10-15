@@ -28,21 +28,36 @@ import 'package:matrix/matrix.dart';
 
 enum _AvatarAction { camera, file, remove }
 
+/// Размер большой аватарки в профиле
+const double _profileAvatarSize = Avatar.defaultSize * 3.8;
+
 class DvProfilePage extends StatefulWidget {
-  const DvProfilePage({required this.userId, super.key});
+  const DvProfilePage({required this.userId, this.from, super.key});
 
   final String userId;
 
+  /// Где на экране была маленькая аватарка: от этого места большая плавно «вылетает»
+  final Rect? from;
+
   /// Открыть профиль поверх всего приложения (плавное появление)
-  static Future<void> open(BuildContext context, String userId) {
+  static Future<void> open(BuildContext context, String userId, {Rect? from}) {
     if (userId.isEmpty) return Future.value();
+    final fly = from != null;
     return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 150),
-        pageBuilder: (_, _, _) => DvProfilePage(userId: userId),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
+        transitionDuration: Duration(milliseconds: fly ? 340 : 180),
+        reverseTransitionDuration: Duration(milliseconds: fly ? 280 : 150),
+        pageBuilder: (_, _, _) => DvProfilePage(userId: userId, from: from),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity: fly
+              ? animation.drive(
+                  CurveTween(
+                    curve: const Interval(0, 0.55, curve: Curves.easeOut),
+                  ),
+                )
+              : animation,
+          child: child,
+        ),
       ),
     );
   }
@@ -178,6 +193,20 @@ class _DvProfilePageState extends State<DvProfilePage> {
     if (success.error == null) _refreshProfile();
   }
 
+  /// Просмотр своего фото: плавно выплывает из темноты
+  void _openViewer(Uri avatar) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (_, _, _) =>
+            ColoredBox(color: Colors.black, child: MxcImageViewer(avatar)),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  }
+
   Future<void> _pickBirthday() async {
     final result = await showDialog<_BirthdayResult>(
       context: context,
@@ -214,45 +243,53 @@ class _DvProfilePageState extends State<DvProfilePage> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             children: [
               Center(
-                child: Stack(
-                  children: [
-                    Avatar(
-                      mxContent: avatar,
-                      name: name,
-                      client: _client,
-                      size: Avatar.defaultSize * 3,
-                      onTap: avatar == null
-                          ? null
-                          : () => showDialog(
-                              context: context,
-                              builder: (_) => MxcImageViewer(avatar),
+                child: _FlyIn(
+                  from: widget.from,
+                  size: _profileAvatarSize,
+                  child: Stack(
+                    children: [
+                      Avatar(
+                        mxContent: avatar,
+                        name: name,
+                        client: _client,
+                        size: _profileAvatarSize,
+                        onTap: avatar == null
+                            ? null
+                            : () => _openViewer(avatar),
+                      ),
+                      if (_mine && profile != null)
+                        Positioned(
+                          bottom: 3,
+                          right: 3,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: theme.scaffoldBackgroundColor,
+                              shape: BoxShape.circle,
                             ),
-                    ),
-                    if (_mine && profile != null)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: Material(
-                            color: theme.colorScheme.primaryContainer,
-                            elevation: 2,
-                            borderRadius: BorderRadius.circular(12),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: _changeAvatar,
-                              child: Center(
-                                child: Icon(
-                                  Icons.camera_alt_outlined,
-                                  color: theme.colorScheme.onPrimaryContainer,
+                            child: Material(
+                              color: theme.colorScheme.primary,
+                              shape: const CircleBorder(),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: _changeAvatar,
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.camera_alt_outlined,
+                                      size: 22,
+                                      color: theme.colorScheme.onPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -314,6 +351,44 @@ class _DvProfilePageState extends State<DvProfilePage> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Большая аватарка «вылетает» от места маленькой (в настройках) к своему месту в центре
+class _FlyIn extends StatelessWidget {
+  const _FlyIn({required this.from, required this.size, required this.child});
+
+  final Rect? from;
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = from;
+    final animation = ModalRoute.of(context)?.animation;
+    if (start == null || animation == null) return child;
+    // Место аватарки в профиле: по центру, под панелью заголовка и отступом списка
+    final target = Offset(
+      MediaQuery.sizeOf(context).width / 2,
+      MediaQuery.paddingOf(context).top + kToolbarHeight + 16 + size / 2,
+    );
+    final curved = animation.drive(CurveTween(curve: Curves.easeInOutCubic));
+    final startScale = start.width / size;
+    return AnimatedBuilder(
+      animation: curved,
+      child: child,
+      builder: (context, child) {
+        final t = curved.value;
+        final shift = Offset.lerp(start.center - target, Offset.zero, t)!;
+        return Transform.translate(
+          offset: shift,
+          child: Transform.scale(
+            scale: startScale + (1 - startScale) * t,
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

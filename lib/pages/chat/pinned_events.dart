@@ -169,6 +169,10 @@ class _PinnedSheetState extends State<_PinnedSheet> {
                         ? null
                         : Text(
                             'Закреплено: ${DvPins.when(stamps[event.eventId]!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                     trailing: canUnpin
                         ? IconButton(

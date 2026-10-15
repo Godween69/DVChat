@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/utils/dv_voice_chain.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/file_description.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
@@ -33,6 +34,9 @@ class AudioPlayerWidget extends StatefulWidget {
   final double fontSize;
   final Event event;
 
+  /// Лента чата: по ней находим следующее голосовое для автовоспроизведения
+  final Timeline? timeline;
+
   static const int wavesCount = 40;
 
   const AudioPlayerWidget(
@@ -40,6 +44,7 @@ class AudioPlayerWidget extends StatefulWidget {
     required this.color,
     required this.linkColor,
     required this.fontSize,
+    this.timeline,
     super.key,
   });
 
@@ -276,6 +281,12 @@ class AudioPlayerState extends State<AudioPlayerWidget>
       AppSettings.voiceMessageSpeedPercent.value / 100,
     );
     if (!mounted) return;
+
+    // DVChat: после этого сообщения само включится следующее голосовое
+    final chainTimeline = widget.timeline;
+    if (chainTimeline != null) {
+      DvVoiceChain.attach(matrix, audioPlayer, widget.event, chainTimeline);
+    }
 
     audioPlayer.play().onError(
       ErrorReporter(context, 'Unable to play audio message').onErrorCallback,

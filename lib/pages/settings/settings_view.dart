@@ -25,6 +25,9 @@ class SettingsView extends StatelessWidget {
 
   const SettingsView(this.controller, {super.key});
 
+  /// Размер маленькой аватарки вверху (от неё профиль «вылетает» к центру)
+  static const double _avatarSize = 44;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -56,26 +59,46 @@ class SettingsView extends StatelessWidget {
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   onTap: () async {
-                    await DvProfilePage.open(context, mxid);
+                    // Где сейчас маленькая аватарка: от этого места профиль плавно раскрывается
+                    Rect? from;
+                    final box = context.findRenderObject();
+                    if (box is RenderBox && box.hasSize) {
+                      final origin = box.localToGlobal(Offset.zero);
+                      from = Rect.fromLTWH(
+                        origin.dx + box.size.width - 16 - _avatarSize,
+                        origin.dy + (box.size.height - _avatarSize) / 2,
+                        _avatarSize,
+                        _avatarSize,
+                      );
+                    }
+                    await DvProfilePage.open(context, mxid, from: from);
                     controller.updateProfile();
                   },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Avatar(
-                        mxContent: profile?.avatarUrl,
-                        name: displayname,
-                        size: Avatar.defaultSize * 2.5,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        displayname,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayname,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Avatar(
+                          mxContent: profile?.avatarUrl,
+                          name: displayname,
+                          size: _avatarSize,
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

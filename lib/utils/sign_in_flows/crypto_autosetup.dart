@@ -8,9 +8,17 @@ import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 
+/// Клиенты, у которых настройка идёт прямо сейчас (второй запуск не нужен)
+final Set<Client> _running = {};
+
 /// Создаёт или открывает крипто-идентичность кодовой фразой из ссылки.
-/// Возвращает true при успехе.
-Future<bool> setupCryptoSilently(Client client, String passphrase) async {
+/// Возвращает true при успехе. С quiet = true сбой не показывается на экране.
+Future<bool> setupCryptoSilently(
+  Client client,
+  String passphrase, {
+  bool quiet = false,
+}) async {
+  if (!_running.add(client)) return false;
   try {
     // 1. Ждём первую синхронизацию: сразу после входа account data ещё не загружена
     if (client.prevBatch == null) {
@@ -57,12 +65,14 @@ Future<bool> setupCryptoSilently(Client client, String passphrase) async {
     return true;
   } on InvalidPassphraseException catch (e) {
     Logs().w('DVChat: кодовая фраза не подошла к существующей идентичности', e);
-    _showFailure('кодовая фраза не подошла');
+    if (!quiet) _showFailure('кодовая фраза не подошла');
     return false;
   } catch (e, s) {
     Logs().w('DVChat: тихая настройка шифрования не удалась', e, s);
-    _showFailure('сбой настройки, сообщите администратору');
+    if (!quiet) _showFailure('сбой настройки, сообщите администратору');
     return false;
+  } finally {
+    _running.remove(client);
   }
 }
 

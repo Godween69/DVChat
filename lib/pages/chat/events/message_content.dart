@@ -8,7 +8,6 @@
 import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';
-import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/poll.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
@@ -22,6 +21,7 @@ import '../../../utils/platform_infos.dart';
 import '../../../utils/url_launcher.dart';
 import 'audio_player.dart';
 import 'cute_events.dart';
+import 'dv_meta_pad.dart';
 import 'html_message.dart';
 import 'image_bubble.dart';
 import 'map_bubble.dart';
@@ -126,6 +126,7 @@ class MessageContent extends StatelessWidget {
                 color: textColor,
                 linkColor: linkColor,
                 fontSize: fontSize,
+                timeline: timeline,
               );
             }
             return MessageDownloadContent(
@@ -195,14 +196,6 @@ class MessageContent extends StatelessWidget {
 
             return _InlineMeta(
               metaWidth: metaWidth,
-              text:
-                  (AppSettings.renderHtml.value && event.isRichMessage) ||
-                      bigEmotes
-                  ? null
-                  : (event.messageType == MessageTypes.Emote
-                        ? '* ${event.body}'
-                        : event.body),
-              fontSize: AppConfig.messageFontSize,
               child: HtmlMessage(
                 html: html,
                 textColor: textColor,
@@ -332,55 +325,14 @@ class _ButtonContent extends StatelessWidget {
   }
 }
 
-/// DVChat: текст сообщения с местом под время и галочки. Если метка помещается
-/// в последнюю строку, пузырь только чуть шире; иначе под текстом свободная строка.
+/// DVChat: текст сообщения с местом под время и галочки (см. DvMetaPad).
 class _InlineMeta extends StatelessWidget {
-  const _InlineMeta({
-    required this.metaWidth,
-    required this.text,
-    required this.fontSize,
-    required this.child,
-  });
+  const _InlineMeta({required this.metaWidth, required this.child});
 
   final double metaWidth;
-  final String? text;
-  final double fontSize;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    var minWidth = 0.0;
-    var extra = 0.0;
-    if (metaWidth > 0) {
-      final screen = MediaQuery.sizeOf(context).width;
-      final maxW = min(DvThemes.columnWidth * 1.5, screen - 72) - 32;
-      final t = text;
-      if (t == null) {
-        extra = 14;
-      } else {
-        final tp = TextPainter(
-          text: TextSpan(
-            text: t,
-            style: TextStyle(fontSize: fontSize),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: maxW);
-        final lines = tp.computeLineMetrics();
-        final last = lines.isEmpty ? 0.0 : lines.last.width;
-        if (last + metaWidth <= maxW) {
-          minWidth = last + metaWidth + 32;
-        } else {
-          extra = 14;
-        }
-        tp.dispose();
-      }
-    }
-    return ConstrainedBox(
-      constraints: BoxConstraints(minWidth: minWidth),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + extra),
-        child: child,
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      DvMetaPad(metaWidth: metaWidth, child: child);
 }

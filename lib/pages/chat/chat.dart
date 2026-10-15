@@ -228,11 +228,25 @@ class ChatController extends State<ChatPageWithRoom>
     }
   }
 
+  bool _bannerScrolledAway = false;
+
   void _updateScrollController() {
     if (!mounted) {
       return;
     }
     if (!scrollController.hasClients) return;
+    // DVChat: плашку «перейти к последнему прочитанному» убираем, когда человек сам
+    // прокрутил вверх и вернулся вниз; иначе она возвращалась бы при каждом входе
+    if (scrollUpBannerEventId != null) {
+      final pixels = scrollController.position.pixels;
+      if (pixels > 400) {
+        _bannerScrolledAway = true;
+      } else if (_bannerScrolledAway && pixels <= 0) {
+        _bannerScrolledAway = false;
+        discardScrollUpBannerEventId();
+        setReadMarker();
+      }
+    }
     if (timeline?.allowNewEvent == false ||
         scrollController.position.pixels > 0 && _scrolledUp == false) {
       setState(() => _scrolledUp = true);
@@ -440,10 +454,20 @@ class ChatController extends State<ChatPageWithRoom>
             .indexWhere((e) => e.eventId == readMarkerEventId);
       }
 
-      if (readMarkerEventIndex > 1) {
+      // DVChat: к метке прыгаем, только если после неё есть настоящие чужие сообщения
+      // (свои сообщения и служебные события непрочитанными не считаются)
+      final hasUnread =
+          readMarkerEventId.isNotEmpty &&
+          _hasUnreadFromOthers(readMarkerEventId);
+      Logs().d(
+        'DVChat: непрочитанное: метка=$readMarkerEventId индекс=$readMarkerEventIndex чужие после метки=$hasUnread',
+      );
+      if (readMarkerEventIndex > 1 && hasUnread) {
         Logs().v('Scroll up to visible event', readMarkerEventId);
         scrollToEventId(readMarkerEventId, highlightEvent: false);
-      } else if (readMarkerEventId.isNotEmpty && readMarkerEventIndex == -1) {
+      } else if (readMarkerEventId.isNotEmpty &&
+          readMarkerEventIndex == -1 &&
+          hasUnread) {
         _showScrollUpMaterialBanner(readMarkerEventId);
       }
 
@@ -455,6 +479,29 @@ class ChatController extends State<ChatPageWithRoom>
       ErrorReporter(context, 'Unable to load timeline').onErrorCallback(e, s);
       rethrow;
     }
+  }
+
+  /// DVChat: есть ли после метки прочтения настоящие сообщения от других людей
+  bool _hasUnreadFromOthers(String markerEventId) {
+    final me = room.client.userID;
+    final events =
+        timeline?.events.filterByVisibleInGui(
+          exceptionEventId: markerEventId,
+          threadId: activeThreadId,
+        ) ??
+        const <Event>[];
+    for (final e in events) {
+      if (e.eventId == markerEventId) return false;
+      if (e.senderId != me &&
+          const {
+            EventTypes.Message,
+            EventTypes.Encrypted,
+            EventTypes.Sticker,
+          }.contains(e.type)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String? scrollUpBannerEventId;
@@ -1216,6 +1263,14 @@ class ChatController extends State<ChatPageWithRoom>
       setState(() {
         scrollToEventIdMarker = eventId;
       });
+      // Вспышка гаснет сама; метку снимаем, чтобы она не повторялась при прокрутке
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 2400), () {
+          if (mounted && scrollToEventIdMarker == eventId) {
+            setState(() => scrollToEventIdMarker = null);
+          }
+        }),
+      );
     }
     await scrollController.scrollToIndex(
       eventIndex + 1,
