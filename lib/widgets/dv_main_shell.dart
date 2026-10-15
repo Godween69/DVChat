@@ -313,8 +313,8 @@ class _ChatsIcon extends StatelessWidget {
   }
 }
 
-/// Эффект листания вкладок как на рабочих столах Android: уходящая вкладка гаснет
-/// и чуть уменьшается, приходящая проявляется. Содержимое при этом не перестраивается.
+/// Эффект листания вкладок: уходящая вкладка плавно гаснет, приходящая проявляется.
+/// Содержимое при этом не перестраивается.
 class _TabFx extends StatelessWidget {
   const _TabFx({
     required this.controller,
@@ -335,9 +335,26 @@ class _TabFx extends StatelessWidget {
           ? (controller.page ?? index)
           : controller.initialPage;
       final d = (page - index).abs().clamp(0.0, 1.0);
-      return Opacity(
-        opacity: (1 - d * 1.15).clamp(0.0, 1.0),
-        child: Transform.scale(scale: 1 - 0.1 * d, child: child),
+      // Раньше вся вкладка гасла через Opacity и Transform.scale: на каждый кадр листания
+      // видеочип рисовал две вкладки в отдельный слой. Теперь поверх вкладки ложится плашка
+      // цвета фона с нужной прозрачностью: на глаз то же затухание, но без слоёв.
+      // Структура дерева всегда одна и та же, чтобы вкладка не пересоздавалась.
+      final fade = (d * 1.15).clamp(0.0, 1.0);
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          child!,
+          if (fade > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: Theme.of(
+                    context,
+                  ).scaffoldBackgroundColor.withAlpha((255 * fade).round()),
+                ),
+              ),
+            ),
+        ],
       );
     },
   );

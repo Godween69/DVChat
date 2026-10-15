@@ -76,7 +76,7 @@ class _ChatTrailing extends StatelessWidget {
           radius: 18,
           child: Padding(
             padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
-            child: Icon(Icons.more_horiz, size: 20, color: dim),
+            child: Icon(Icons.more_vert, size: 20, color: dim),
           ),
         ),
       ],
