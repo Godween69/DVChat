@@ -149,8 +149,7 @@ class Message extends StatelessWidget {
         : MainAxisAlignment.start;
 
     final displayEvent = event.getDisplayEvent(timeline);
-    const hardCorner = Radius.circular(3);
-    const roundedCorner = Radius.circular(AppConfig.borderRadius);
+    const roundedCorner = Radius.circular(_bubbleRadius);
     const avatarSize = Avatar.defaultSize;
     final noBubble =
         ({
@@ -160,17 +159,14 @@ class Message extends StatelessWidget {
         }.contains(event.messageType) &&
         event.fileDescription == null &&
         !event.redacted);
-    // DVChat: «носик» как в Telegram — у нижнего сообщения серии
-    final hasTail = !noBubble && !previousEventSameSender;
+    // DVChat: форма пузыря как в WhatsApp: ровные скругления; «носик» вверху у первого
+    // сообщения серии с внешней стороны, у остальных сообщений серии носика нет
+    final hasTail = !noBubble && !nextEventSameSender;
     final borderRadius = BorderRadius.only(
-      topLeft: !ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
-      topRight: ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
-      bottomLeft: !ownMessage
-          ? (hasTail ? Radius.zero : hardCorner)
-          : roundedCorner,
-      bottomRight: ownMessage
-          ? (hasTail ? Radius.zero : hardCorner)
-          : roundedCorner,
+      topLeft: !ownMessage && hasTail ? Radius.zero : roundedCorner,
+      topRight: ownMessage && hasTail ? Radius.zero : roundedCorner,
+      bottomLeft: roundedCorner,
+      bottomRight: roundedCorner,
     );
 
     if (ownMessage) {
@@ -468,7 +464,7 @@ class Message extends StatelessWidget {
                                   child: _BubbleTail(
                                     show: hasTail,
                                     own: ownMessage,
-                                    color: color,
+                                    color: _lift(color),
                                     onForward:
                                         ({
                                               MessageTypes.Image,
@@ -482,12 +478,31 @@ class Message extends StatelessWidget {
                                               _forwardOne(context, displayEvent)
                                         : null,
                                     child: Container(
-                                      decoration: BoxDecoration(
-                                        color: noBubble
-                                            ? Colors.transparent
-                                            : color,
-                                        borderRadius: borderRadius,
-                                      ),
+                                      decoration: noBubble
+                                          ? BoxDecoration(
+                                              borderRadius: borderRadius,
+                                            )
+                                          : BoxDecoration(
+                                              // DVChat: едва заметный градиент и мягкая тень
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [_lift(color), color],
+                                              ),
+                                              borderRadius: borderRadius,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withAlpha(
+                                                    theme.brightness ==
+                                                            Brightness.dark
+                                                        ? 70
+                                                        : 32,
+                                                  ),
+                                                  blurRadius: 3,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
                                       clipBehavior: Clip.antiAlias,
                                       child: BubbleBackground(
                                         colors: colors,
@@ -496,9 +511,7 @@ class Message extends StatelessWidget {
                                         scrollController: scrollController,
                                         child: Container(
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              AppConfig.borderRadius,
-                                            ),
+                                            borderRadius: borderRadius,
                                           ),
                                           constraints: const BoxConstraints(
                                             maxWidth:
@@ -1100,7 +1113,16 @@ class __AnimateInState extends State<_AnimateIn> {
   }
 }
 
-/// DVChat: «носик» пузыря сообщения (как в Telegram).
+/// DVChat: радиус скругления пузыря сообщения (как в WhatsApp)
+const double _bubbleRadius = 11;
+
+/// DVChat: верхний цвет едва заметного градиента пузыря (чуть светлее основного)
+Color _lift(Color c) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness + 0.035).clamp(0.0, 1.0)).toColor();
+}
+
+/// DVChat: «носик» пузыря сообщения (как в WhatsApp): вверху, у первого сообщения серии.
 class _BubbleTail extends StatelessWidget {
   const _BubbleTail({
     required this.show,
@@ -1118,8 +1140,8 @@ class _BubbleTail extends StatelessWidget {
   /// DVChat: если задано — рядом с пузырём рисуется круглая кнопка «переслать».
   final VoidCallback? onForward;
 
-  static const double _w = 8;
-  static const double _h = 12;
+  static const double _w = 9;
+  static const double _h = 11;
 
   @override
   Widget build(BuildContext context) {
@@ -1130,7 +1152,7 @@ class _BubbleTail extends StatelessWidget {
             children: [
               child,
               Positioned(
-                bottom: 0,
+                top: 0,
                 right: own ? -(_w - 1) : null,
                 left: own ? null : -(_w - 1),
                 child: CustomPaint(
@@ -1186,12 +1208,13 @@ class _TailPainter extends CustomPainter {
     final h = size.height;
     // для чужих сообщений рисуем зеркально
     double x(double v) => own ? v : w - v;
+    // верхняя кромка продолжает верх пузыря наружу, затем плавный спуск к его боку
     final path = Path()
       ..moveTo(x(0), 0)
-      ..lineTo(x(0), h)
-      ..lineTo(x(w), h)
-      ..quadraticBezierTo(x(w * 0.35), h * 0.85, x(0), 0)
+      ..lineTo(x(w), 0)
+      ..quadraticBezierTo(x(w * 0.45), h * 0.12, x(0), h)
       ..close();
+    canvas.drawShadow(path, Colors.black.withAlpha(110), 1.5, false);
     canvas.drawPath(path, Paint()..color = color);
   }
 
