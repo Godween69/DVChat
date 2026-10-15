@@ -8,6 +8,7 @@
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/unread_bubble.dart';
+import 'package:dvchat/utils/dv_last_event.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_status_extension.dart';
@@ -40,12 +41,17 @@ class _ChatListItemBody extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: DvLastEvent.tick,
+    builder: (context, _, _) => _buildItem(context),
+  );
+
+  Widget _buildItem(BuildContext context) {
     final theme = Theme.of(context);
 
     final isMuted = room.pushRuleState != PushRuleState.notify;
     final typingText = room.getLocalizedTypingText(context);
-    final lastEvent = room.lastEvent;
+    final lastEvent = DvLastEvent.of(room);
     final ownMessage = lastEvent?.senderId == room.client.userID;
     final directChatMatrixId = room.directChatMatrixID;
     final isDirectChat = directChatMatrixId != null;
@@ -191,7 +197,7 @@ class _ChatListItemBody extends StatelessWidget {
                 children: [
                   if (typingText.isEmpty &&
                       ownMessage &&
-                      room.lastEvent?.status.isSending == true) ...[
+                      lastEvent?.status.isSending == true) ...[
                     const SizedBox(
                       width: 16,
                       height: 16,
@@ -208,7 +214,7 @@ class _ChatListItemBody extends StatelessWidget {
                             padding: const EdgeInsets.only(right: 4.0),
                             child: TypingAnimation(size: 4.0),
                           )
-                        : room.lastEvent?.relationshipType ==
+                        : lastEvent?.relationshipType ==
                               RelationshipTypes.thread
                         ? Container(
                             decoration: BoxDecoration(
@@ -262,13 +268,12 @@ class _ChatListItemBody extends StatelessWidget {
                                     removeMarkdown: true,
                                     withSenderNamePrefix:
                                         // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
-                                        !(room.lastEvent?.content.containsKey(
-                                              'online.dvbstudio.dvchat.newcomer',
-                                            ) ??
-                                            false) &&
+                                        !(lastEvent.content.containsKey(
+                                          'online.dvbstudio.dvchat.newcomer',
+                                        )) &&
                                         (!isDirectChat ||
                                             directChatMatrixId !=
-                                                room.lastEvent?.senderId),
+                                                lastEvent.senderId),
                                   )
                                 : null,
                             initialData: lastEvent?.calcLocalizedBodyFallback(
@@ -279,13 +284,11 @@ class _ChatListItemBody extends StatelessWidget {
                               removeMarkdown: true,
                               withSenderNamePrefix:
                                   // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
-                                  !(room.lastEvent?.content.containsKey(
-                                        'online.dvbstudio.dvchat.newcomer',
-                                      ) ??
-                                      false) &&
+                                  !(lastEvent.content.containsKey(
+                                    'online.dvbstudio.dvchat.newcomer',
+                                  )) &&
                                   (!isDirectChat ||
-                                      directChatMatrixId !=
-                                          room.lastEvent?.senderId),
+                                      directChatMatrixId != lastEvent.senderId),
                             ),
                             builder: (context, snapshot) => Text(
                               room.membership == Membership.invite
@@ -308,7 +311,7 @@ class _ChatListItemBody extends StatelessWidget {
                               maxLines: room.notificationCount >= 1 ? 2 : 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                decoration: room.lastEvent?.redacted == true
+                                decoration: lastEvent?.redacted == true
                                     ? TextDecoration.lineThrough
                                     : null,
                               ),

@@ -122,10 +122,22 @@ class _DvMainShellState extends State<DvMainShell> {
               onPageChanged: _onPageChanged,
               // Когда сверху открыт чат или настройки, листать вкладки нельзя
               physics: onTab ? null : const NeverScrollableScrollPhysics(),
-              children: const [
-                _KeepAlive(child: ChatList(activeChat: null)),
-                _KeepAlive(child: FriendsPage()),
-                _KeepAlive(child: GamesPage()),
+              children: [
+                _TabFx(
+                  controller: _controller,
+                  index: 0,
+                  child: const _KeepAlive(child: ChatList(activeChat: null)),
+                ),
+                _TabFx(
+                  controller: _controller,
+                  index: 1,
+                  child: const _KeepAlive(child: FriendsPage()),
+                ),
+                _TabFx(
+                  controller: _controller,
+                  index: 2,
+                  child: const _KeepAlive(child: GamesPage()),
+                ),
               ],
             ),
           ),
@@ -290,4 +302,35 @@ class _ChatsIcon extends StatelessWidget {
       },
     );
   }
+}
+
+/// Эффект листания вкладок как на рабочих столах Android: уходящая вкладка гаснет
+/// и чуть уменьшается, приходящая проявляется. Содержимое при этом не перестраивается.
+class _TabFx extends StatelessWidget {
+  const _TabFx({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final PageController controller;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    child: child,
+    builder: (context, child) {
+      final page = controller.hasClients && controller.position.haveDimensions
+          ? (controller.page ?? index)
+          : controller.initialPage;
+      final d = (page - index).abs().clamp(0.0, 1.0);
+      if (d == 0) return child!;
+      return Opacity(
+        opacity: (1 - d * 1.15).clamp(0.0, 1.0),
+        child: Transform.scale(scale: 1 - 0.1 * d, child: child),
+      );
+    },
+  );
 }
