@@ -13,6 +13,7 @@ import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/theme_builder.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
 
 import '../../widgets/matrix.dart';
 import 'settings_style_view.dart';
@@ -70,9 +71,18 @@ class SettingsStyleController extends State<SettingsStyle> {
     await showFutureLoadingDialog(
       context: context,
       future: () async {
+        // DVChat: фото для обоев сжимаем перед загрузкой (длинная сторона до 2000 точек, JPEG):
+        // оно быстро грузится и не занимает лишней памяти в чате
+        final image = await MatrixImageFile.shrink(
+          bytes: await pickedFile.readAsBytes(),
+          name: pickedFile.name,
+          maxDimension: 2000,
+          customImageResizer: client.customImageResizer,
+        );
         final url = await client.uploadContent(
-          await pickedFile.readAsBytes(),
-          filename: pickedFile.name,
+          image.bytes,
+          filename: image.name,
+          contentType: image.mimeType,
         );
         await client.updateApplicationAccountConfig(
           ApplicationAccountConfig(wallpaperUrl: url),
@@ -106,33 +116,6 @@ class SettingsStyleController extends State<SettingsStyle> {
   void updateWallpaperOpacity(double opacity) {
     setState(() {
       _wallpaperOpacity = opacity;
-    });
-  }
-
-  double get wallpaperBlur =>
-      _wallpaperBlur ??
-      Matrix.of(context).client.applicationAccountConfig.wallpaperBlur ??
-      0.5;
-  double? _wallpaperBlur;
-
-  Future<void> saveWallpaperBlur(double blur) async {
-    final client = Matrix.of(context).client;
-    final result = await showFutureLoadingDialog(
-      context: context,
-      future: () => client.updateApplicationAccountConfig(
-        ApplicationAccountConfig(wallpaperBlur: blur),
-      ),
-    );
-    if (result.isValue) return;
-
-    setState(() {
-      _wallpaperBlur = client.applicationAccountConfig.wallpaperBlur;
-    });
-  }
-
-  void updateWallpaperBlur(double blur) {
-    setState(() {
-      _wallpaperBlur = blur;
     });
   }
 

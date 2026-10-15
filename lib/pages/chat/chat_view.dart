@@ -5,8 +5,6 @@
 
 // DVChat: Экран переписки (внешний вид): шапка, список сообщений, поле ввода. Логика — chat.dart.
 
-import 'dart:ui' as ui;
-
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat.dart';
@@ -268,22 +266,38 @@ class ChatView extends StatelessWidget {
                           child: ColoredBox(color: dvChatBackground!),
                         ),
                       if (accountConfig.wallpaperUrl != null)
-                        Opacity(
-                          opacity: accountConfig.wallpaperOpacity ?? 0.5,
-                          child: ImageFiltered(
-                            imageFilter: ui.ImageFilter.blur(
-                              sigmaX: accountConfig.wallpaperBlur ?? 0.0,
-                              sigmaY: accountConfig.wallpaperBlur ?? 0.0,
-                            ),
-                            child: MxcImage(
-                              cacheKey: accountConfig.wallpaperUrl.toString(),
-                              uri: accountConfig.wallpaperUrl,
-                              fit: BoxFit.cover,
-                              height: MediaQuery.sizeOf(context).height,
-                              width: MediaQuery.sizeOf(context).width,
-                              isThumbnail: false,
-                              placeholder: (_) => Container(),
-                            ),
+                        // DVChat: обои: готовая картинка без живых фильтров (раньше размытие пересчитывалось
+                        // на каждом кадре и тормозило ленту). Размытия больше нет, а прозрачность даёт плашка
+                        // цвета фона поверх картинки: результат тот же, но без отдельного слоя.
+                        RepaintBoundary(
+                          child: Stack(
+                            children: [
+                              MxcImage(
+                                cacheKey: accountConfig.wallpaperUrl.toString(),
+                                uri: accountConfig.wallpaperUrl,
+                                fit: BoxFit.cover,
+                                height: MediaQuery.sizeOf(context).height,
+                                width: MediaQuery.sizeOf(context).width,
+                                isThumbnail: false,
+                                placeholder: (_) => Container(),
+                              ),
+                              Positioned.fill(
+                                child: ColoredBox(
+                                  color:
+                                      (dvChatBackground ??
+                                              theme.colorScheme.surface)
+                                          .withAlpha(
+                                            (255 *
+                                                    (1 -
+                                                        (accountConfig
+                                                                    .wallpaperOpacity ??
+                                                                0.5)
+                                                            .clamp(0.0, 1.0)))
+                                                .round(),
+                                          ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       GestureDetector(

@@ -5,8 +5,6 @@
 
 // DVChat: Экран «Оформление» (внешний вид): тема, цвета, шрифт, фон чата.
 
-import 'dart:ui';
-
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -306,14 +304,9 @@ class SettingsStyleView extends StatelessWidget {
                           alignment: Alignment.center,
                           children: [
                             if (accountConfig.wallpaperUrl != null)
-                              Opacity(
-                                opacity: controller.wallpaperOpacity,
-                                child: ImageFiltered(
-                                  imageFilter: ImageFilter.blur(
-                                    sigmaX: controller.wallpaperBlur,
-                                    sigmaY: controller.wallpaperBlur,
-                                  ),
-                                  child: MxcImage(
+                              Stack(
+                                children: [
+                                  MxcImage(
                                     key: ValueKey(accountConfig.wallpaperUrl),
                                     uri: accountConfig.wallpaperUrl,
                                     fit: BoxFit.cover,
@@ -321,7 +314,33 @@ class SettingsStyleView extends StatelessWidget {
                                     width: DvThemes.columnWidth * 2,
                                     height: 212,
                                   ),
-                                ),
+                                  Positioned.fill(
+                                    child: ColoredBox(
+                                      color:
+                                          (AppSettings
+                                                          .chatBackgroundColorInt
+                                                          .value ==
+                                                      0
+                                                  ? theme.colorScheme.surface
+                                                  : Color(
+                                                      AppSettings
+                                                          .chatBackgroundColorInt
+                                                          .value,
+                                                    ))
+                                              .withAlpha(
+                                                (255 *
+                                                        (1 -
+                                                            controller
+                                                                .wallpaperOpacity
+                                                                .clamp(
+                                                                  0.0,
+                                                                  1.0,
+                                                                )))
+                                                    .round(),
+                                              ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             Column(
                               mainAxisSize: .min,
@@ -442,16 +461,6 @@ class SettingsStyleView extends StatelessWidget {
                         value: controller.wallpaperOpacity,
                         onChanged: controller.updateWallpaperOpacity,
                         onChangeEnd: controller.saveWallpaperOpacity,
-                      ),
-                      ListTile(title: Text(L10n.of(context).blur)),
-                      Slider.adaptive(
-                        min: 0.0,
-                        max: 10.0,
-                        divisions: 10,
-                        semanticFormatterCallback: (d) => d.toString(),
-                        value: controller.wallpaperBlur,
-                        onChanged: controller.updateWallpaperBlur,
-                        onChangeEnd: controller.saveWallpaperBlur,
                       ),
                     ],
                   ],
