@@ -20,6 +20,10 @@ abstract class PlatformInfos {
   static bool get isWeb => kIsWeb;
   static bool get isAndroid => !kIsWeb && Platform.isAndroid;
 
+  /// iPhone/iPad: веб-версия (во вкладке Safari или с иконки «Домой»)
+  static bool get isIosWeb =>
+      kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Приложение для телефона — только Android (iPhone работает через web-версию)
   static bool get isMobile => isAndroid;
 

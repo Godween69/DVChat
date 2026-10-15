@@ -12,6 +12,7 @@
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
+import 'package:dvchat/widgets/dv_install_hint.dart';
 import 'package:dvchat/widgets/dv_logo.dart';
 import 'package:dvchat/widgets/layouts/login_scaffold.dart';
 import 'package:material_ui/material_ui.dart';
@@ -93,6 +94,7 @@ class _IntroPageState extends State<IntroPage> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (DvInstallHint.needed) const DvInstallHint(),
                           // Вход по QR-коду от администратора (нужна камера, в вебе её нет)
                           if (!PlatformInfos.isWeb)
                             TextButton.icon(
