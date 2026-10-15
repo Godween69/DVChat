@@ -53,6 +53,8 @@ class SettingsView extends StatelessWidget {
                 final displayname =
                     profile?.displayName ?? mxid.localpart ?? mxid;
                 return InkWell(
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
                   onTap: () async {
                     await DvProfilePage.open(context, mxid);
                     controller.updateProfile();

@@ -50,9 +50,13 @@ class DvBirthday {
 
 abstract class DvProfiles {
   static final Map<String, DvBirthday?> _birthdays = {};
+  static final Map<String, String> _dvIds = {};
   static bool? _notify;
 
   static DvBirthday? cachedBirthday(String userId) => _birthdays[userId];
+
+  /// 10-значный ID человека (сервер отдаёт его для себя и друзей)
+  static String? cachedDvId(String userId) => _dvIds[userId];
 
   /// Уведомления о днях рождения друзей: по умолчанию включены
   static bool get notifyCached => _notify ?? true;
@@ -76,6 +80,8 @@ abstract class DvProfiles {
       } else {
         _birthdays[id] = null;
       }
+      final dvId = value['dv_id'];
+      if (dvId is String) _dvIds[id] = dvId;
       if (id == client.userID && value['notify_birthdays'] is bool) {
         _notify = value['notify_birthdays'] as bool;
       }

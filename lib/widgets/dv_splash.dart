@@ -21,10 +21,10 @@ class DvSplash extends StatefulWidget {
 
 class _DvSplashState extends State<DvSplash>
     with SingleTickerProviderStateMixin {
-  // Полная длительность 1,3 с: появление ~0.33 с, пауза ~0.57 с, исчезновение ~0.4 с
+  // Полная длительность 1 с: появление ~0.25 с, пауза ~0.45 с, исчезновение ~0.3 с
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1300),
+    duration: const Duration(milliseconds: 1000),
   );
   bool _visible = !DvSplash._done;
 

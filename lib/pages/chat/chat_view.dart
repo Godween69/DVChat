@@ -31,8 +31,6 @@ import '../../utils/stream_extension.dart';
 import 'chat_emoji_picker.dart';
 import 'chat_input_row.dart';
 
-enum _EventContextAction { info, report }
-
 class ChatView extends StatelessWidget {
   final ChatController controller;
 
@@ -140,70 +138,41 @@ class ChatView extends StatelessWidget {
                       tooltip: L10n.of(context).copyToClipboard,
                       onPressed: controller.copyEventsAction,
                     ),
+                    if (controller.selectedEvents.length == 1 &&
+                        controller.canPinSelectedEvents)
+                      IconButton(
+                        icon: Icon(
+                          controller.selectedIsPinned
+                              ? Icons.push_pin
+                              : Icons.push_pin_outlined,
+                        ),
+                        tooltip: controller.selectedIsPinned
+                            ? L10n.of(context).unpin
+                            : L10n.of(context).pinMessage,
+                        onPressed: controller.pinEvent,
+                      ),
+                    if (controller.selectedEvents.length == 1 &&
+                        controller.canSaveSelectedEvent)
+                      IconButton(
+                        icon: const Icon(Icons.download_outlined),
+                        tooltip: L10n.of(context).downloadFile,
+                        onPressed: () => controller.saveSelectedEvent(context),
+                      ),
+                    if (controller.selectedEvents.length == 1 &&
+                        isDvAdmin(controller.room.client))
+                      IconButton(
+                        icon: const Icon(Icons.info_outlined),
+                        tooltip: L10n.of(context).messageInfo,
+                        onPressed: () {
+                          controller.showEventInfo();
+                          controller.clearSelectedEvents();
+                        },
+                      ),
                     if (controller.canRedactSelectedEvents)
                       IconButton(
                         icon: const Icon(Icons.delete_outlined),
                         tooltip: L10n.of(context).redactMessage,
                         onPressed: controller.redactEventsAction,
-                      ),
-                    if (controller.selectedEvents.length == 1 &&
-                        (isDvAdmin(controller.room.client) ||
-                            controller.canPinSelectedEvents ||
-                            controller.canSaveSelectedEvent))
-                      PopupMenuButton<_EventContextAction>(
-                        useRootNavigator: true,
-                        onSelected: (action) {
-                          switch (action) {
-                            case _EventContextAction.info:
-                              controller.showEventInfo();
-                              controller.clearSelectedEvents();
-                              break;
-                            case _EventContextAction.report:
-                              controller.reportEventAction();
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          if (controller.canPinSelectedEvents)
-                            PopupMenuItem(
-                              onTap: controller.pinEvent,
-                              value: null,
-                              child: Row(
-                                mainAxisSize: .min,
-                                children: [
-                                  const Icon(Icons.push_pin_outlined),
-                                  const SizedBox(width: 12),
-                                  Text(L10n.of(context).pinMessage),
-                                ],
-                              ),
-                            ),
-                          if (controller.canSaveSelectedEvent)
-                            PopupMenuItem(
-                              onTap: () =>
-                                  controller.saveSelectedEvent(context),
-                              value: null,
-                              child: Row(
-                                mainAxisSize: .min,
-                                children: [
-                                  const Icon(Icons.download_outlined),
-                                  const SizedBox(width: 12),
-                                  Text(L10n.of(context).downloadFile),
-                                ],
-                              ),
-                            ),
-                          if (isDvAdmin(controller.room.client))
-                            PopupMenuItem(
-                              value: _EventContextAction.info,
-                              child: Row(
-                                mainAxisSize: .min,
-                                children: [
-                                  const Icon(Icons.info_outlined),
-                                  const SizedBox(width: 12),
-                                  Text(L10n.of(context).messageInfo),
-                                ],
-                              ),
-                            ),
-                        ],
                       ),
                   ] else if (!controller.room.isArchived &&
                       !controller.room.isHistoryOnly) ...[

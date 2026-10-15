@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // DVChat: профиль человека. Свой: фото, имя, день рождения, мой ID и QR.
-// Чужой: фото, имя и день рождения (только чтение).
+// Чужой (друг): фото, имя, день рождения, ID и QR, переключатель уведомлений.
 
 import 'dart:async';
 
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoPicker;
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_profile_api.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -15,10 +16,12 @@ import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/avatar_crop_dialog.dart';
 import 'package:dvchat/widgets/dv_my_id.dart';
+import 'package:dvchat/widgets/dv_qr.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/mxc_image_viewer.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -30,11 +33,17 @@ class DvProfilePage extends StatefulWidget {
 
   final String userId;
 
-  /// Открыть профиль поверх всего приложения
+  /// Открыть профиль поверх всего приложения (плавное появление)
   static Future<void> open(BuildContext context, String userId) {
     if (userId.isEmpty) return Future.value();
     return Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(builder: (_) => DvProfilePage(userId: userId)),
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 150),
+        pageBuilder: (_, _, _) => DvProfilePage(userId: userId),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
     );
   }
 
@@ -170,11 +179,14 @@ class _DvProfilePageState extends State<DvProfilePage> {
   }
 
   Future<void> _pickBirthday() async {
-    final result = await showModalBottomSheet<_BirthdayResult>(
+    final result = await showDialog<_BirthdayResult>(
       context: context,
-      isScrollControlled: true,
-      builder: (context) =>
-          _BirthdaySheet(initial: DvProfiles.cachedBirthday(widget.userId)),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: _BirthdaySheet(
+          initial: DvProfiles.cachedBirthday(widget.userId),
+        ),
+      ),
     );
     if (result == null || !mounted) return;
     final done = await showFutureLoadingDialog(
@@ -197,6 +209,7 @@ class _DvProfilePageState extends State<DvProfilePage> {
               profile?.displayName ?? widget.userId.localpart ?? widget.userId;
           final avatar = profile?.avatarUrl;
           final birthday = DvProfiles.cachedBirthday(widget.userId);
+          final friendId = DvProfiles.cachedDvId(widget.userId);
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: 16),
             children: [
@@ -288,12 +301,15 @@ class _DvProfilePageState extends State<DvProfilePage> {
                 ),
                 const DvMyIdTile(),
                 const DvBirthdayNotifyTile(),
-              ] else if (birthday != null)
+              ] else ...[
                 ListTile(
                   leading: const Icon(Icons.cake_outlined),
                   title: const Text('День рождения'),
-                  subtitle: Text(birthday.text),
+                  subtitle: Text(birthday?.text ?? 'Не указан'),
                 ),
+                if (friendId != null) _FriendIdTile(friendId),
+                const DvBirthdayNotifyTile(),
+              ],
             ],
           );
         },
@@ -302,7 +318,62 @@ class _DvProfilePageState extends State<DvProfilePage> {
   }
 }
 
-/// Переключатель «Уведомлять о днях рождения друзей» (хранится на сервере)
+/// ID друга и его QR-код
+class _FriendIdTile extends StatelessWidget {
+  const _FriendIdTile(this.id);
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.qr_code_2_outlined),
+    title: const Text('ID'),
+    subtitle: Text(id),
+    trailing: IconButton(
+      icon: const Icon(Icons.copy_outlined),
+      tooltip: 'Скопировать',
+      onPressed: () {
+        unawaited(Clipboard.setData(ClipboardData(text: id)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ID скопирован')));
+      },
+    ),
+    onTap: () => showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Код друга'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(12),
+              child: DvQr(data: dvAddLink(id), size: 220, color: Colors.black),
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              id,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(L10n.of(context).close),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Переключатель «Уведомлять о днях рождения друзей» (общий, хранится на сервере)
 class DvBirthdayNotifyTile extends StatefulWidget {
   const DvBirthdayNotifyTile({super.key});
 
@@ -376,7 +447,7 @@ class _BirthdayResult {
   final DvBirthday? value;
 }
 
-/// Окно выбора даты: три барабана (день, месяц, год), год можно не указывать
+/// Окно выбора даты по центру экрана: три барабана (день, месяц, год), год можно не указывать
 class _BirthdaySheet extends StatefulWidget {
   const _BirthdaySheet({required this.initial});
 
@@ -439,7 +510,7 @@ class _BirthdaySheetState extends State<_BirthdaySheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textStyle = TextStyle(
-      fontSize: 20,
+      fontSize: 22,
       color: theme.colorScheme.onSurface,
     );
     Widget wheel(
@@ -448,7 +519,7 @@ class _BirthdaySheetState extends State<_BirthdaySheet> {
       ValueChanged<int> onChanged,
     ) => CupertinoPicker(
       scrollController: controller,
-      itemExtent: 38,
+      itemExtent: 44,
       onSelectedItemChanged: onChanged,
       children: [
         for (final label in labels)
@@ -460,73 +531,72 @@ class _BirthdaySheetState extends State<_BirthdaySheet> {
       'Без года',
       for (var y = _lastYear; y >= _firstYear; y--) '$y',
     ];
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('День рождения', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text('Год можно не указывать', style: theme.textTheme.bodySmall),
-            SizedBox(
-              height: 190,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: wheel(
-                      _dayController,
-                      days,
-                      (i) => setState(() => _day = i + 1),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: wheel(_monthController, DvBirthday.monthNames, (i) {
-                      setState(() {
-                        _month = i + 1;
-                        _fixDay();
-                      });
-                    }),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: wheel(_yearController, years, (i) {
-                      setState(() {
-                        _yearIndex = i;
-                        _fixDay();
-                      });
-                    }),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('День рождения', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text('Год можно не указывать', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 220,
+            child: Row(
               children: [
-                if (widget.initial != null)
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).pop(const _BirthdayResult(null)),
-                    child: const Text('Убрать'),
+                Expanded(
+                  flex: 2,
+                  child: wheel(
+                    _dayController,
+                    days,
+                    (i) => setState(() => _day = i + 1),
                   ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(L10n.of(context).cancel),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => Navigator.of(
-                    context,
-                  ).pop(_BirthdayResult(DvBirthday(_day, _month, _year))),
-                  child: const Text('Сохранить'),
+                Expanded(
+                  flex: 4,
+                  child: wheel(_monthController, DvBirthday.monthNames, (i) {
+                    setState(() {
+                      _month = i + 1;
+                      _fixDay();
+                    });
+                  }),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: wheel(_yearController, years, (i) {
+                    setState(() {
+                      _yearIndex = i;
+                      _fixDay();
+                    });
+                  }),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (widget.initial != null)
+                TextButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(const _BirthdayResult(null)),
+                  child: const Text('Убрать'),
+                ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(L10n.of(context).cancel),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(_BirthdayResult(DvBirthday(_day, _month, _year))),
+                child: const Text('Сохранить'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

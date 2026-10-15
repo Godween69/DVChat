@@ -119,6 +119,7 @@ class _DvMainShellState extends State<DvMainShell> {
           Positioned.fill(
             child: PageView(
               controller: _controller,
+              allowImplicitScrolling: true,
               onPageChanged: _onPageChanged,
               // Когда сверху открыт чат или настройки, листать вкладки нельзя
               physics: onTab ? null : const NeverScrollableScrollPhysics(),

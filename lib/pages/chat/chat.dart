@@ -21,6 +21,8 @@ import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/dv_confirm.dart';
+import 'package:dvchat/utils/dv_pins.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/file_selector.dart';
@@ -1031,14 +1033,14 @@ class ChatController extends State<ChatPageWithRoom>
   Future<void> redactEventsAction() async {
     // DVChat: простое подтверждение, без причины
     if (selectedEvents.any((event) => event.status.isSent)) {
-      final confirm = await showOkCancelAlertDialog(
-        context: context,
+      final confirmed = await DvConfirm.ask(
+        context,
+        key: 'dv_confirm_redact',
         title: 'Удалить сообщение?',
         message: 'Сообщение будет удалено для всех участников.',
         okLabel: L10n.of(context).remove,
-        cancelLabel: L10n.of(context).cancel,
       );
-      if (confirm != OkCancelResult.ok) return;
+      if (!confirmed) return;
     }
     if (!mounted) return;
     await showFutureLoadingDialog(
@@ -1091,6 +1093,10 @@ class ChatController extends State<ChatPageWithRoom>
     }
     return true;
   }
+
+  bool get selectedIsPinned =>
+      selectedEvents.length == 1 &&
+      room.pinnedEventIds.contains(selectedEvents.single.eventId);
 
   bool get canPinSelectedEvents {
     if (isArchived ||
@@ -1429,38 +1435,37 @@ class ChatController extends State<ChatPageWithRoom>
   }
 
   Future<void> unpinEvent(String eventId) async {
-    final response = await showOkCancelAlertDialog(
-      context: context,
+    final ok = await DvConfirm.ask(
+      context,
+      key: 'dv_confirm_unpin',
       title: L10n.of(context).unpin,
       message: L10n.of(context).confirmEventUnpin,
       okLabel: L10n.of(context).unpin,
-      cancelLabel: L10n.of(context).cancel,
     );
-    if (!mounted) return;
-    if (response == OkCancelResult.ok) {
-      final events = room.pinnedEventIds
-        ..removeWhere((oldEvent) => oldEvent == eventId);
-      showFutureLoadingDialog(
-        context: context,
-        future: () => room.setPinnedEvents(events),
-      );
-    }
+    if (!ok || !mounted) return;
+    final events = room.pinnedEventIds
+      ..removeWhere((oldEvent) => oldEvent == eventId);
+    showFutureLoadingDialog(
+      context: context,
+      future: () => DvPins.save(room, events),
+    );
   }
 
   void pinEvent() {
-    final pinnedEventIds = room.pinnedEventIds;
-    final selectedEventIds = selectedEvents.map((e) => e.eventId).toSet();
+    final pinned = room.pinnedEventIds;
+    final selectedIds = selectedEvents.map((e) => e.eventId).toList();
     final unpin =
-        selectedEventIds.length == 1 &&
-        pinnedEventIds.contains(selectedEventIds.single);
+        selectedIds.length == 1 && pinned.contains(selectedIds.single);
     if (unpin) {
-      pinnedEventIds.removeWhere(selectedEventIds.contains);
+      pinned.removeWhere(selectedIds.contains);
     } else {
-      pinnedEventIds.addAll(selectedEventIds);
+      pinned.addAll(selectedIds.where((id) => !pinned.contains(id)));
     }
+    // Действие сделано: выходим из режима выделения обратно в чат
+    clearSelectedEvents();
     showFutureLoadingDialog(
       context: context,
-      future: () => room.setPinnedEvents(pinnedEventIds),
+      future: () => DvPins.save(room, pinned),
     );
   }
 
