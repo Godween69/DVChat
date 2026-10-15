@@ -129,7 +129,11 @@ class _DvMainShellState extends State<DvMainShell> {
               ],
             ),
           ),
-          Positioned.fill(child: widget.child),
+          // Слой роутера на вкладках пустой, но его Navigator (ModalBarrier) глотает
+          // все касания и не пускает их к вкладкам под ним. Поэтому на вкладках он глухой
+          Positioned.fill(
+            child: IgnorePointer(ignoring: onTab, child: widget.child),
+          ),
         ],
       ),
       bottomNavigationBar: !onTab || keyboardOpen
