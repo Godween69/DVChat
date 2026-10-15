@@ -65,7 +65,7 @@ class ChatList extends StatefulWidget {
 }
 
 class ChatListController extends State<ChatList>
-    with TickerProviderStateMixin, RouteAware {
+    with TickerProviderStateMixin, RouteAware, WidgetsBindingObserver {
   StreamSubscription? _intentDataStreamSubscription;
 
   StreamSubscription? _intentFileStreamSubscription;
@@ -197,17 +197,33 @@ class ChatListController extends State<ChatList>
 
   StreamSubscription? _onRoomTagUpdate;
 
+  /// DVChat: почасовая проверка обновлений, пока приложение открыто или висит в фоне
+  Timer? _updateTimer;
+
+  /// DVChat: при возврате в приложение проверяем обновление (не чаще раза в час)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      DvUpdateChecker.check(context);
+    }
+  }
+
   @override
   void initState() {
     _initReceiveSharingIntent();
 
     scrollController.addListener(_onScroll);
     _waitForFirstSync();
+    WidgetsBinding.instance.addObserver(this);
+    _updateTimer = Timer.periodic(const Duration(hours: 1), (_) {
+      if (mounted) DvUpdateChecker.check(context);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Matrix.of(context).backgroundPush?.setupPush(context);
-        DvUpdateChecker.check(context);
+        // При каждом запуске приложения проверяем обновление без ограничения по времени
+        DvUpdateChecker.check(context, startup: true);
       }
 
       // Workaround for system UI overlay style not applied on app start
@@ -252,6 +268,8 @@ class ChatListController extends State<ChatList>
     _intentDataStreamSubscription?.cancel();
     _intentFileStreamSubscription?.cancel();
     _onRoomTagUpdate?.cancel();
+    _updateTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     scrollController.removeListener(_onScroll);
     scrollController.dispose();
     scrolledToTop.dispose();

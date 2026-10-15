@@ -1,5 +1,5 @@
 // DVChat: проверка и установка обновлений. Приложение сверяется с version.json на нашем
-// сервере (автоматически не чаще раза в час, по кнопке в настройках сразу), скачивает
+// сервере (при каждом запуске, затем раз в час и при возврате из фона; по кнопке в настройках сразу), скачивает
 // новую версию само (с проверкой размера и контрольной суммы) и открывает окно установки.
 
 import 'dart:async';
@@ -21,7 +21,8 @@ class _UpdateCancelled implements Exception {}
 abstract class DvUpdateChecker {
   static const String _lastCheckKey =
       'online.dvbstudio.dvchat.update_checked_at';
-  static const Duration _interval = Duration(hours: 1);
+  // Чуть меньше часа, чтобы почасовой таймер не упирался в границу
+  static const Duration _interval = Duration(minutes: 55);
   static const String _apkName = 'dvchat-update.apk';
   static bool _checking = false;
   static bool _installing = false;
@@ -31,7 +32,12 @@ abstract class DvUpdateChecker {
   }
 
   /// [manual]: проверка по кнопке, без ограничения по времени и с сообщением о результате.
-  static Future<void> check(BuildContext context, {bool manual = false}) async {
+  /// [startup]: проверка при запуске приложения, тоже без ограничения по времени.
+  static Future<void> check(
+    BuildContext context, {
+    bool manual = false,
+    bool startup = false,
+  }) async {
     if (!Platform.isAndroid) return;
     if (_checking) {
       if (manual) _say(context, 'Проверка уже идёт');
@@ -44,7 +50,7 @@ abstract class DvUpdateChecker {
     final store = Matrix.of(context).store;
     final now = DateTime.now().millisecondsSinceEpoch;
     final last = store.getInt(_lastCheckKey) ?? 0;
-    if (!manual && now - last < _interval.inMilliseconds) return;
+    if (!manual && !startup && now - last < _interval.inMilliseconds) return;
     _checking = true;
     final http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
