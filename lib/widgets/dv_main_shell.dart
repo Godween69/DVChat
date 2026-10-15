@@ -6,7 +6,12 @@
 // Вид панели следует оформлению списков: обычный (без заливки, в цвет страницы),
 // плашки (парящая «таблетка» с лёгкой тенью) и рамки (то же с тонкой обводкой).
 
+import 'dart:async';
+
 import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat_list/chat_list.dart';
+import 'package:dvchat/pages/friends/friends_page.dart';
+import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -14,11 +19,17 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
-class DvMainShell extends StatelessWidget {
+/// Каркас телефона: три вкладки в общем PageView (листаются свайпом за пальцем)
+/// и нижняя панель. Маршруты вкладок в роутере пустые, сами экраны живут здесь,
+/// поэтому прокрутка и состояние вкладок сохраняются. Остальные экраны (чат,
+/// настройки, архив) открываются поверх через [child].
+class DvMainShell extends StatefulWidget {
   const DvMainShell({required this.path, required this.child, super.key});
 
   /// Текущий адрес (например /rooms/friends)
   final String path;
+
+  /// Страница текущего маршрута (на вкладках пустая)
   final Widget child;
 
   static const List<String> _paths = [
@@ -36,24 +47,122 @@ class DvMainShell extends StatelessWidget {
   }
 
   @override
+  State<DvMainShell> createState() => _DvMainShellState();
+}
+
+class _DvMainShellState extends State<DvMainShell> {
+  late final PageController _controller;
+  int _page = 0;
+
+  /// Идёт прокрутка от нажатия на панель: промежуточные страницы адрес не меняют
+  bool _animating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _page = DvMainShell.indexFor(widget.path) ?? 0;
+    _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void didUpdateWidget(DvMainShell old) {
+    super.didUpdateWidget(old);
+    final i = DvMainShell.indexFor(widget.path);
+    if (i == null || i == _page) return;
+    final cameFromTab = DvMainShell.indexFor(old.path) != null;
+    _page = i;
+    _showPage(i, animate: cameFromTab);
+  }
+
+  void _showPage(int i, {required bool animate}) {
+    if (!_controller.hasClients) return;
+    if (!animate) {
+      _controller.jumpToPage(i);
+      return;
+    }
+    _animating = true;
+    unawaited(
+      _controller
+          .animateToPage(
+            i,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(() => _animating = false),
+    );
+  }
+
+  /// Страница сменилась свайпом: подтягиваем адрес
+  void _onPageChanged(int i) {
+    if (_animating || i == _page) return;
+    setState(() => _page = i);
+    context.go(DvMainShell._paths[i]);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (DvThemes.isColumnMode(context)) return child;
-    final index = indexFor(path);
+    if (DvThemes.isColumnMode(context)) return widget.child;
+    final onTab = DvMainShell.indexFor(widget.path) != null;
     // Пока открыта клавиатура, панель прячется (как в Telegram), иначе экран сжимается лишний раз
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       // Клавиатуру обрабатывают сами экраны внутри
       resizeToAvoidBottomInset: false,
-      body: child,
-      bottomNavigationBar: index == null || keyboardOpen
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: PageView(
+              controller: _controller,
+              onPageChanged: _onPageChanged,
+              // Когда сверху открыт чат или настройки, листать вкладки нельзя
+              physics: onTab ? null : const NeverScrollableScrollPhysics(),
+              children: const [
+                _KeepAlive(child: ChatList(activeChat: null)),
+                _KeepAlive(child: FriendsPage()),
+                _KeepAlive(child: GamesPage()),
+              ],
+            ),
+          ),
+          Positioned.fill(child: widget.child),
+        ],
+      ),
+      bottomNavigationBar: !onTab || keyboardOpen
           ? null
           : _DvTabBar(
-              index: index,
+              index: _page,
               onSelect: (i) {
-                if (i != index) context.go(_paths[i]);
+                if (i != _page) context.go(DvMainShell._paths[i]);
               },
             ),
     );
+  }
+}
+
+/// Не даёт PageView выгружать вкладку, когда её не видно (сохраняет прокрутку)
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

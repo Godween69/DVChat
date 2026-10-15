@@ -110,7 +110,8 @@ abstract class AppRoutes {
             state,
             DvThemes.isColumnMode(context)
                 ? const EmptyPage()
-                : ChatList(activeChat: state.pathParameters['roomid']),
+                // DVChat: на телефоне вкладки живут в общем PageView (dv_main_shell.dart)
+                : const SizedBox.shrink(),
           ),
           routes: [
             GoRoute(
@@ -139,14 +140,24 @@ abstract class AppRoutes {
             // Вкладки нижней панели переключаются без анимации перехода
             GoRoute(
               path: 'friends',
-              pageBuilder: (context, state) =>
-                  noTransitionPageBuilder(context, state, const FriendsPage()),
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const FriendsPage()
+                    : const SizedBox.shrink(),
+              ),
               redirect: loggedOutRedirect,
             ),
             GoRoute(
               path: 'games',
-              pageBuilder: (context, state) =>
-                  noTransitionPageBuilder(context, state, const GamesPage()),
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const GamesPage()
+                    : const SizedBox.shrink(),
+              ),
               redirect: loggedOutRedirect,
             ),
             GoRoute(
