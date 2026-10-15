@@ -16,6 +16,15 @@ import 'package:material_ui/material_ui.dart';
 
 import 'settings_chat.dart';
 
+const Map<String, String> _swipeOptions = {
+  'archive': 'Архивировать (в группах: покинуть)',
+  'read': 'Прочитано / не прочитано',
+  'mute': 'Выключить звук',
+  'pin': 'Закрепить',
+  'delete': 'Удалить',
+  'none': 'Ничего',
+};
+
 class SettingsChatView extends StatelessWidget {
   final SettingsChatController controller;
   const SettingsChatView(this.controller, {super.key});
@@ -36,6 +45,37 @@ class SettingsChatView extends StatelessWidget {
         child: MaxWidthBody(
           child: Column(
             children: [
+              ListTile(
+                title: const Text('Смахивание влево в списке чатов'),
+                subtitle: Text(
+                  _swipeOptions[AppSettings.chatSwipeAction.value] ??
+                      _swipeOptions['archive']!,
+                ),
+                onTap: () async {
+                  final current = AppSettings.chatSwipeAction.value;
+                  final value = await showDialog<String>(
+                    context: context,
+                    builder: (context) => SimpleDialog(
+                      title: const Text('Смахивание влево в списке чатов'),
+                      children: [
+                        for (final e in _swipeOptions.entries)
+                          ListTile(
+                            leading: Icon(
+                              e.key == current
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                            ),
+                            title: Text(e.value),
+                            onTap: () => Navigator.pop(context, e.key),
+                          ),
+                      ],
+                    ),
+                  );
+                  if (value == null) return;
+                  await AppSettings.chatSwipeAction.setItem(value);
+                  controller.updateState();
+                },
+              ),
               SettingsSwitchListTile.adaptive(
                 title: L10n.of(context).doubleTapToReact,
                 subtitle: 'Дважды кликни на сообщение',

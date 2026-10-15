@@ -48,6 +48,8 @@ enum AppSettings<T> {
   sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
   sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),
   swipeRightToLeftToReply<bool>('dvchat.swipeRightToLeftToReply', true),
+  // DVChat: действие плашки при смахивании чата влево: archive, read, mute, pin, delete, none
+  chatSwipeAction<String>('dvchat.chat_swipe_action', 'archive'),
   sendOnEnter<bool>('dvchat.send_on_enter', false),
   shareKeysWith<String>('dvchat.share_keys_with_2', 'all'),
   noEncryptionWarningShown<bool>('dvchat.no_encryption_warning_shown', false),

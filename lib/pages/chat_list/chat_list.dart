@@ -21,6 +21,7 @@ import 'package:dvchat/utils/update_checker.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/dv_swipe_row.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
@@ -269,6 +270,82 @@ class ChatListController extends State<ChatList>
     ).onErrorCallback(report.first, StackTrace.fromString(report.last));
   }
 
+  /// DVChat: плашка действия при смахивании чата влево (настраивается в «Чатах»)
+  DvSwipeAction? swipeActionFor(Room room) {
+    final cs = Theme.of(context).colorScheme;
+    switch (AppSettings.chatSwipeAction.value) {
+      case 'none':
+        return null;
+      case 'delete':
+        return DvSwipeAction(
+          icon: Icons.delete_outline,
+          label: 'Удалить',
+          color: cs.error,
+          onColor: cs.onError,
+          onTap: () => runChatAction(room, ChatContextAction.delete),
+        );
+      case 'read':
+        final unread = room.notificationCount > 0 || room.markedUnread;
+        return DvSwipeAction(
+          icon: unread
+              ? Icons.mark_chat_read_outlined
+              : Icons.mark_chat_unread_outlined,
+          label: unread ? 'Прочитано' : 'Не прочитано',
+          color: cs.secondary,
+          onColor: cs.onSecondary,
+          onTap: () => _toggleRead(room),
+        );
+      case 'mute':
+        final loud = room.pushRuleState == PushRuleState.notify;
+        return DvSwipeAction(
+          icon: loud
+              ? Icons.notifications_off_outlined
+              : Icons.notifications_outlined,
+          label: loud ? 'Без звука' : 'Со звуком',
+          color: cs.tertiary,
+          onColor: cs.onTertiary,
+          onTap: () => runChatAction(room, ChatContextAction.mute),
+        );
+      case 'pin':
+        return DvSwipeAction(
+          icon: room.isFavourite ? Icons.push_pin : Icons.push_pin_outlined,
+          label: room.isFavourite ? 'Открепить' : 'Закрепить',
+          color: cs.primary,
+          onColor: cs.onPrimary,
+          onTap: () => runChatAction(room, ChatContextAction.favorite),
+        );
+      default:
+        return DvSwipeAction(
+          icon: room.isDirectChat ? Icons.archive_outlined : Icons.logout,
+          label: room.isDirectChat ? 'В архив' : 'Покинуть',
+          color: cs.primary,
+          onColor: cs.onPrimary,
+          onTap: () => runChatAction(room, ChatContextAction.leave),
+        );
+    }
+  }
+
+  Future<void> _toggleRead(Room room) async {
+    try {
+      final unread = room.notificationCount > 0 || room.markedUnread;
+      if (!unread) {
+        await room.markUnread(true);
+        return;
+      }
+      if (room.markedUnread) await room.markUnread(false);
+      final id = room.lastEvent?.eventId;
+      if (id != null) {
+        await room.setReadMarker(
+          id,
+          mRead: id,
+          public: AppSettings.sendPublicReadReceipts.value,
+        );
+      }
+    } catch (e, s) {
+      Logs().w('Не удалось изменить отметку прочтения', e, s);
+    }
+  }
+
   Future<void> chatContextAction(Room room, BuildContext posContext) async {
     final overlay =
         Overlay.of(posContext).context.findRenderObject() as RenderBox;
@@ -400,6 +477,11 @@ class ChatListController extends State<ChatList>
     );
     if (!posContext.mounted || !mounted) return;
     if (action == null) return;
+    await runChatAction(room, action);
+  }
+
+  /// DVChat: выполнить действие над чатом (из меню или со свайпа)
+  Future<void> runChatAction(Room room, ChatContextAction action) async {
     if (!mounted) return;
 
     switch (action) {

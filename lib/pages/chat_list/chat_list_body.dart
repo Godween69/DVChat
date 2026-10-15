@@ -16,6 +16,7 @@ import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:dvchat/widgets/closed_chat_notice.dart';
 import 'package:dvchat/widgets/dv_encryption_note.dart';
+import 'package:dvchat/widgets/dv_swipe_row.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -193,9 +194,19 @@ class ChatListViewBody extends StatelessWidget {
                           controller.chatContextAction(room, context),
                       activeChat: controller.activeChat == room.id,
                     );
-                    return isBlocked(room)
-                        ? Opacity(opacity: 0.45, child: item)
+                    // DVChat: смахивание влево открывает плашку действия (настраивается)
+                    final row = room.membership == Membership.join
+                        ? DvSwipeRow(
+                            key: ValueKey('swipe_${room.id}'),
+                            rowId: room.id,
+                            actionBuilder: () =>
+                                controller.swipeActionFor(room),
+                            child: item,
+                          )
                         : item;
+                    return isBlocked(room)
+                        ? Opacity(opacity: 0.45, child: row)
+                        : row;
                   },
                 ),
               ),
