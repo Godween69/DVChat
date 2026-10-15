@@ -395,8 +395,10 @@ class ChatController extends State<ChatPageWithRoom>
         room.lastEvent?.relationshipType == RelationshipTypes.thread
         ? room.lastEvent?.relationshipEventId
         : null;
+    // DVChat: сервер подтверждает метку только со следующей синхронизацией, поэтому при быстром
+    // повторном входе в чат берём ту метку, что мы сами поставили (иначе ложный прыжок наверх)
     readMarkerEventId = room.hasNewMessages
-        ? lastEventThreadId ?? room.fullyRead
+        ? lastEventThreadId ?? _localReadUpTo[room.id] ?? room.fullyRead
         : '';
     WidgetsBinding.instance.addObserver(this);
     _tryLoadTimeline();
@@ -577,6 +579,9 @@ class ChatController extends State<ChatPageWithRoom>
 
   String? _setReadMarkerEventId;
 
+  /// DVChat: до какого сообщения прочитан чат по нашим же отправленным меткам (по комнатам)
+  static final Map<String, String> _localReadUpTo = {};
+
   void setReadMarker({String? eventId}) {
     // Do not send read markers when app is not in foreground
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
@@ -641,6 +646,7 @@ class ChatController extends State<ChatPageWithRoom>
 
     Logs().d('Set read marker...', eventId);
     _setReadMarkerEventId = eventId;
+    _localReadUpTo[room.id] = eventId;
     // ignore: unawaited_futures
     timeline
         .setReadMarker(

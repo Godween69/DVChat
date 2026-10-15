@@ -133,68 +133,98 @@ class AudioPlayerState extends State<AudioPlayerWidget>
     final audioPlayer = matrix.voiceMessageEventId.value != widget.event.eventId
         ? null
         : matrix.audioPlayer;
-    if (audioPlayer != null) {
-      if (audioPlayer.playing && !audioPlayer.isAtEndPosition) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(matrix.context).showMaterialBanner(
-            MaterialBanner(
-              padding: EdgeInsets.zero,
-              leading: StreamBuilder(
-                stream: audioPlayer.playerStateStream.asBroadcastStream(),
-                builder: (context, _) => IconButton(
-                  onPressed: () {
-                    if (audioPlayer.isAtEndPosition) {
-                      audioPlayer.seek(Duration.zero);
-                    } else if (audioPlayer.playing) {
-                      audioPlayer.pause();
-                    } else {
-                      audioPlayer.play();
-                    }
-                  },
-                  icon: audioPlayer.playing && !audioPlayer.isAtEndPosition
-                      ? const Icon(Icons.pause_outlined)
-                      : const Icon(Icons.play_arrow_outlined),
-                ),
-              ),
-              content: StreamBuilder(
-                stream: audioPlayer.positionStream.asBroadcastStream(),
-                builder: (context, _) => GestureDetector(
-                  onTap: () => DvChatApp.router.go(
-                    '/rooms/${widget.event.room.id}?event=${widget.event.eventId}',
-                  ),
-                  child: Text(
-                    '🎙️ ${audioPlayer.position.minuteSecondString} / ${audioPlayer.duration?.minuteSecondString} - ${widget.event.senderFromMemoryOrFallback.calcDisplayname()}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () {
-                    audioPlayer.pause();
-                    audioPlayer.dispose();
-                    matrix.voiceMessageEventId.value = matrix.audioPlayer =
-                        null;
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      ScaffoldMessenger.of(
-                        matrix.context,
-                      ).clearMaterialBanners();
-                    });
-                  },
-                  icon: const Icon(Icons.close_outlined),
-                ),
-              ],
-            ),
-          );
-        });
-        return;
-      }
-      audioPlayer.pause();
-      audioPlayer.dispose();
-      matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+    if (audioPlayer == null) return;
+    if (audioPlayer.playing && !audioPlayer.isAtEndPosition) {
+      final fallback = widget.event;
+      final timeline = widget.timeline;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showBanner(matrix, fallback, timeline),
+      );
+      return;
     }
+    audioPlayer.pause();
+    audioPlayer.dispose();
+    matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+  }
+
+  /// DVChat: плашка «играет голосовое» вверху экрана. Плеер берётся каждый раз заново:
+  /// когда включается следующее голосовое из цепочки, плашка управляет уже им.
+  static void _showBanner(
+    MatrixState matrix,
+    Event fallback,
+    Timeline? timeline,
+  ) {
+    Event current() {
+      final id = matrix.voiceMessageEventId.value;
+      if (id == null) return fallback;
+      return timeline?.events.where((e) => e.eventId == id).firstOrNull ??
+          fallback;
+    }
+
+    ScaffoldMessenger.of(matrix.context).showMaterialBanner(
+      MaterialBanner(
+        padding: EdgeInsets.zero,
+        leading: ValueListenableBuilder<String?>(
+          valueListenable: matrix.voiceMessageEventId,
+          builder: (context, _, _) {
+            final player = matrix.audioPlayer;
+            if (player == null) return const SizedBox.shrink();
+            return StreamBuilder<PlayerState>(
+              stream: player.playerStateStream,
+              builder: (context, _) => IconButton(
+                onPressed: () {
+                  if (player.isAtEndPosition) {
+                    player.seek(Duration.zero);
+                  } else if (player.playing) {
+                    player.pause();
+                  } else {
+                    player.play();
+                  }
+                },
+                icon: player.playing && !player.isAtEndPosition
+                    ? const Icon(Icons.pause_outlined)
+                    : const Icon(Icons.play_arrow_outlined),
+              ),
+            );
+          },
+        ),
+        content: ValueListenableBuilder<String?>(
+          valueListenable: matrix.voiceMessageEventId,
+          builder: (context, _, _) {
+            final player = matrix.audioPlayer;
+            if (player == null) return const SizedBox.shrink();
+            final event = current();
+            return StreamBuilder<Duration>(
+              stream: player.positionStream,
+              builder: (context, _) => GestureDetector(
+                onTap: () => DvChatApp.router.go(
+                  '/rooms/${event.room.id}?event=${event.eventId}',
+                ),
+                child: Text(
+                  '🎙️ ${player.position.minuteSecondString} / ${player.duration?.minuteSecondString} - ${event.senderFromMemoryOrFallback.calcDisplayname()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            );
+          },
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              final player = matrix.audioPlayer;
+              player?.pause();
+              player?.dispose();
+              matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ScaffoldMessenger.of(matrix.context).clearMaterialBanners();
+              });
+            },
+            icon: const Icon(Icons.close_outlined),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _onButtonTap() async {

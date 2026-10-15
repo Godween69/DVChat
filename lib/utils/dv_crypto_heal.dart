@@ -21,7 +21,14 @@ abstract class DvCryptoHeal {
       for (var attempt = 0; attempt < 4; attempt++) {
         if (!client.isLogged()) return;
         if (client.prevBatch == null) {
-          await client.onSync.stream.first.timeout(const Duration(seconds: 60));
+          try {
+            await client.onSync.stream.first.timeout(
+              const Duration(seconds: 60),
+            );
+          } on TimeoutException {
+            // Сеть медленная: ждём ещё, а не бросаем лечение до следующего запуска
+            continue;
+          }
         }
         final state = await client.getCryptoIdentityState();
         // Идентичности ещё нет (первый вход) или всё уже открыто: лечить нечего
