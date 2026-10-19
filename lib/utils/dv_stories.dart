@@ -126,7 +126,7 @@ class DvStories {
   /// Насколько раскрыта полоса (0..1), публикует сама полоса
   static final ValueNotifier<double> reveal = ValueNotifier(0);
   static double _pullPx = 0;
-  static const double _pullFull = 220;
+  static const double _pullFull = 420;
 
   /// Слушатель прокрутки списка чатов: тянешь вниз у самого верха, полоса растёт
   /// за пальцем; отпустил далеко: остаётся, близко: прячется. Прокрутил список: свернуть.
@@ -141,7 +141,7 @@ class DvStories {
       final p = pull.value;
       _pullPx = 0;
       if (p != null) {
-        expanded.value = p > 0.35;
+        expanded.value = p > 0.4;
         pull.value = null;
       }
     } else if (n is ScrollUpdateNotification) {

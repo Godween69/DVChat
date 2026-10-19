@@ -137,7 +137,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     unawaited(
       _c.animateTo(
         DvStories.expanded.value ? 1 : 0,
-        duration: const Duration(milliseconds: 460),
+        duration: const Duration(milliseconds: 600),
         curve: Curves.easeOutCubic,
       ),
     );
@@ -204,7 +204,8 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     const stagger = 0.045;
     final k = stagger * (i > 6 ? 6 : i);
     final p = ((v - k) / (1 - k)).clamp(0.0, 1.0);
-    final e = Curves.easeOutCubic.transform(p);
+    // Линейно: кружок едет ровно за пальцем, без «быстрого старта»
+    final e = p;
     final ci = i < DvStoriesCompact.maxCircles
         ? i
         : DvStoriesCompact.maxCircles - 1;
@@ -221,7 +222,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
       child: Transform.scale(
         scale: scale,
         alignment: Alignment.topLeft,
-        child: Opacity(opacity: (v * 10).clamp(0.0, 1.0) * dim, child: bubble),
+        child: Opacity(opacity: (v * 300).clamp(0.0, 1.0) * dim, child: bubble),
       ),
     );
   }
@@ -332,7 +333,8 @@ class DvStoriesCompact extends StatelessWidget {
       valueListenable: DvStories.reveal,
       builder: (context, reveal, _) {
         return Opacity(
-          opacity: (1 - reveal * 10).clamp(0.0, 1.0),
+          // Как только ряд пошёл, стопка в углу гаснет сразу: её заменяют те же кружки, но уже летящие
+          opacity: reveal > 0.003 ? 0.0 : 1.0,
           child: IgnorePointer(
             ignoring: reveal > 0.3,
             child: ValueListenableBuilder<DvStoriesFeed?>(
