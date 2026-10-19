@@ -85,9 +85,9 @@ Future<void> _addStory(BuildContext context, Client client) async {
           )
         : await picker.pickImage(
             source: source,
-            maxWidth: 1280,
+            maxWidth: 1080,
             maxHeight: 1920,
-            imageQuality: 85,
+            imageQuality: 78,
           );
   } catch (e) {
     snack('Не удалось выбрать файл: $e');

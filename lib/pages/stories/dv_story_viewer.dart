@@ -40,6 +40,8 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   Uint8List? _photo;
   VideoPlayerController? _video;
   bool _loading = true;
+  bool _fetching = false;
+  Timer? _spinner;
   bool _failed = false;
   bool _holding = false;
   bool _sheetOpen = false;
@@ -54,7 +56,6 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _group = widget.startGroup.clamp(0, widget.groups.length - 1);
     _item = _g.startIndex;
     _progress = AnimationController(vsync: this)
@@ -66,30 +67,64 @@ class _DvStoryViewerState extends State<DvStoryViewer>
 
   @override
   void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _spinner?.cancel();
     _progress.dispose();
     _video?.dispose();
+    // Кольца в списке обновляем один раз после выхода, а не после каждой сторис
+    WidgetsBinding.instance.addPostFrameCallback((_) => DvStories.touch());
     super.dispose();
+  }
+
+  /// Картинка под размер экрана: не держим в памяти лишние мегапиксели
+  ImageProvider _provider(Uint8List bytes) {
+    final w =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
+    return ResizeImage.resizeIfNeeded(w, null, MemoryImage(bytes));
+  }
+
+  /// Пока смотрят эту сторис, тихо скачиваем и готовим следующую
+  Future<void> _prefetch() async {
+    DvStory? next;
+    if (_item + 1 < _g.items.length) {
+      next = _g.items[_item + 1];
+    } else if (!_isMine && _group + 1 < widget.groups.length) {
+      final g = widget.groups[_group + 1];
+      next = g.items[g.startIndex];
+    }
+    if (next == null) return;
+    try {
+      final bytes = await DvStories.bytes(widget.client, next.mxc);
+      if (!next.isVideo && mounted) {
+        await precacheImage(_provider(bytes), context);
+      }
+    } catch (_) {}
   }
 
   Future<void> _show() async {
     final token = ++_token;
     _progress.stop();
-    final old = _video;
-    _video = null;
-    _photo = null;
-    unawaited(old?.dispose());
-    setState(() {
-      _loading = true;
-      _failed = false;
+    _progress.value = 0;
+    _video?.pause();
+    _fetching = true;
+    _failed = false;
+    // Предыдущая картинка остаётся на экране; крутилку показываем,
+    // только если загрузка затянулась
+    _spinner?.cancel();
+    _spinner = Timer(const Duration(milliseconds: 450), () {
+      if (mounted && token == _token && _fetching) {
+        setState(() => _loading = true);
+      }
     });
+    setState(() {});
     final story = _s;
     try {
       final bytes = await DvStories.bytes(widget.client, story.mxc);
       if (!mounted || token != _token) return;
       Duration length = const Duration(seconds: 5);
+      VideoPlayerController? controller;
       if (story.isVideo) {
-        final VideoPlayerController controller;
         if (kIsWeb) {
           controller = VideoPlayerController.networkUrl(
             Uri.dataFromBytes(bytes, mimeType: 'video/mp4'),
@@ -105,7 +140,6 @@ class _DvStoryViewerState extends State<DvStoryViewer>
           unawaited(controller.dispose());
           return;
         }
-        _video = controller;
         final d = controller.value.duration;
         if (d > Duration.zero) {
           length = d > const Duration(seconds: 10)
@@ -113,25 +147,34 @@ class _DvStoryViewerState extends State<DvStoryViewer>
               : d;
         }
         await controller.setLooping(false);
-        if (!_paused) await controller.play();
       } else {
-        _photo = bytes;
+        // Картинку декодируем заранее, чтобы смена была без паузы
+        await precacheImage(_provider(bytes), context);
+        if (!mounted || token != _token) return;
       }
+      _spinner?.cancel();
+      final old = _video;
+      setState(() {
+        _video = controller;
+        _photo = story.isVideo ? null : bytes;
+        _loading = false;
+        _fetching = false;
+      });
+      unawaited(old?.dispose());
+      if (controller != null && !_paused) unawaited(controller.play());
       _progress.duration = length;
-      setState(() => _loading = false);
-      if (!_paused) {
-        unawaited(_progress.forward(from: 0));
-      } else {
-        _progress.value = 0;
-      }
+      if (!_paused) unawaited(_progress.forward(from: 0));
       if (!_isMine && !story.seen) {
         unawaited(DvStories.markSeen(widget.client, story));
       }
+      unawaited(_prefetch());
     } catch (e, s) {
       Logs().w('DVChat: не удалось показать сторис', e, s);
       if (!mounted || token != _token) return;
+      _spinner?.cancel();
       setState(() {
         _loading = false;
+        _fetching = false;
         _failed = true;
       });
     }
@@ -171,7 +214,7 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   }
 
   void _resume() {
-    if (_paused || _loading || _failed) return;
+    if (_paused || _loading || _fetching || _failed) return;
     _video?.play();
     if (_progress.duration != null) unawaited(_progress.forward());
   }
@@ -316,12 +359,13 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     }
     final photo = _photo;
     if (photo == null) return const SizedBox.shrink();
-    return Image.memory(
-      photo,
+    return Image(
+      image: _provider(photo),
       fit: BoxFit.contain,
       width: double.infinity,
       height: double.infinity,
       filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
     );
   }
 
@@ -536,70 +580,75 @@ class _DvStoryViewerState extends State<DvStoryViewer>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      // Stack на весь экран: без этого он сжимался до высоты шапки, фото и
-      // область нажатий становились крошечными
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: LayoutBuilder(
-              builder: (context, box) => GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (d) =>
-                    d.localPosition.dx < box.maxWidth / 3 ? _prev() : _next(),
-                onLongPressStart: (_) {
-                  if (_isMine) {
-                    _holding = true;
-                    _pause();
-                  } else {
-                    _openPanel();
-                  }
-                },
-                onLongPressEnd: (_) {
-                  if (_holding) {
-                    _holding = false;
-                    _resume();
-                  }
-                },
-                onVerticalDragEnd: (d) {
-                  if ((d.primaryVelocity ?? 0) > 300) {
-                    Navigator.of(context).maybePop();
-                  }
-                },
-                child: _content(),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [_bars(), const SizedBox(height: 8), _header()],
+    // Системные панели не прячем (иначе список под просмотром перестраивается и
+    // моргает при выходе), только делаем значки светлыми на чёрном
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        // Stack на весь экран: без этого он сжимался до высоты шапки, фото и
+        // область нажатий становились крошечными
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, box) => GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (d) =>
+                      d.localPosition.dx < box.maxWidth / 3 ? _prev() : _next(),
+                  onLongPressStart: (_) {
+                    if (_isMine) {
+                      _holding = true;
+                      _pause();
+                    } else {
+                      _openPanel();
+                    }
+                  },
+                  onLongPressEnd: (_) {
+                    if (_holding) {
+                      _holding = false;
+                      _resume();
+                    }
+                  },
+                  onVerticalDragEnd: (d) {
+                    if ((d.primaryVelocity ?? 0) > 300) {
+                      Navigator.of(context).maybePop();
+                    }
+                  },
+                  child: _content(),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: _bottom(),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [_bars(), const SizedBox(height: 8), _header()],
+                  ),
+                ),
               ),
             ),
-          ),
-          if (_burst != null) _burstView(_burst!),
-          if (_panel) _panelView(),
-        ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: _bottom(),
+                ),
+              ),
+            ),
+            if (_burst != null) _burstView(_burst!),
+            if (_panel) _panelView(),
+          ],
+        ),
       ),
     );
   }

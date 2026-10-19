@@ -200,8 +200,8 @@ class DvStories {
   }
 
   static Future<void> markSeen(Client client, DvStory story) async {
+    // Список перерисуется один раз, когда закроют просмотр (touch в просмотрщике)
     story.seen = true;
-    touch();
     try {
       await _api(client).post('view', {'id': story.id});
     } catch (e) {
@@ -255,7 +255,7 @@ class DvStories {
     int? height;
     int? duration;
     if (video) {
-      final info = await picked.getVideoInfo();
+      final info = await picked.getVideoInfo(small: true);
       duration = info.duration;
       if (duration != null && duration > 10500) {
         throw const DvApiException(
@@ -318,7 +318,7 @@ class DvStories {
     if (response.statusCode != 200) {
       throw Exception('Файл сторис недоступен (${response.statusCode})');
     }
-    if (_bytesCache.length >= 8) _bytesCache.remove(_bytesCache.keys.first);
+    if (_bytesCache.length >= 12) _bytesCache.remove(_bytesCache.keys.first);
     _bytesCache[key] = response.bodyBytes;
     return response.bodyBytes;
   }
