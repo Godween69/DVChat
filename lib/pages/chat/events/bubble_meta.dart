@@ -2,9 +2,12 @@
 
 // DVChat: время, «изменено», галочки и статус отправки внутри пузыря, справа внизу.
 
+import 'dart:async';
+
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/message_ticks.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/utils/dv_resend.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -48,14 +51,25 @@ class BubbleMeta extends StatelessWidget {
           const SizedBox(width: 3),
           MessageTicks(event: event, timeline: timeline, color: fg),
         ],
-        if (status == EventStatus.error) ...[
-          Text(
-            l10n.couldNotBeSent,
-            style: style.copyWith(color: theme.colorScheme.error),
+        if (status == EventStatus.error)
+          InkWell(
+            onTap: () => unawaited(DvResend.sheet(context, event)),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Не отправлено · повторить',
+                    style: style.copyWith(color: theme.colorScheme.error),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(Icons.refresh, size: 15, color: theme.colorScheme.error),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 3),
-          Icon(Icons.error_outlined, size: 13, color: theme.colorScheme.error),
-        ],
         if (status == EventStatus.sending) ...[
           Text(switch (event.fileSendingStatus) {
             null => l10n.sending,

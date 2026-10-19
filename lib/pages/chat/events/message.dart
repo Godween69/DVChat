@@ -246,7 +246,7 @@ class Message extends StatelessWidget {
         (event.status == EventStatus.sending
             ? 90
             : event.status == EventStatus.error
-            ? 110
+            ? 170
             : 30) +
         (isEdited ? 60 : 0) +
         (ownMessage ? 18 : 0);

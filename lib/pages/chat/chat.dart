@@ -24,6 +24,7 @@ import 'package:dvchat/utils/dv_admin.dart';
 import 'package:dvchat/utils/dv_confirm.dart';
 import 'package:dvchat/utils/dv_pins.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_resend.dart';
 import 'package:dvchat/utils/error_reporter.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/event_extension.dart';
@@ -1198,13 +1199,13 @@ class ChatController extends State<ChatPageWithRoom>
   void sendAgainAction() {
     final event = selectedEvents.first;
     if (event.status.isError) {
-      event.sendAgain();
+      unawaited(DvResend.retry(event, context: context));
     }
     final allEditEvents = event
         .aggregatedEvents(timeline!, RelationshipTypes.edit)
         .where((e) => e.status.isError);
     for (final e in allEditEvents) {
-      e.sendAgain();
+      unawaited(DvResend.retry(e));
     }
     setState(() => selectedEvents.clear());
   }

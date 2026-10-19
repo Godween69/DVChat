@@ -14,6 +14,7 @@ import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_resend.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
@@ -63,6 +64,13 @@ class _DvMainShellState extends State<DvMainShell> {
     super.initState();
     _page = DvMainShell.indexFor(widget.path) ?? 0;
     _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // DVChat: не ушедшие сообщения отправляются сами, когда появляется связь
+    DvResend.attach(Matrix.of(context).client);
   }
 
   @override
