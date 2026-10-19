@@ -159,7 +159,9 @@ class DvStories {
     if (_loading || client.accessToken == null) return;
     _loading = true;
     try {
-      final json = await _api(client).get('feed');
+      final json = await _api(
+        client,
+      ).get('feed').timeout(const Duration(seconds: 25));
       final mine = <DvStory>[];
       final rawMine = json['mine'];
       if (rawMine is List) {
@@ -289,7 +291,7 @@ class DvStories {
       filename: name,
       contentType: mime,
     );
-    await _api(client).post('publish', {
+    final res = await _api(client).post('publish', {
       'kind': video ? 'video' : 'photo',
       'mxc': uri.toString(),
       'width': width,
@@ -301,6 +303,35 @@ class DvStories {
           : {'mode': 'some', 'users': audience.users},
     });
     await refresh(client);
+    final aud = res['audience'];
+    if (aud is List) {
+      unawaited(_notifyFriends(client, aud.whereType<String>().toList()));
+    }
+  }
+
+  static final Map<String, int> _notified = {};
+
+  /// Друзьям уходит обычное сообщение в личный чат (оно шифруется и приходит уведомлением).
+  /// Одному и тому же другу не чаще раза в два часа, чтобы не засорять чаты.
+  static Future<void> _notifyFriends(Client client, List<String> users) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final u in users) {
+      final last = _notified[u] ?? 0;
+      if (now - last < 2 * 3600 * 1000) continue;
+      try {
+        final roomId = client.getDirectChatFromUserId(u);
+        final room = roomId == null ? null : client.getRoomById(roomId);
+        if (room == null || room.membership != Membership.join) continue;
+        _notified[u] = now;
+        await room.sendEvent({
+          'msgtype': 'm.text',
+          'body': '📸 Новая сторис',
+          'dv.story': true,
+        });
+      } catch (e) {
+        Logs().w('DVChat: не удалось уведомить о сторис', e);
+      }
+    }
   }
 
   // ---------- файлы и имена ----------

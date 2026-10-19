@@ -141,12 +141,12 @@ class _Geo {
   static const double stackBorder = 2;
 
   // Ряд под заголовком
-  static const double rowD = 54;
-  static const double rowCell = 64;
+  static const double rowD = 68;
+  static const double rowCell = 80;
   static const double rowPadX = 10;
   static const double rowPadY = 4;
-  static const double rowHeight = 84;
-  static const double rowAvatar = 44;
+  static const double rowHeight = 98;
+  static const double rowAvatar = 58;
   static const double rowBorder = 2.5;
 
   // Где ряд относительно стопки: заголовок 64 px, стопка 30 px по его центру
@@ -184,6 +184,7 @@ class DvStoriesStrip extends StatefulWidget {
 class _DvStoriesStripState extends State<DvStoriesStrip>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   Timer? _timer;
+  StreamSubscription<Event>? _sub;
   late final AnimationController _c;
 
   void _onPull() {
@@ -221,8 +222,14 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     DvStories.expanded.addListener(_settle);
     WidgetsBinding.instance.addPostFrameCallback((_) => _publish());
     unawaited(DvStories.refresh(widget.client));
+    // Уведомление друга о новой сторис: сразу обновляем ленту
+    _sub = widget.client.onTimelineEvent.stream.listen((e) {
+      if (e.senderId != widget.client.userID && e.content['dv.story'] == true) {
+        unawaited(DvStories.refresh(widget.client));
+      }
+    });
     _timer = Timer.periodic(
-      const Duration(seconds: 60),
+      const Duration(seconds: 30),
       (_) => DvStories.refresh(widget.client),
     );
   }
@@ -230,6 +237,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
   @override
   void dispose() {
     _timer?.cancel();
+    unawaited(_sub?.cancel());
     DvStories.pull.removeListener(_onPull);
     DvStories.expanded.removeListener(_settle);
     _c.dispose();
@@ -559,7 +567,7 @@ class _Bubble extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
           FutureBuilder<Profile>(
             initialData: DvStories.profileData[userId],
             future: DvStories.profile(client, userId),
@@ -570,7 +578,10 @@ class _Bubble extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall?.copyWith(fontSize: 11),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 12,
+                  height: 1.0,
+                ),
               ),
             ),
           ),

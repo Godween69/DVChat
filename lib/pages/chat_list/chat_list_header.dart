@@ -10,6 +10,7 @@ import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/chat_list/client_chooser_button.dart';
 import 'package:dvchat/utils/dv_dev_menu.dart';
+import 'package:dvchat/utils/dv_stories.dart';
 import 'package:dvchat/utils/sync_status_localization.dart';
 import 'package:dvchat/widgets/dv_stories_strip.dart';
 import 'package:material_ui/material_ui.dart';
@@ -78,13 +79,20 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => DvDevMenu.tap(context),
-                  child: Text(
-                    synced
-                        ? AppSettings.applicationName.value
-                        : status.calcLocalizedString(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleLarge,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: DvStories.reveal,
+                    builder: (context, reveal, child) => Opacity(
+                      opacity: (1 - reveal * 1.6).clamp(0.0, 1.0),
+                      child: child,
+                    ),
+                    child: Text(
+                      synced
+                          ? AppSettings.applicationName.value
+                          : status.calcLocalizedString(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge,
+                    ),
                   ),
                 ),
               ),
