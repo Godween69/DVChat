@@ -11,6 +11,7 @@ import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/chat_list/client_chooser_button.dart';
 import 'package:dvchat/utils/dv_dev_menu.dart';
 import 'package:dvchat/utils/sync_status_localization.dart';
+import 'package:dvchat/widgets/dv_stories_strip.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -67,24 +68,26 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 const SizedBox(width: 12),
               ],
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  // DVChat: 20 быстрых нажатий на заголовок открывают скрытое меню разработчика
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => DvDevMenu.tap(context),
-                    child: Text(
-                      synced
-                          ? AppSettings.applicationName.value
-                          : status.calcLocalizedString(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge,
-                    ),
+              Flexible(
+                // DVChat: 20 быстрых нажатий на заголовок открывают скрытое меню разработчика
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => DvDevMenu.tap(context),
+                  child: Text(
+                    synced
+                        ? AppSettings.applicationName.value
+                        : status.calcLocalizedString(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge,
                   ),
                 ),
               ),
+              if (synced) ...[
+                const SizedBox(width: 12),
+                DvStoriesCompact(client: client),
+              ],
+              const Spacer(),
             ],
           );
         },

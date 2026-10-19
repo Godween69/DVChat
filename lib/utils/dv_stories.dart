@@ -8,6 +8,12 @@ import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/resize_video.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show decodeImageFromList;
+import 'package:flutter/widgets.dart'
+    show
+        OverscrollNotification,
+        ScrollEndNotification,
+        ScrollNotification,
+        ScrollUpdateNotification;
 import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
 
@@ -87,6 +93,14 @@ class DvStoriesFeed {
   const DvStoriesFeed(this.mine, this.groups);
 }
 
+/// Кому показать сторис: всем друзьям или выбранным
+class DvAudience {
+  final bool all;
+  final List<String> users;
+  const DvAudience.all() : all = true, users = const [];
+  const DvAudience.some(this.users) : all = false;
+}
+
 /// Запись о том, кто посмотрел мою сторис
 class DvStoryWatcher {
   final String userId;
@@ -102,6 +116,27 @@ class DvStories {
   /// Последний полученный список; null, пока не загружали
   static final ValueNotifier<DvStoriesFeed?> feed = ValueNotifier(null);
   static bool _loading = false;
+
+  /// Раскрыта ли полоса сторис над списком чатов (потянули вниз)
+  static final ValueNotifier<bool> expanded = ValueNotifier(false);
+  static double _pull = 0;
+
+  /// Слушатель прокрутки списка чатов: потянул вниз у самого верха: раскрыть,
+  /// прокрутил список вверх: свернуть
+  static bool onListScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    if (n is OverscrollNotification) {
+      if (n.overscroll < 0 && n.metrics.pixels <= 0) {
+        _pull += -n.overscroll;
+        if (_pull > 36 && !expanded.value) expanded.value = true;
+      }
+    } else if (n is ScrollEndNotification) {
+      _pull = 0;
+    } else if (n is ScrollUpdateNotification) {
+      if (n.metrics.pixels > 24 && expanded.value) expanded.value = false;
+    }
+    return false;
+  }
 
   static DvApi _api(Client client) => DvApi(client, prefix: prefix);
 
@@ -199,6 +234,7 @@ class DvStories {
     Client client,
     XFile picked, {
     required bool video,
+    DvAudience audience = const DvAudience.all(),
   }) async {
     late final Uint8List bytes;
     late final String name;
@@ -245,7 +281,9 @@ class DvStories {
       'height': height,
       'duration_ms': duration,
       'caption': '',
-      'audience': {'mode': 'all'},
+      'audience': audience.all
+          ? {'mode': 'all'}
+          : {'mode': 'some', 'users': audience.users},
     });
     await refresh(client);
   }

@@ -16,6 +16,7 @@ import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:dvchat/widgets/closed_chat_notice.dart';
 import 'package:dvchat/widgets/dv_encryption_note.dart';
+import 'package:dvchat/utils/dv_stories.dart';
 import 'package:dvchat/widgets/dv_stories_strip.dart';
 import 'package:dvchat/widgets/dv_swipe_row.dart';
 import 'package:material_ui/material_ui.dart';
@@ -113,109 +114,112 @@ class ChatListViewBody extends StatelessWidget {
           ...blocked,
         ];
 
-        return CustomScrollView(
-          controller: controller.scrollController,
-          slivers: [
-            ChatListHeader(controller: controller),
-            if (client.prevBatch != null)
-              SliverToBoxAdapter(child: DvStoriesStrip(client: client)),
-            if (client.prevBatch != null && rooms.isEmpty)
-              SliverToBoxAdapter(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DummyChatListItem(opacity: 0.5, animate: false),
-                            DummyChatListItem(opacity: 0.3, animate: false),
-                          ],
-                        ),
-                        Icon(
-                          CupertinoIcons.chat_bubble_text_fill,
-                          size: 128,
-                          color: theme.colorScheme.secondary,
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        client.rooms.isEmpty
-                            ? 'Пока нет чатов'
-                            : L10n.of(context).noMoreChatsFound,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: theme.colorScheme.secondary,
-                        ),
+        return NotificationListener<ScrollNotification>(
+          onNotification: DvStories.onListScroll,
+          child: CustomScrollView(
+            controller: controller.scrollController,
+            slivers: [
+              ChatListHeader(controller: controller),
+              if (client.prevBatch != null)
+                SliverToBoxAdapter(child: DvStoriesStrip(client: client)),
+              if (client.prevBatch != null && rooms.isEmpty)
+                SliverToBoxAdapter(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              DummyChatListItem(opacity: 0.5, animate: false),
+                              DummyChatListItem(opacity: 0.3, animate: false),
+                            ],
+                          ),
+                          Icon(
+                            CupertinoIcons.chat_bubble_text_fill,
+                            size: 128,
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            if (client.prevBatch == null)
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) => DummyChatListItem(
-                    opacity: (dummyChatCount - i) / dummyChatCount,
-                    animate: true,
-                  ),
-                  childCount: dummyChatCount,
-                ),
-              ),
-            if (client.prevBatch != null)
-              SliverSafeArea(
-                top: false,
-                sliver: SliverList.builder(
-                  itemCount: entries.length,
-                  itemBuilder: (BuildContext context, int i) {
-                    final entry = entries[i];
-                    if (entry is String) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
                         child: Text(
-                          entry,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: entry == 'Заблокированные'
-                                ? theme.colorScheme.outline
-                                : theme.colorScheme.primary,
+                          client.rooms.isEmpty
+                              ? 'Пока нет чатов'
+                              : L10n.of(context).noMoreChatsFound,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: theme.colorScheme.secondary,
                           ),
                         ),
-                      );
-                    }
-                    final room = entry as Room;
-                    final item = ChatListItem(
-                      room,
-                      key: Key('chat_list_item_${room.id}'),
-                      filter: '',
-                      onTap: () => controller.onChatTap(room),
-                      onLongPress: (context) =>
-                          controller.chatContextAction(room, context),
-                      activeChat: controller.activeChat == room.id,
-                    );
-                    // DVChat: смахивание влево открывает плашку действия (настраивается)
-                    final row = room.membership == Membership.join
-                        ? DvSwipeRow(
-                            key: ValueKey('swipe_${room.id}'),
-                            rowId: room.id,
-                            actionBuilder: () =>
-                                controller.swipeActionFor(room),
-                            child: item,
-                          )
-                        : item;
-                    return isBlocked(room)
-                        ? Opacity(opacity: 0.45, child: row)
-                        : row;
-                  },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            if (client.prevBatch != null)
-              const SliverToBoxAdapter(child: DvEncryptionNote()),
-          ],
+              if (client.prevBatch == null)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => DummyChatListItem(
+                      opacity: (dummyChatCount - i) / dummyChatCount,
+                      animate: true,
+                    ),
+                    childCount: dummyChatCount,
+                  ),
+                ),
+              if (client.prevBatch != null)
+                SliverSafeArea(
+                  top: false,
+                  sliver: SliverList.builder(
+                    itemCount: entries.length,
+                    itemBuilder: (BuildContext context, int i) {
+                      final entry = entries[i];
+                      if (entry is String) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                          child: Text(
+                            entry,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: entry == 'Заблокированные'
+                                  ? theme.colorScheme.outline
+                                  : theme.colorScheme.primary,
+                            ),
+                          ),
+                        );
+                      }
+                      final room = entry as Room;
+                      final item = ChatListItem(
+                        room,
+                        key: Key('chat_list_item_${room.id}'),
+                        filter: '',
+                        onTap: () => controller.onChatTap(room),
+                        onLongPress: (context) =>
+                            controller.chatContextAction(room, context),
+                        activeChat: controller.activeChat == room.id,
+                      );
+                      // DVChat: смахивание влево открывает плашку действия (настраивается)
+                      final row = room.membership == Membership.join
+                          ? DvSwipeRow(
+                              key: ValueKey('swipe_${room.id}'),
+                              rowId: room.id,
+                              actionBuilder: () =>
+                                  controller.swipeActionFor(room),
+                              child: item,
+                            )
+                          : item;
+                      return isBlocked(room)
+                          ? Opacity(opacity: 0.45, child: row)
+                          : row;
+                    },
+                  ),
+                ),
+              if (client.prevBatch != null)
+                const SliverToBoxAdapter(child: DvEncryptionNote()),
+            ],
+          ),
         );
       },
     );

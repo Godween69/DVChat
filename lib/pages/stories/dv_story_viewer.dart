@@ -314,7 +314,13 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     }
     final photo = _photo;
     if (photo == null) return const SizedBox.shrink();
-    return Center(child: Image.memory(photo, fit: BoxFit.contain));
+    return Image.memory(
+      photo,
+      fit: BoxFit.contain,
+      width: double.infinity,
+      height: double.infinity,
+      filterQuality: FilterQuality.medium,
+    );
   }
 
   Widget _bars() {
