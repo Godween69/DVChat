@@ -33,11 +33,13 @@ class LizaStatus {
   final int used;
   final int? limit;
   final bool admin;
+  final int? tokens;
   const LizaStatus(
     this.access, {
     this.used = 0,
     this.limit,
     this.admin = false,
+    this.tokens,
   });
 }
 
@@ -48,16 +50,18 @@ class LizaChunk {
   final String? error;
   final int? used;
   final int? limit;
+  final int? tokens;
   const LizaChunk._({
     this.delta,
     this.done = false,
     this.error,
     this.used,
     this.limit,
+    this.tokens,
   });
   const LizaChunk.text(String text) : this._(delta: text);
-  const LizaChunk.finished({int? used, int? limit})
-    : this._(done: true, used: used, limit: limit);
+  const LizaChunk.finished({int? used, int? limit, int? tokens})
+    : this._(done: true, used: used, limit: limit, tokens: tokens);
   const LizaChunk.failed(String message) : this._(error: message);
 }
 
@@ -93,6 +97,7 @@ class LizaClient {
         used: (json['used'] as num?)?.toInt() ?? 0,
         limit: (json['limit'] as num?)?.toInt(),
         admin: json['admin'] == true,
+        tokens: (json['tokens'] as num?)?.toInt(),
       );
     } catch (_) {
       return const LizaStatus(LizaAccess.error);
@@ -144,6 +149,7 @@ class LizaClient {
           yield LizaChunk.finished(
             used: (json['used'] as num?)?.toInt(),
             limit: (json['limit'] as num?)?.toInt(),
+            tokens: (json['tok'] as num?)?.toInt(),
           );
         } else if (json['error'] != null) {
           yield LizaChunk.failed(

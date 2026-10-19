@@ -2,10 +2,14 @@
 
 // DVChat: чат с Лизой: ответ потоком, голосовой ввод, история на телефоне.
 
+import 'dart:async';
+
 import 'package:dvchat/pages/liza/liza_client.dart';
+import 'package:dvchat/pages/liza/liza_history.dart';
 import 'package:dvchat/pages/liza/liza_markdown.dart';
 import 'package:dvchat/pages/liza/liza_store.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart' show RenderBox, ScrollDirection;
 import 'package:flutter/widgets.dart' show CustomPaint, CustomPainter;
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart' show Client;
@@ -40,6 +44,8 @@ class _LizaChatState extends State<LizaChat> {
   final SpeechToText _speech = SpeechToText();
 
   final List<LizaMessage> _messages = [];
+  List<LizaConversation> _chats = [];
+  LizaConversation _current = LizaConversation.fresh();
   bool _busy = false;
   String _partial = '';
   String? _error;
@@ -50,6 +56,17 @@ class _LizaChatState extends State<LizaChat> {
   String _beforeSpeech = '';
   String _lastWords = '';
   final List<double> _levels = [];
+  final ValueNotifier<int> _tick = ValueNotifier<int>(0);
+  Timer? _waveTimer;
+  double _level = 0;
+  double _smooth = 0;
+  String _prevFinal = '';
+  bool _discardSpeech = false;
+  int? _tokens;
+  final GlobalKey _qKey = GlobalKey();
+  final GlobalKey _listKey = GlobalKey();
+  final ValueNotifier<bool> _showUp = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _showDown = ValueNotifier<bool>(false);
 
   String get _userId => widget.client.userID ?? '';
 
@@ -58,29 +75,111 @@ class _LizaChatState extends State<LizaChat> {
     super.initState();
     _used = widget.status.used;
     _limit = widget.status.admin ? null : widget.status.limit;
+    _tokens = widget.status.tokens;
+    _scroll.addListener(_updateButtons);
     _load();
   }
 
   @override
   void dispose() {
     _speech.cancel();
+    _waveTimer?.cancel();
+    _tick.dispose();
+    _showUp.dispose();
+    _showDown.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    final saved = await LizaStore.load(_userId);
+    final saved = await LizaStore.loadAll(_userId);
     if (!mounted) return;
     setState(() {
-      _messages
-        ..clear()
-        ..addAll(saved);
+      _chats = saved;
+      if (saved.isNotEmpty) {
+        _current = saved.first;
+        _messages
+          ..clear()
+          ..addAll(_current.messages);
+      }
     });
     _scrollToEnd(force: true);
   }
 
-  Future<void> _save() => LizaStore.save(_userId, _messages);
+  /// Записывает текущий разговор в историю на телефоне
+  Future<void> _save() async {
+    if (_messages.isEmpty) return;
+    final tail = _messages.length > LizaStore.maxMessages
+        ? _messages.sublist(_messages.length - LizaStore.maxMessages)
+        : List.of(_messages);
+    _current
+      ..messages = tail
+      ..updated = DateTime.now().millisecondsSinceEpoch;
+    if (_current.title.isEmpty) _current.title = LizaStore.titleOf(tail);
+    if (!_chats.any((c) => c.id == _current.id)) _chats.insert(0, _current);
+    await LizaStore.saveAll(_userId, _chats);
+  }
+
+  void _resetView(LizaConversation chat) {
+    _current = chat;
+    _messages
+      ..clear()
+      ..addAll(chat.messages);
+    _partial = '';
+    _error = null;
+  }
+
+  /// «+»: новый разговор, прошлый остаётся в истории
+  void _newChat() {
+    if (_busy || _messages.isEmpty) return;
+    setState(() => _resetView(LizaConversation.fresh()));
+    _updateButtons();
+  }
+
+  Future<void> _deleteChat(String id) async {
+    _chats.removeWhere((c) => c.id == id);
+    await LizaStore.saveAll(_userId, _chats);
+    if (id == _current.id && mounted) {
+      setState(() => _resetView(LizaConversation.fresh()));
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    _chats.clear();
+    await LizaStore.clear(_userId);
+    if (mounted) setState(() => _resetView(LizaConversation.fresh()));
+  }
+
+  Future<void> _openHistory() async {
+    if (_busy) return;
+    final id = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => LizaHistoryPage(
+          chats: _chats,
+          currentId: _current.id,
+          onDelete: _deleteChat,
+          onClear: _clearHistory,
+        ),
+      ),
+    );
+    if (id == null || !mounted) return;
+    final chat = _chats.where((c) => c.id == id).firstOrNull;
+    if (chat == null) return;
+    setState(() => _resetView(chat));
+    _scrollToEnd(force: true);
+  }
+
+  void _openInfo() =>
+      showLizaInfo(context, used: _used, limit: _limit, tokens: _tokens);
+
+  String _usageLine() {
+    final first = _limit == null
+        ? 'Сегодня запросов: $_used'
+        : 'Сегодня: $_used из $_limit запросов';
+    final t = _tokens;
+    return t == null ? first : '$first · ${lizaSpaced(t)} токенов';
+  }
 
   void _toast(String text) {
     if (!mounted) return;
@@ -97,6 +196,82 @@ class _LizaChatState extends State<LizaChat> {
     });
   }
 
+  /// Верх вопроса относительно списка (null, если вопрос сейчас не нарисован)
+  double? _questionTop() {
+    final q = _qKey.currentContext?.findRenderObject();
+    final l = _listKey.currentContext?.findRenderObject();
+    if (q is RenderBox && l is RenderBox && q.attached && l.attached) {
+      return q.localToGlobal(Offset.zero, ancestor: l).dy;
+    }
+    return null;
+  }
+
+  /// Вопрос ставим к верхнему краю, ответ растёт под ним, как в ChatGPT
+  void _follow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      if (pos.userScrollDirection != ScrollDirection.idle) return;
+      final top = _questionTop();
+      var target = pos.maxScrollExtent;
+      if (top != null) {
+        if (top <= 8) {
+          _updateButtons();
+          return;
+        }
+        target = (pos.pixels + top - 8)
+            .clamp(0.0, pos.maxScrollExtent)
+            .toDouble();
+      }
+      _scroll.jumpTo(target);
+      _updateButtons();
+    });
+  }
+
+  void _updateButtons() {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    _showDown.value = pos.maxScrollExtent - pos.pixels > 160;
+    var up = false;
+    if (_messages.any((m) => m.isUser)) {
+      final top = _questionTop();
+      up = top == null ? pos.pixels > 0 : top < -20;
+    }
+    _showUp.value = up;
+  }
+
+  Future<void> _toQuestion() async {
+    for (var i = 0; i < 40; i++) {
+      final ctx = _qKey.currentContext;
+      if (ctx != null) {
+        await Scrollable.ensureVisible(
+          ctx,
+          alignment: 0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+        return;
+      }
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      _scroll.jumpTo(
+        (pos.pixels - pos.viewportDimension * 0.8)
+            .clamp(0.0, pos.maxScrollExtent)
+            .toDouble(),
+      );
+      await WidgetsBinding.instance.endOfFrame;
+    }
+  }
+
+  Future<void> _toEnd() async {
+    if (!_scroll.hasClients) return;
+    await _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
   // ---------- отправка ----------
 
   Future<void> _send() => _sendText(_input.text);
@@ -104,10 +279,14 @@ class _LizaChatState extends State<LizaChat> {
   Future<void> _sendText(String raw) async {
     final text = raw.trim();
     if (text.isEmpty || _busy) return;
-    if (_listening) {
-      await _speech.stop();
-      _listening = false;
-    }
+    // Диктовку обрываем и запоздалые слова от неё отбрасываем, поле очищаем
+    _discardSpeech = true;
+    _beforeSpeech = '';
+    _lastWords = '';
+    try {
+      await _speech.cancel();
+    } catch (_) {}
+    _listening = false;
     _input.clear();
     setState(() => _messages.add(LizaMessage(text: text, isUser: true)));
     await _save();
@@ -120,7 +299,7 @@ class _LizaChatState extends State<LizaChat> {
       _partial = '';
       _error = null;
     });
-    _scrollToEnd(force: true);
+    _follow();
     final buffer = StringBuffer();
     String? error;
     var done = false;
@@ -129,11 +308,13 @@ class _LizaChatState extends State<LizaChat> {
       if (chunk.delta != null) {
         buffer.write(chunk.delta);
         setState(() => _partial = buffer.toString());
-        _scrollToEnd();
+        _follow();
       } else if (chunk.done) {
         done = true;
         final used = chunk.used;
         if (used != null) _used = used;
+        final tok = chunk.tokens;
+        if (tok != null) _tokens = tok;
         if (!widget.status.admin) _limit = chunk.limit ?? _limit;
       } else if (chunk.error != null) {
         error = chunk.error;
@@ -155,42 +336,13 @@ class _LizaChatState extends State<LizaChat> {
         _error = 'Сеть сейчас перегружена. Попробуйте позже.';
       }
     });
-    _scrollToEnd(force: true);
+    _updateButtons();
     if (text.isNotEmpty) await _save();
   }
 
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     _toast('Скопировано');
-  }
-
-  Future<void> _confirmNew() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Новый разговор?'),
-        content: const Text(
-          'Переписка с Лизой на этом телефоне будет удалена.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Начать заново'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    setState(() {
-      _messages.clear();
-      _partial = '';
-      _error = null;
-    });
-    await LizaStore.clear(_userId);
   }
 
   // ---------- голос ----------
@@ -251,8 +403,12 @@ class _LizaChatState extends State<LizaChat> {
         : '${_input.text.trimRight()} ';
     _lastWords = '';
     _levels.clear();
+    _discardSpeech = false;
+    _level = 0;
+    _smooth = 0;
     if (!mounted) return;
     setState(() => _listening = true);
+    _startWave();
     await _speech.listen(
       onResult: _onSpeechResult,
       onSoundLevelChange: _onSoundLevel,
@@ -267,18 +423,35 @@ class _LizaChatState extends State<LizaChat> {
     );
   }
 
-  void _onSoundLevel(double level) {
-    if (!_listening || !mounted) return;
-    final v = ((level + 2) / 12).clamp(0.0, 1.0).toDouble();
-    setState(() {
-      _levels.add(v);
+  /// Палочки добавляем по таймеру (≈8 в секунду), чат при этом не перерисовывается
+  void _startWave() {
+    _waveTimer?.cancel();
+    _waveTimer = Timer.periodic(const Duration(milliseconds: 130), (t) {
+      if (!_listening || !mounted) {
+        t.cancel();
+        return;
+      }
+      _smooth += (_level - _smooth) * 0.6;
+      _levels.add(_smooth);
       if (_levels.length > 80) _levels.removeAt(0);
+      _tick.value++;
     });
   }
 
+  void _onSoundLevel(double level) {
+    _level = ((level + 2) / 12).clamp(0.0, 1.0).toDouble();
+  }
+
   void _onSpeechResult(SpeechRecognitionResult result) {
+    if (_discardSpeech) return;
     // Переводы строк и лишние пробелы из распознанного убираем: поле не должно расти
     final words = result.recognizedWords.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Распознаватель иногда присылает заново результат прошлой диктовки: пропускаем
+    if (_lastWords.isEmpty &&
+        words.isNotEmpty &&
+        words.toLowerCase() == _prevFinal.toLowerCase()) {
+      return;
+    }
     // На паузе распознаватель начинает новую фразу, и слова обнуляются.
     // Тогда прошлую фразу оставляем в поле, а новую дописываем после неё.
     if (_lastWords.isNotEmpty &&
@@ -293,7 +466,10 @@ class _LizaChatState extends State<LizaChat> {
       selection: TextSelection.collapsed(offset: text.length),
     );
     if (result.finalResult) {
-      if (words.isNotEmpty) _beforeSpeech = '$_beforeSpeech$words ';
+      if (words.isNotEmpty) {
+        _beforeSpeech = '$_beforeSpeech$words ';
+        _prevFinal = words;
+      }
       _lastWords = '';
       if (mounted) setState(() => _listening = false);
     }
@@ -314,13 +490,26 @@ class _LizaChatState extends State<LizaChat> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          tooltip: 'История',
+          icon: const Icon(Icons.history),
+          onPressed: _busy ? null : _openHistory,
+        ),
         centerTitle: true,
         title: const Text('Лиза'),
         actions: [
           IconButton(
-            tooltip: 'Новый разговор',
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _busy ? null : _confirmNew,
+            tooltip: 'О Лизе',
+            icon: const Icon(Icons.info_outline),
+            onPressed: _openInfo,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton.filled(
+              tooltip: 'Новый разговор',
+              icon: const Icon(Icons.add),
+              onPressed: _busy || _messages.isEmpty ? null : _newChat,
+            ),
           ),
         ],
       ),
@@ -335,21 +524,68 @@ class _LizaChatState extends State<LizaChat> {
   }
 
   Widget _buildList(BuildContext context) {
-    return ListView.builder(
-      controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      itemCount: 1 + _messages.length + (_busy ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i == 0) return _welcome(context);
-        final index = i - 1;
-        if (index < _messages.length) {
-          final m = _messages[index];
-          return m.isUser
-              ? _userBubble(context, m.text)
-              : _lisaBubble(context, m.text);
-        }
-        return _lisaBubble(context, _partial, typing: true);
-      },
+    final lastUser = _messages.lastIndexWhere((m) => m.isUser);
+    return Stack(
+      children: [
+        ListView.builder(
+          key: _listKey,
+          controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          itemCount: 1 + _messages.length + (_busy ? 1 : 0),
+          itemBuilder: (context, i) {
+            if (i == 0) return _welcome(context);
+            final index = i - 1;
+            if (index < _messages.length) {
+              final m = _messages[index];
+              if (m.isUser) {
+                final bubble = _userBubble(context, m.text);
+                return index == lastUser
+                    ? KeyedSubtree(key: _qKey, child: bubble)
+                    : bubble;
+              }
+              return _lisaBubble(context, m.text);
+            }
+            return _lisaBubble(context, _partial, typing: true);
+          },
+        ),
+        Positioned(
+          right: 12,
+          bottom: 12,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _jumpButton(
+                _showUp,
+                Icons.keyboard_arrow_up,
+                'К моему вопросу',
+                _toQuestion,
+              ),
+              _jumpButton(_showDown, Icons.keyboard_arrow_down, 'Вниз', _toEnd),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _jumpButton(
+    ValueNotifier<bool> visible,
+    IconData icon,
+    String tip,
+    VoidCallback onTap,
+  ) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: visible,
+      builder: (context, show, _) => show
+          ? Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: IconButton.filledTonal(
+                tooltip: tip,
+                icon: Icon(icon),
+                onPressed: onTap,
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 
@@ -502,11 +738,11 @@ class _LizaChatState extends State<LizaChat> {
                   ),
                 ),
               )
-            else if (_limit != null)
+            else if (_limit != null || _tokens != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'Сегодня: $_used из $_limit запросов',
+                  _usageLine(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
@@ -521,6 +757,7 @@ class _LizaChatState extends State<LizaChat> {
                   child: _listening
                       ? _WaveBar(
                           levels: _levels,
+                          tick: _tick,
                           color: theme.colorScheme.error,
                         )
                       : TextField(
@@ -607,11 +844,17 @@ class _LizaChatState extends State<LizaChat> {
   }
 }
 
-/// Бегущая строка из палочек, пока идёт диктовка (как в голосовых сообщениях)
+/// Бегущая строка из палочек, пока идёт диктовка (как в голосовых сообщениях).
+/// Перерисовывается только она сама, чат вокруг не трогается.
 class _WaveBar extends StatelessWidget {
-  const _WaveBar({required this.levels, required this.color});
+  const _WaveBar({
+    required this.levels,
+    required this.tick,
+    required this.color,
+  });
 
   final List<double> levels;
+  final Listenable tick;
   final Color color;
 
   @override
@@ -625,14 +868,14 @@ class _WaveBar extends StatelessWidget {
       ),
       child: CustomPaint(
         size: const Size(double.infinity, 52),
-        painter: _WavePainter(List.of(levels), color),
+        painter: _WavePainter(levels, tick, color),
       ),
     );
   }
 }
 
 class _WavePainter extends CustomPainter {
-  _WavePainter(this.levels, this.color);
+  _WavePainter(this.levels, Listenable tick, this.color) : super(repaint: tick);
 
   final List<double> levels;
   final Color color;

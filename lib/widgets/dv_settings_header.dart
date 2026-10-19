@@ -30,15 +30,21 @@ class DvSettingsHeader extends StatelessWidget {
 
   static const double avatarSize = 64;
 
+  /// Последний загруженный профиль: пока грузится свежий, показываем прошлый,
+  /// а не пустую аватарку с буквами (иначе она «моргает»)
+  static final Map<String, Profile> _profileCache = {};
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final client = Matrix.of(context).client;
     final mxid = client.userID ?? L10n.of(context).user;
     return FutureBuilder<Profile>(
+      initialData: _profileCache[client.userID ?? ''],
       future: profileFuture,
       builder: (context, profileSnapshot) {
         final profile = profileSnapshot.data;
+        if (profile != null) _profileCache[client.userID ?? ''] = profile;
         final displayname = profile?.displayName ?? mxid.localpart ?? mxid;
         return FutureBuilder<String>(
           initialData: DvApi.cachedId(client),
