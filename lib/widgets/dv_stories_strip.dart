@@ -228,7 +228,9 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
   }
 
   Widget _row(DvStoriesFeed? feed, double v) {
-    final from = _compactPos();
+    // Стопка в заголовке: слева 16 px (отступ заголовка), по высоте на 47 px выше ряда
+    // (заголовок 64 px, стопка 30 px по центру, плюс 4 px отступа ряда)
+    const from = Offset(16, -47);
     final me = widget.client.userID ?? '';
     final mine = feed?.mine ?? const <DvStory>[];
     final groups = feed?.groups ?? const <DvStoryGroup>[];
