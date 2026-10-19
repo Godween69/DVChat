@@ -167,6 +167,7 @@ class _DvStoryViewerState extends State<DvStoryViewer>
       if (!_isMine && !story.seen) {
         unawaited(DvStories.markSeen(widget.client, story));
       }
+      if (_isMine) unawaited(_syncCounts(story));
       unawaited(_prefetch());
     } catch (e, s) {
       Logs().w('DVChat: не удалось показать сторис', e, s);
@@ -320,6 +321,19 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     );
     _sheetOpen = false;
     _resume();
+    unawaited(_syncCounts(_s));
+  }
+
+  /// Свежие числа просмотров и реакций своей сторис (из списка зрителей на сервере)
+  Future<void> _syncCounts(DvStory story) async {
+    try {
+      final list = await DvStories.viewers(widget.client, story);
+      story.views = list.length;
+      story.reactions = list.where((v) => v.reaction != null).length;
+      if (mounted) setState(() {});
+    } catch (_) {
+      // Числа необязательны: останутся прежними
+    }
   }
 
   Future<void> _react(String emoji) async {

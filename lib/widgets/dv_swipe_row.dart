@@ -209,23 +209,30 @@ class _DvSwipeRowState extends State<DvSwipeRow>
 }
 
 /// Горизонтальное перетаскивание, которое принимает жест только при движении влево
-/// (или вправо, если плашка уже открыта). Иначе жест достаётся листанию вкладок.
+/// (или вправо, если плашка уже открыта). Забирает жест раньше, чем листание вкладок
+/// (через 10 px), но только если движение в основном горизонтальное: прокрутка списка
+/// вверх-вниз остаётся как была.
 class _LeftDragRecognizer extends HorizontalDragGestureRecognizer {
   _LeftDragRecognizer({required this.enabled, required this.allowRight});
 
   final bool Function() enabled;
   final bool Function() allowRight;
   double _sum = 0;
+  double _sumY = 0;
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
     _sum = 0;
+    _sumY = 0;
     super.addAllowedPointer(event);
   }
 
   @override
   void handleEvent(PointerEvent event) {
-    if (event is PointerMoveEvent) _sum += event.delta.dx;
+    if (event is PointerMoveEvent) {
+      _sum += event.delta.dx;
+      _sumY += event.delta.dy;
+    }
     super.handleEvent(event);
   }
 
@@ -233,11 +240,9 @@ class _LeftDragRecognizer extends HorizontalDragGestureRecognizer {
   bool hasSufficientGlobalDistanceToAccept(
     PointerDeviceKind pointerDeviceKind,
     double? deviceTouchSlop,
-  ) =>
-      enabled() &&
-      (_sum < 0 || allowRight()) &&
-      super.hasSufficientGlobalDistanceToAccept(
-        pointerDeviceKind,
-        deviceTouchSlop,
-      );
+  ) {
+    if (!enabled()) return false;
+    final rightWay = _sum < 0 || (allowRight() && _sum > 0);
+    return rightWay && _sum.abs() > 10 && _sum.abs() > _sumY.abs() * 2;
+  }
 }

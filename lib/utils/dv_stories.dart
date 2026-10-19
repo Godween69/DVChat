@@ -133,7 +133,10 @@ class DvStories {
   static bool onListScroll(ScrollNotification n) {
     if (n.depth != 0) return false;
     if (n is OverscrollNotification) {
-      if (!expanded.value && n.overscroll < 0 && n.metrics.pixels <= 0) {
+      if (n.overscroll > 0 && expanded.value) {
+        // Потянули вверх до упора (короткий список): сворачиваем
+        expanded.value = false;
+      } else if (!expanded.value && n.overscroll < 0 && n.metrics.pixels <= 0) {
         _pullPx += -n.overscroll;
         pull.value = (_pullPx / _pullFull).clamp(0.0, 1.0);
       }
