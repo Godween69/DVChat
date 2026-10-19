@@ -47,6 +47,7 @@ class _LizaChatState extends State<LizaChat> {
   bool _speechReady = false;
   bool _listening = false;
   String _beforeSpeech = '';
+  String _lastWords = '';
 
   String get _userId => widget.client.userID ?? '';
 
@@ -149,7 +150,7 @@ class _LizaChatState extends State<LizaChat> {
       } else if (error != null) {
         _error = error;
       } else if (text.isEmpty) {
-        _error = 'Лиза не ответила, попробуй ещё раз';
+        _error = 'Сеть сейчас перегружена. Попробуйте позже.';
       }
     });
     _scrollToEnd(force: true);
@@ -246,6 +247,7 @@ class _LizaChatState extends State<LizaChat> {
     _beforeSpeech = _input.text.trim().isEmpty
         ? ''
         : '${_input.text.trimRight()} ';
+    _lastWords = '';
     if (!mounted) return;
     setState(() => _listening = true);
     await _speech.listen(
@@ -262,12 +264,34 @@ class _LizaChatState extends State<LizaChat> {
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {
-    final text = '$_beforeSpeech${result.recognizedWords}';
+    // Переводы строк и лишние пробелы из распознанного убираем: поле не должно расти
+    final words = result.recognizedWords.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // На паузе распознаватель начинает новую фразу, и слова обнуляются.
+    // Тогда прошлую фразу оставляем в поле, а новую дописываем после неё.
+    if (_lastWords.isNotEmpty &&
+        words.isNotEmpty &&
+        !_sameUtterance(_lastWords, words)) {
+      _beforeSpeech = '$_beforeSpeech$_lastWords ';
+    }
+    _lastWords = words;
+    final text = '$_beforeSpeech$words';
     _input.value = TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: text.length),
     );
-    if (result.finalResult && mounted) setState(() => _listening = false);
+    if (result.finalResult) {
+      if (words.isNotEmpty) _beforeSpeech = '$_beforeSpeech$words ';
+      _lastWords = '';
+      if (mounted) setState(() => _listening = false);
+    }
+  }
+
+  /// Новые слова продолжают (или уточняют) прошлые, а не начинают другую фразу
+  bool _sameUtterance(String prev, String next) {
+    final a = prev.toLowerCase();
+    final b = next.toLowerCase();
+    if (b.startsWith(a) || a.startsWith(b)) return true;
+    return a.split(' ').first == b.split(' ').first;
   }
 
   // ---------- внешний вид ----------
@@ -476,7 +500,10 @@ class _LizaChatState extends State<LizaChat> {
                 ),
               ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                _micButton(theme),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _input,
@@ -500,19 +527,21 @@ class _LizaChatState extends State<LizaChat> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Стрелка отправки всегда на одном месте справа, пока пусто или Лиза думает: серая
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _input,
-                  builder: (context, value, _) => value.text.trim().isEmpty
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: IconButton.filled(
-                            onPressed: _busy ? null : _send,
-                            icon: const Icon(Icons.send),
-                          ),
-                        ),
+                  builder: (context, value, _) {
+                    final canSend = value.text.trim().isNotEmpty && !_busy;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: IconButton.filled(
+                        onPressed: canSend ? _send : null,
+                        tooltip: 'Отправить',
+                        icon: const Icon(Icons.arrow_upward),
+                      ),
+                    );
+                  },
                 ),
-                _micButton(theme),
               ],
             ),
           ],
@@ -531,8 +560,8 @@ class _LizaChatState extends State<LizaChat> {
         onTap: _busy ? null : _toggleListening,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: 64,
-          height: 64,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: color,
@@ -548,7 +577,7 @@ class _LizaChatState extends State<LizaChat> {
           ),
           child: Icon(
             active ? Icons.stop : Icons.mic,
-            size: 32,
+            size: 28,
             color: active
                 ? theme.colorScheme.onError
                 : theme.colorScheme.onPrimary,

@@ -116,7 +116,7 @@ class LizaClient {
           .timeout(const Duration(seconds: 60));
       if (response.statusCode != 200) {
         final body = await response.stream.bytesToString();
-        var message = 'Ошибка ${response.statusCode}';
+        var message = 'Сеть сейчас перегружена. Попробуйте позже.';
         try {
           final json = jsonDecode(body);
           if (json is Map && json['message'] is String) {
@@ -147,12 +147,15 @@ class LizaClient {
           );
         } else if (json['error'] != null) {
           yield LizaChunk.failed(
-            json['message']?.toString() ?? 'Лиза сейчас недоступна',
+            json['message']?.toString() ??
+                'Сеть сейчас перегружена. Попробуйте позже.',
           );
         }
       }
     } on TimeoutException {
-      yield const LizaChunk.failed('Нет ответа, попробуй ещё раз');
+      yield const LizaChunk.failed(
+        'Сеть сейчас перегружена. Попробуйте позже.',
+      );
     } catch (_) {
       yield const LizaChunk.failed('Нет связи с Лизой');
     } finally {
