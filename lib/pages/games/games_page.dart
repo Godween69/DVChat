@@ -12,6 +12,7 @@ import 'package:dvchat/pages/games/chess_page.dart';
 import 'package:dvchat/pages/games/durak_page.dart';
 import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
+import 'package:dvchat/pages/games/nardy_page.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
@@ -49,6 +50,7 @@ const _c4 = _GameDef('c4', 'Четыре в ряд', 'четыре в ряд', I
 const _chess = _GameDef('chess', 'Шахматы', 'шахматы', Icons.castle);
 
 const _durak = _GameDef('durak', 'Дурак', 'дурак', Icons.style);
+const _nardy = _GameDef('nardy', 'Нарды', 'нарды', Icons.casino);
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -72,6 +74,7 @@ class _GamesPageState extends State<GamesPage> {
     'c4' => _c4,
     'chess' => _chess,
     'durak' => _durak,
+    'nardy' => _nardy,
     _ => null,
   };
 
@@ -141,6 +144,12 @@ class _GamesPageState extends State<GamesPage> {
     ),
     'durak' => DurakPage(
       mode: mode,
+      level: level,
+      room: room,
+      gameId: gameId,
+      hostId: hostId,
+    ),
+    'nardy' => NardyPage(
       level: level,
       room: room,
       gameId: gameId,
@@ -614,6 +623,12 @@ class _GamesPageState extends State<GamesPage> {
                     icon: _durak.icon,
                     title: _durak.title,
                     onTap: () => _start(_durak),
+                  ),
+                  _tile(
+                    theme,
+                    icon: _nardy.icon,
+                    title: _nardy.title,
+                    onTap: () => _start(_nardy),
                   ),
                 ],
               ),
