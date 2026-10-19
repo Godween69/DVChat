@@ -11,6 +11,7 @@ import 'package:dvchat/utils/dv_stories.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -136,7 +137,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     unawaited(
       _c.animateTo(
         DvStories.expanded.value ? 1 : 0,
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 460),
         curve: Curves.easeOutCubic,
       ),
     );
@@ -180,7 +181,53 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     }
   }
 
-  Widget _row(DvStoriesFeed? feed) {
+  /// Где сейчас стопка кружков в заголовке, в координатах этой полосы
+  Offset? _compactPos() {
+    try {
+      final c = DvStoriesCompact.lastContext;
+      if (c == null || !c.mounted) return null;
+      final cb = c.findRenderObject() as RenderBox?;
+      final sb = context.findRenderObject() as RenderBox?;
+      if (cb == null || sb == null || !cb.attached || !sb.attached) {
+        return null;
+      }
+      if (!cb.hasSize) return null;
+      return sb.globalToLocal(cb.localToGlobal(Offset.zero));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Один кружок ряда: едет из своего места в стопке в своё место в ряду,
+  /// одновременно увеличиваясь, подпись проявляется ближе к концу
+  Widget _fly(int i, int count, double v, Offset? from, Widget bubble) {
+    const stagger = 0.045;
+    final k = stagger * (i > 6 ? 6 : i);
+    final p = ((v - k) / (1 - k)).clamp(0.0, 1.0);
+    final e = Curves.easeOutCubic.transform(p);
+    final ci = i < DvStoriesCompact.maxCircles
+        ? i
+        : DvStoriesCompact.maxCircles - 1;
+    final cx = (from?.dx ?? 0) + DvStoriesCompact.step * ci;
+    final cy = from?.dy ?? -56.0;
+    final rowX = 10.0 + 64.0 * i;
+    final x = cx + (rowX + 5 - cx) * e;
+    final y = cy + (4 - cy) * e;
+    final scale =
+        DvStoriesCompact.dia / 54 + (1 - DvStoriesCompact.dia / 54) * e;
+    final dim = i < DvStoriesCompact.maxCircles ? 1.0 : p;
+    return Transform.translate(
+      offset: Offset(x - rowX - 5 * scale, y - 4),
+      child: Transform.scale(
+        scale: scale,
+        alignment: Alignment.topLeft,
+        child: Opacity(opacity: (v * 10).clamp(0.0, 1.0) * dim, child: bubble),
+      ),
+    );
+  }
+
+  Widget _row(DvStoriesFeed? feed, double v) {
+    final from = _compactPos();
     final me = widget.client.userID ?? '';
     final mine = feed?.mine ?? const <DvStory>[];
     final groups = feed?.groups ?? const <DvStoryGroup>[];
@@ -192,29 +239,49 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
       },
       child: SizedBox(
         height: 84,
-        child: ListView(
+        child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          physics: v < 0.999 ? const NeverScrollableScrollPhysics() : null,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          children: [
-            _Bubble(
-              client: widget.client,
-              userId: me,
-              label: 'Моя',
-              ring: mine.isEmpty ? _Ring.none : _Ring.mine,
-              showPlus: true,
-              onTap: mine.isEmpty
-                  ? () => _addStory(context, widget.client)
-                  : () => _openViewer(context, widget.client, [mineGroup], 0),
-              onPlus: () => _addStory(context, widget.client),
-            ),
-            for (var i = 0; i < groups.length; i++)
-              _Bubble(
-                client: widget.client,
-                userId: groups[i].userId,
-                ring: groups[i].hasUnseen ? _Ring.unseen : _Ring.seen,
-                onTap: () => _openViewer(context, widget.client, groups, i),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _fly(
+                0,
+                groups.length + 1,
+                v,
+                from,
+                _Bubble(
+                  client: widget.client,
+                  userId: me,
+                  label: 'Моя',
+                  labelOpacity: v * v,
+                  ring: mine.isEmpty ? _Ring.none : _Ring.mine,
+                  showPlus: true,
+                  onTap: mine.isEmpty
+                      ? () => _addStory(context, widget.client)
+                      : () =>
+                            _openViewer(context, widget.client, [mineGroup], 0),
+                  onPlus: () => _addStory(context, widget.client),
+                ),
               ),
-          ],
+              for (var i = 0; i < groups.length; i++)
+                _fly(
+                  i + 1,
+                  groups.length + 1,
+                  v,
+                  from,
+                  _Bubble(
+                    client: widget.client,
+                    userId: groups[i].userId,
+                    labelOpacity: v * v,
+                    ring: groups[i].hasUnseen ? _Ring.unseen : _Ring.seen,
+                    onTap: () => _openViewer(context, widget.client, groups, i),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -229,22 +296,14 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
         if (v < 0.002) {
           return const SizedBox(width: double.infinity, height: 0);
         }
-        // Высота растёт вместе с пальцем, кружки «выпрыгивают» из угла
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.topCenter,
-            heightFactor: v,
-            child: Opacity(
-              opacity: v,
-              child: Transform.scale(
-                scale: 0.55 + 0.45 * v,
-                alignment: Alignment.topLeft,
-                child: ValueListenableBuilder<DvStoriesFeed?>(
-                  valueListenable: DvStories.feed,
-                  builder: (context, feed, _) => _row(feed),
-                ),
-              ),
-            ),
+        // Высота растёт вместе с пальцем, а кружки едут из угла в свои места
+        // (без обрезки и без затухания)
+        return Align(
+          alignment: Alignment.topCenter,
+          heightFactor: v,
+          child: ValueListenableBuilder<DvStoriesFeed?>(
+            valueListenable: DvStories.feed,
+            builder: (context, feed, _) => _row(feed, v),
           ),
         );
       },
@@ -257,8 +316,14 @@ class DvStoriesCompact extends StatelessWidget {
   final Client client;
   const DvStoriesCompact({required this.client, super.key});
 
-  static const double _d = 30;
-  static const double _step = 20;
+  static const double dia = 30;
+  static const double step = 20;
+  static const int maxCircles = 4;
+  static const double _d = dia;
+  static const double _step = step;
+
+  /// Контекст стопки в заголовке: по нему раскрывающийся ряд находит, откуда ехать
+  static BuildContext? lastContext;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +332,7 @@ class DvStoriesCompact extends StatelessWidget {
       valueListenable: DvStories.reveal,
       builder: (context, reveal, _) {
         return Opacity(
-          opacity: (1 - reveal * 1.6).clamp(0.0, 1.0),
+          opacity: (1 - reveal * 10).clamp(0.0, 1.0),
           child: IgnorePointer(
             ignoring: reveal > 0.3,
             child: ValueListenableBuilder<DvStoriesFeed?>(
@@ -296,58 +361,66 @@ class DvStoriesCompact extends StatelessWidget {
                   child: SizedBox(
                     width: _d + _step * (ids.length - 1),
                     height: _d,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Первый (мой) сверху: рисуем с конца
-                        for (var i = ids.length - 1; i >= 0; i--)
-                          Positioned(
-                            left: _step * i,
-                            child: Container(
-                              width: _d,
-                              height: _d,
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colorScheme.surface,
-                                border: Border.all(color: ringOf(i), width: 2),
-                              ),
-                              child: FutureBuilder<Profile>(
-                                initialData: DvStories.profileData[ids[i]],
-                                future: DvStories.profile(client, ids[i]),
-                                builder: (context, snapshot) => Avatar(
-                                  mxContent: snapshot.data?.avatarUrl,
-                                  name: DvStories.nameOf(
-                                    client,
-                                    ids[i],
-                                    snapshot.data,
+                    child: Builder(
+                      builder: (ctx) {
+                        lastContext = ctx;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Первый (мой) сверху: рисуем с конца
+                            for (var i = ids.length - 1; i >= 0; i--)
+                              Positioned(
+                                left: _step * i,
+                                child: Container(
+                                  width: _d,
+                                  height: _d,
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: theme.colorScheme.surface,
+                                    border: Border.all(
+                                      color: ringOf(i),
+                                      width: 2,
+                                    ),
                                   ),
-                                  client: client,
-                                  size: _d - 8,
-                                  borderRadius: BorderRadius.circular(_d),
+                                  child: FutureBuilder<Profile>(
+                                    initialData: DvStories.profileData[ids[i]],
+                                    future: DvStories.profile(client, ids[i]),
+                                    builder: (context, snapshot) => Avatar(
+                                      mxContent: snapshot.data?.avatarUrl,
+                                      name: DvStories.nameOf(
+                                        client,
+                                        ids[i],
+                                        snapshot.data,
+                                      ),
+                                      client: client,
+                                      size: _d - 8,
+                                      borderRadius: BorderRadius.circular(_d),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        if (mine.isEmpty)
-                          Positioned(
-                            left: _d - 12,
-                            bottom: -2,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary,
-                                shape: BoxShape.circle,
+                            if (mine.isEmpty)
+                              Positioned(
+                                left: _d - 12,
+                                bottom: -2,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.add,
+                                    size: 11,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
+                                ),
                               ),
-                              child: Icon(
-                                Icons.add,
-                                size: 11,
-                                color: theme.colorScheme.onPrimary,
-                              ),
-                            ),
-                          ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 );
@@ -368,6 +441,7 @@ class _Bubble extends StatelessWidget {
   final String? label;
   final _Ring ring;
   final bool showPlus;
+  final double labelOpacity;
   final VoidCallback onTap;
   final VoidCallback? onPlus;
 
@@ -378,6 +452,7 @@ class _Bubble extends StatelessWidget {
     required this.onTap,
     this.label,
     this.showPlus = false,
+    this.labelOpacity = 1,
     this.onPlus,
   });
 
@@ -458,12 +533,15 @@ class _Bubble extends StatelessWidget {
           FutureBuilder<Profile>(
             initialData: DvStories.profileData[userId],
             future: DvStories.profile(client, userId),
-            builder: (context, snapshot) => Text(
-              label ?? DvStories.nameOf(client, userId, snapshot.data),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall?.copyWith(fontSize: 11),
+            builder: (context, snapshot) => Opacity(
+              opacity: labelOpacity.clamp(0.0, 1.0),
+              child: Text(
+                label ?? DvStories.nameOf(client, userId, snapshot.data),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(fontSize: 11),
+              ),
             ),
           ),
         ],
