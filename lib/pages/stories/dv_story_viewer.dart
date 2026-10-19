@@ -336,11 +336,28 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     }
   }
 
+  /// Обычное сообщение автору в личный чат: оно шифруется как все и приходит уведомлением
+  Future<void> _notifyAuthor(String emoji) async {
+    try {
+      final roomId = widget.client.getDirectChatFromUserId(_g.userId);
+      final room = roomId == null ? null : widget.client.getRoomById(roomId);
+      if (room == null || room.membership != Membership.join) return;
+      await room.sendTextEvent('$emoji Реакция на вашу сторис');
+    } catch (e) {
+      Logs().w('DVChat: не удалось уведомить автора о реакции', e);
+    }
+  }
+
   Future<void> _react(String emoji) async {
     final story = _s;
     final next = story.myReaction == emoji ? null : emoji;
+    final had = story.myReaction;
     try {
       await DvStories.react(widget.client, story, next);
+      // Автору приходит уведомление: только когда реакция поставлена впервые (не при смене)
+      if (next != null && had == null && !_isMine) {
+        unawaited(_notifyAuthor(next));
+      }
       if (mounted) setState(() {});
     } catch (e) {
       if (!mounted) return;
