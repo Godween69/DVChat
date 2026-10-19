@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:dvchat/pages/games/bs_page.dart';
+import 'package:dvchat/pages/games/c4_page.dart';
 import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
@@ -41,6 +42,7 @@ const _bs = _GameDef(
 );
 
 const _ckr = _GameDef('ckr', 'Шашки', 'шашки', Icons.radio_button_checked);
+const _c4 = _GameDef('c4', 'Четыре в ряд', 'четыре в ряд', Icons.grid_view);
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -61,6 +63,7 @@ class _GamesPageState extends State<GamesPage> {
     'ttt' => _ttt,
     'bs' => _bs,
     'ckr' => _ckr,
+    'c4' => _c4,
     _ => null,
   };
 
@@ -120,6 +123,7 @@ class _GamesPageState extends State<GamesPage> {
   }) => switch (game) {
     'bs' => BsPage(level: level, room: room, gameId: gameId, hostId: hostId),
     'ckr' => CkrPage(level: level, room: room, gameId: gameId, hostId: hostId),
+    'c4' => C4Page(level: level, room: room, gameId: gameId, hostId: hostId),
     _ => TttPage(level: level, room: room, gameId: gameId, hostId: hostId),
   };
 
@@ -536,6 +540,12 @@ class _GamesPageState extends State<GamesPage> {
                     icon: _ckr.icon,
                     title: _ckr.title,
                     onTap: () => _start(_ckr),
+                  ),
+                  _tile(
+                    theme,
+                    icon: _c4.icon,
+                    title: _c4.title,
+                    onTap: () => _start(_c4),
                   ),
                 ],
               ),

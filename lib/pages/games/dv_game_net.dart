@@ -47,6 +47,7 @@ class DvGameNet {
   static String gameTitle(String game) => switch (game) {
     'bs' => 'Морской бой',
     'ckr' => 'Шашки',
+    'c4' => 'Четыре в ряд',
     _ => 'Крестики-нолики',
   };
 
