@@ -506,6 +506,16 @@ class _LizaChatState extends State<LizaChat> {
         !_sameUtterance(_lastWords, words)) {
       _beforeSpeech = '$_beforeSpeech$_lastWords ';
     }
+    // Страховка: если новое слово обрезало бы то, что уже стоит в поле, не затираем,
+    // а оставляем прошлое и дописываем новое после него
+    if (_lastWords.isNotEmpty &&
+        words.isNotEmpty &&
+        _beforeSpeech.length + words.length + 12 <
+            _input.text.trimRight().length) {
+      if (!_beforeSpeech.endsWith(_lastWords)) {
+        _beforeSpeech = '$_beforeSpeech$_lastWords ';
+      }
+    }
     _lastWords = words;
     final text = '$_beforeSpeech$words';
     _input.value = TextEditingValue(
@@ -522,12 +532,25 @@ class _LizaChatState extends State<LizaChat> {
     }
   }
 
-  /// Новые слова продолжают (или уточняют) прошлые, а не начинают другую фразу
+  /// Слова без знаков препинания и регистра: Android то ставит запятые, то нет
+  String _norm(String t) =>
+      t.toLowerCase().replaceAll(RegExp(r'[^a-zа-яё0-9]+'), ' ').trim();
+
+  /// Новые слова продолжают (или слегка уточняют) прошлые, а не начинают другую фразу.
+  /// Совпадение только по первому слову больше не считается: из-за него терялся текст.
   bool _sameUtterance(String prev, String next) {
-    final a = prev.toLowerCase();
-    final b = next.toLowerCase();
-    if (b.startsWith(a) || a.startsWith(b)) return true;
-    return a.split(' ').first == b.split(' ').first;
+    final a = _norm(prev).split(' ');
+    final b = _norm(next).split(' ');
+    if (a.isEmpty || b.isEmpty || a.first.isEmpty || b.first.isEmpty)
+      return true;
+    var common = 0;
+    while (common < a.length && common < b.length && a[common] == b[common]) {
+      common++;
+    }
+    if (common == a.length) return true; // новое продолжает старое целиком
+    // небольшое уточнение уже сказанного: совпала почти вся короткая из двух фраз
+    final shorter = a.length < b.length ? a.length : b.length;
+    return common >= 2 && common >= shorter * 0.7;
   }
 
   // ---------- внешний вид ----------
@@ -592,7 +615,7 @@ class _LizaChatState extends State<LizaChat> {
           },
         ),
         Positioned(
-          right: 12,
+          left: 12,
           bottom: 12,
           child: Column(
             mainAxisSize: MainAxisSize.min,
