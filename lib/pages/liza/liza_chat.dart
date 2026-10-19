@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/liza/liza_client.dart';
 import 'package:dvchat/pages/liza/liza_history.dart';
 import 'package:dvchat/pages/liza/liza_markdown.dart';
@@ -27,15 +28,10 @@ class LizaChat extends StatefulWidget {
 }
 
 class _LizaChatState extends State<LizaChat> {
-  static const String _greeting =
-      'Привет, я Лиза. Спрашивай меня, что хочешь: отвечу на вопрос, '
-      'помогу с текстом, переведу или подскажу идею.';
-
   static const List<String> _examples = [
-    'Что приготовить на ужин из курицы и риса?',
-    'Объясни простыми словами, как работает интернет',
-    'Помоги написать поздравление с днём рождения',
-    'Переведи на английский: «Как пройти к вокзалу?»',
+    'Какая погода завтра?',
+    'Дай рецепт салата',
+    'Что нового в мире сегодня?',
   ];
 
   late final LizaClient _api = LizaClient(widget.client);
@@ -603,6 +599,9 @@ class _LizaChatState extends State<LizaChat> {
   }
 
   Widget _buildList(BuildContext context) {
+    if (_messages.isEmpty && !_busy) {
+      return _LizaWelcome(examples: _examples, onPick: _sendText);
+    }
     final lastUser = _messages.lastIndexWhere((m) => m.isUser);
     return Stack(
       children: [
@@ -610,10 +609,8 @@ class _LizaChatState extends State<LizaChat> {
           key: _listKey,
           controller: _scroll,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-          itemCount: 1 + _messages.length + (_busy ? 1 : 0),
-          itemBuilder: (context, i) {
-            if (i == 0) return _welcome(context);
-            final index = i - 1;
+          itemCount: _messages.length + (_busy ? 1 : 0),
+          itemBuilder: (context, index) {
             if (index < _messages.length) {
               final m = _messages[index];
               if (m.isUser) {
@@ -668,45 +665,19 @@ class _LizaChatState extends State<LizaChat> {
     );
   }
 
-  Widget _welcome(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _lisaBubble(context, _greeting, copyable: false),
-        if (_messages.isEmpty && !_busy)
-          Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final e in _examples)
-                  ActionChip(label: Text(e), onPressed: () => _sendText(e)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _userBubble(BuildContext context, String text) {
     final theme = Theme.of(context);
     return Align(
       alignment: Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: SelectableText(
-          text,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onPrimaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 4, right: 8),
+        child: LizaOwnBubble(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+          child: SelectableText(
+            text,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.onBubbleColor,
+            ),
           ),
         ),
       ),
@@ -947,6 +918,227 @@ class _LizaChatState extends State<LizaChat> {
             color: active
                 ? theme.colorScheme.onError
                 : theme.colorScheme.onPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Пузырь «от меня» точно как свой пузырь в чате: цвет из Персонализации,
+/// матовая дымка, скругление 11 и носик вверху справа
+class LizaOwnBubble extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  const LizaOwnBubble({required this.child, required this.maxWidth, super.key});
+
+  static const double _radius = 11;
+
+  /// Та же матовая дымка, что у пузырей в чате
+  static Color haze(Color c) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl
+        .withSaturation((hsl.saturation * 0.82).clamp(0.0, 1.0))
+        .toColor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = haze(Theme.of(context).bubbleColor);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(_radius),
+              bottomLeft: Radius.circular(_radius),
+              bottomRight: Radius.circular(_radius),
+            ),
+          ),
+          child: child,
+        ),
+        Positioned(
+          top: 0,
+          right: -8,
+          child: CustomPaint(
+            size: const Size(9, 11),
+            painter: _LizaTailPainter(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Носик пузыря, как в чате
+class _LizaTailPainter extends CustomPainter {
+  final Color color;
+  _LizaTailPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..quadraticBezierTo(w * 0.45, h * 0.12, 0, h)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_LizaTailPainter old) => old.color != color;
+}
+
+/// Экран приветствия нового разговора: Лиза по центру, ниже три вопроса
+/// пузырями «от меня»; нажал на пузырь, и вопрос уходит Лизе
+class _LizaWelcome extends StatefulWidget {
+  final List<String> examples;
+  final void Function(String text) onPick;
+  const _LizaWelcome({required this.examples, required this.onPick});
+
+  @override
+  State<_LizaWelcome> createState() => _LizaWelcomeState();
+}
+
+class _LizaWelcomeState extends State<_LizaWelcome>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// Появление по очереди: лёгкий подъём снизу и проявление
+  Widget _appear(double from, double to, Widget child) {
+    final a = CurvedAnimation(
+      parent: _c,
+      curve: Interval(from, to, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: a,
+      child: child,
+      builder: (context, child) => Opacity(
+        opacity: a.value,
+        child: Transform.translate(
+          offset: Offset(0, 18 * (1 - a.value)),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight - 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _appear(
+                0.0,
+                0.45,
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        scheme.primaryContainer,
+                        scheme.tertiaryContainer,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.22),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome,
+                    size: 46,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _appear(
+                0.1,
+                0.55,
+                Text(
+                  'Привет, я Лиза',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _appear(
+                0.2,
+                0.65,
+                Text(
+                  'Ищу в интернете, знаю погоду и новости,\n'
+                  'помогу с рецептами, текстами и переводами.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.outline,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              for (var i = 0; i < widget.examples.length; i++)
+                _appear(
+                  0.4 + 0.15 * i,
+                  0.75 + 0.08 * i,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10, right: 8),
+                      child: GestureDetector(
+                        onTap: () => widget.onPick(widget.examples[i]),
+                        child: LizaOwnBubble(
+                          maxWidth: width * 0.78,
+                          child: Text(
+                            widget.examples[i],
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.onBubbleColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
