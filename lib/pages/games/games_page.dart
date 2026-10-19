@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:dvchat/pages/games/bs_page.dart';
+import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
@@ -42,6 +43,12 @@ const _bs = _GameDef(
   ['Лёгкий', 'Средний', 'Сильный'],
 );
 
+const _ckr = _GameDef('ckr', 'Шашки', 'шашки', Icons.radio_button_checked, [
+  'Лёгкий',
+  'Средний',
+  'Сильный',
+]);
+
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
 
@@ -57,7 +64,12 @@ class _GamesPageState extends State<GamesPage> {
 
   Client get _client => Matrix.of(context).client;
 
-  _GameDef? _def(String id) => id == 'ttt' ? _ttt : (id == 'bs' ? _bs : null);
+  _GameDef? _def(String id) => switch (id) {
+    'ttt' => _ttt,
+    'bs' => _bs,
+    'ckr' => _ckr,
+    _ => null,
+  };
 
   void _styleChanged() {
     if (mounted) setState(() {});
@@ -112,9 +124,11 @@ class _GamesPageState extends State<GamesPage> {
     Room? room,
     String? gameId,
     String? hostId,
-  }) => game == 'bs'
-      ? BsPage(level: level, room: room, gameId: gameId, hostId: hostId)
-      : TttPage(level: level, room: room, gameId: gameId, hostId: hostId);
+  }) => switch (game) {
+    'bs' => BsPage(level: level, room: room, gameId: gameId, hostId: hostId),
+    'ckr' => CkrPage(level: level, room: room, gameId: gameId, hostId: hostId),
+    _ => TttPage(level: level, room: room, gameId: gameId, hostId: hostId),
+  };
 
   Future<void> _start(_GameDef g) async {
     final mode = await showModalBottomSheet<String>(
@@ -215,8 +229,6 @@ class _GamesPageState extends State<GamesPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
-
-  void _soon() => _snack('Эта игра появится в следующем обновлении');
 
   // ---------------- меню партии ----------------
 
@@ -541,10 +553,9 @@ class _GamesPageState extends State<GamesPage> {
                   ),
                   _tile(
                     theme,
-                    icon: Icons.circle_outlined,
-                    title: 'Шашки',
-                    onTap: _soon,
-                    soon: true,
+                    icon: _ckr.icon,
+                    title: _ckr.title,
+                    onTap: () => _start(_ckr),
                   ),
                 ],
               ),

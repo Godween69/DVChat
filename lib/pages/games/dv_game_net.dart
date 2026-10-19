@@ -44,8 +44,11 @@ class DvGameNet {
   /// Партия, открытая на экране сейчас (для неё уведомления не показываются)
   static String? activeGameId;
 
-  static String gameTitle(String game) =>
-      game == 'bs' ? 'Морской бой' : 'Крестики-нолики';
+  static String gameTitle(String game) => switch (game) {
+    'bs' => 'Морской бой',
+    'ckr' => 'Шашки',
+    _ => 'Крестики-нолики',
+  };
 
   /// Личные чаты, в которых можно играть
   static List<Room> directRooms(Client client) => client.rooms
