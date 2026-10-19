@@ -39,6 +39,7 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
       toolbarHeight: 64,
       pinned: isColumnMode,
       scrolledUnderElevation: 0,
+      clipBehavior: Clip.none,
       shape: isColumnMode
           ? Border(bottom: BorderSide(color: theme.dividerColor, width: 1))
           : null,
