@@ -493,6 +493,19 @@ class _LizaChatState extends State<LizaChat> {
     if (_discardSpeech) return;
     // Переводы строк и лишние пробелы из распознанного убираем: поле не должно расти
     final words = result.recognizedWords.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Пустой результат (Android присылает его на паузе и при остановке) ничего не стирает:
+    // всё, что уже стоит в поле, остаётся, а слова последней фразы закрепляются
+    if (words.isEmpty) {
+      if (result.finalResult) {
+        if (_lastWords.isNotEmpty) {
+          _beforeSpeech = '$_beforeSpeech$_lastWords ';
+          _prevFinal = _lastWords;
+        }
+        _lastWords = '';
+        if (!_wantListen && mounted) setState(() => _listening = false);
+      }
+      return;
+    }
     // Распознаватель иногда присылает заново результат прошлой диктовки: пропускаем
     if (_lastWords.isEmpty &&
         words.isNotEmpty &&
