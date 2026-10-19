@@ -76,35 +76,56 @@ Future<void> _addStory(BuildContext context, Client client) async {
       ? ImageSource.camera
       : ImageSource.gallery;
   final picker = ImagePicker();
-  XFile? picked;
+  var picked = <XFile>[];
   try {
-    picked = video
-        ? await picker.pickVideo(
-            source: source,
-            maxDuration: const Duration(seconds: 10),
-          )
-        : await picker.pickImage(
-            source: source,
-            maxWidth: 1080,
-            maxHeight: 1920,
-            imageQuality: 78,
-          );
+    if (video) {
+      final one = await picker.pickVideo(
+        source: source,
+        maxDuration: const Duration(seconds: 10),
+      );
+      if (one != null) picked = [one];
+    } else if (source == ImageSource.gallery) {
+      // Можно отметить несколько фото сразу (не больше 10 за раз)
+      picked = await picker.pickMultiImage(
+        maxWidth: 1080,
+        maxHeight: 1920,
+        imageQuality: 78,
+      );
+      if (picked.length > 10) picked = picked.sublist(0, 10);
+    } else {
+      final one = await picker.pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1920,
+        imageQuality: 78,
+      );
+      if (one != null) picked = [one];
+    }
   } catch (e) {
     snack('Не удалось выбрать файл: $e');
     return;
   }
-  if (picked == null || !context.mounted) return;
-  final file = picked;
+  if (picked.isEmpty || !context.mounted) return;
+  final files = picked;
   final audience = await pickStoryAudience(context, client);
   if (audience == null || !context.mounted) return;
   final result = await showFutureLoadingDialog(
     context: context,
-    title: 'Публикую сторис…',
-    future: () =>
-        DvStories.publish(client, file, video: video, audience: audience),
+    title: files.length > 1
+        ? 'Публикую сторис (${files.length})…'
+        : 'Публикую сторис…',
+    future: () async {
+      for (final file in files) {
+        await DvStories.publish(client, file, video: video, audience: audience);
+      }
+    },
   );
   if (result.error == null) {
-    snack('Сторис опубликован на 24 часа');
+    snack(
+      files.length > 1
+          ? 'Опубликовано сторис: ${files.length}'
+          : 'Сторис опубликован на 24 часа',
+    );
   }
 }
 
@@ -179,7 +200,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     unawaited(
       _c.animateTo(
         DvStories.expanded.value ? 1 : 0,
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(milliseconds: 380),
         curve: Curves.easeOutCubic,
       ),
     );
@@ -308,27 +329,31 @@ class DvStoriesCompact extends StatelessWidget {
   const DvStoriesCompact({required this.client, super.key});
 
   Widget _circle(ThemeData theme, String userId, Color ring, double t) {
-    final d = _Geo.stackD + (_Geo.rowD - _Geo.stackD) * t;
-    final avatar = _Geo.stackAvatar + (_Geo.rowAvatar - _Geo.stackAvatar) * t;
-    final border = _Geo.stackBorder + (_Geo.rowBorder - _Geo.stackBorder) * t;
-    return Container(
-      width: d,
-      height: d,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: t < 0.5 ? theme.colorScheme.surface : null,
-        border: Border.all(color: ring, width: border),
-      ),
-      child: FutureBuilder<Profile>(
-        initialData: DvStories.profileData[userId],
-        future: DvStories.profile(client, userId),
-        builder: (context, snapshot) => Avatar(
-          mxContent: snapshot.data?.avatarUrl,
-          name: DvStories.nameOf(client, userId, snapshot.data),
-          client: client,
-          size: avatar,
-          borderRadius: BorderRadius.circular(avatar),
+    // Рисуем всегда в размере ряда (54 px, аватарка 44 px) и уменьшаем масштабом:
+    // кэш картинки привязан к размеру аватарки, он должен оставаться одним и тем же
+    final scale = (_Geo.stackD + (_Geo.rowD - _Geo.stackD) * t) / _Geo.rowD;
+    return Transform.scale(
+      scale: scale,
+      alignment: Alignment.topLeft,
+      child: Container(
+        width: _Geo.rowD,
+        height: _Geo.rowD,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: t < 0.5 ? theme.colorScheme.surface : null,
+          border: Border.all(color: ring, width: _Geo.rowBorder),
+        ),
+        child: FutureBuilder<Profile>(
+          initialData: DvStories.profileData[userId],
+          future: DvStories.profile(client, userId),
+          builder: (context, snapshot) => Avatar(
+            mxContent: snapshot.data?.avatarUrl,
+            name: DvStories.nameOf(client, userId, snapshot.data),
+            client: client,
+            size: _Geo.rowAvatar,
+            borderRadius: BorderRadius.circular(_Geo.rowAvatar),
+          ),
         ),
       ),
     );
