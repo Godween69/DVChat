@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/games/bs_logic.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/dv_game_sound.dart';
@@ -565,11 +566,17 @@ class _BsPageState extends State<BsPage> {
 
   // ---------------- оформление ----------------
 
-  Color _water(ThemeData theme) => Color.lerp(
+  bool _dark(ThemeData theme) => theme.brightness == Brightness.dark;
+
+  /// Тёмно-красный для выстрелов: заметен и на светлой, и на тёмной воде
+  Color _red(ThemeData theme) =>
+      _dark(theme) ? const Color(0xFFE06060) : const Color(0xFF8B1A1A);
+
+  /// Вода: слабый оттенок цвета сообщений
+  Color _water(ThemeData theme) => Color.alphaBlend(
+    theme.bubbleColor.withAlpha(_dark(theme) ? 64 : 50),
     theme.colorScheme.surfaceContainerHighest,
-    theme.colorScheme.primary,
-    0.12,
-  )!;
+  );
 
   Widget _box(Color color, {Widget? child, Color? ring, bool small = false}) =>
       Container(
@@ -612,25 +619,60 @@ class _BsPageState extends State<BsPage> {
         CustomPaint(painter: _RipplePainter(t, color), size: Size.infinite),
   );
 
-  Widget _counter(ThemeData theme, String label, int count) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.sailing_outlined,
-          size: 18,
-          color: theme.colorScheme.primary,
+  /// Число кораблей: крупная цифра и подпись под ней
+  Widget _stat(ThemeData theme, String label, int count) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        '$count',
+        style: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(width: 6),
-        Text('$label: $count', style: theme.textTheme.labelLarge),
-      ],
-    ),
+      ),
+      Text(label, style: theme.textTheme.labelSmall),
+    ],
   );
+
+  Widget _enemyCell(ThemeData theme, int i, Color water, Set<int> sunkCells) {
+    final red = _red(theme);
+    final m = _marks[i];
+    final ring = i == _lastMine
+        ? theme.colorScheme.onSurface.withAlpha(150)
+        : null;
+    if (m == null) return _box(water, ring: ring);
+    if (m == 0) {
+      return _box(water, ring: ring, child: _miss('m$i', red));
+    }
+    if (sunkCells.contains(i)) {
+      return _box(red, ring: ring, child: _pop('h$i', Colors.white, 16));
+    }
+    return _box(
+      Color.alphaBlend(red.withAlpha(80), water),
+      ring: ring,
+      child: _pop('h$i', red, 16),
+    );
+  }
+
+  Widget _ownCell(ThemeData theme, int i, Color water, Set<int> myCells) {
+    final red = _red(theme);
+    final ship = myCells.contains(i);
+    final shot = _incoming.contains(i);
+    final ring = i == _lastIn ? theme.colorScheme.tertiary : null;
+    if (ship) {
+      return _box(
+        shot ? red : theme.bubbleColor,
+        ring: ring,
+        small: true,
+        child: shot ? _pop('o$i', Colors.white, 9) : null,
+      );
+    }
+    return _box(
+      water,
+      ring: ring,
+      small: true,
+      child: shot ? _miss('om$i', red) : null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -639,36 +681,42 @@ class _BsPageState extends State<BsPage> {
         ? 'Морской бой · ${widget.room!.dvDisplayname()}'
         : 'Морской бой · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
     final showPlacement = !_loading && !_placed && !_finished;
+    final playing = !showPlacement && (_placed || _finished);
+    final showEnemy = playing && (_bothReady || !_online);
     final sunkCells = {for (final s in _sunk) ...s};
     final myCells = {for (final s in _fleet) ...s};
     final water = _water(theme);
     final enemyLeft = BsLogic.shipSizes.length - _sunk.length;
     final myLeft = _fleet.where((s) => !s.every(_incoming.contains)).length;
+    final statusStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.bold,
+      color: _myTurn && !_finished
+          ? theme.colorScheme.primary
+          : theme.colorScheme.onSurface,
+    );
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text(
-                  _status,
-                  style: theme.textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                if (_verdict != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(_verdict!, textAlign: TextAlign.center),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            const pad = 12.0;
+            const smallSide = 150.0;
+            final width = box.maxWidth - pad * 2;
+            final Widget content;
+            if (showPlacement) {
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _status,
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center,
                   ),
-                const SizedBox(height: 14),
-                if (showPlacement) ...[
+                  const SizedBox(height: 14),
                   _BsGrid(
                     maxWidth: 340,
-                    cell: (i) => _box(
-                      myCells.contains(i) ? theme.colorScheme.primary : water,
-                    ),
+                    cell: (i) =>
+                        _box(myCells.contains(i) ? theme.bubbleColor : water),
                   ),
                   const SizedBox(height: 16),
                   Wrap(
@@ -689,89 +737,76 @@ class _BsPageState extends State<BsPage> {
                       ),
                     ],
                   ),
-                ] else if (_placed || _finished) ...[
-                  if (_bothReady || !_online) ...[
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
+                ],
+              );
+            } else if (showEnemy) {
+              // Всё на одном экране: большое поле, под ним слева состояние хода,
+              // в середине своё маленькое поле, справа число кораблей
+              final reserve =
+                  smallSide +
+                  14 +
+                  (_finished ? (_verdict != null ? 110 : 80) : 0);
+              final big = (box.maxHeight - pad * 2 - reserve).clamp(
+                120.0,
+                width,
+              );
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _AimGrid(
+                    side: big,
+                    enabled: _myTurn && !_busy && !_finished && !_waitResult,
+                    aimColor: theme.colorScheme.primary,
+                    onShoot: _online ? _shootOnline : _shootPc,
+                    cell: (i) => _enemyCell(theme, i, water, sunkCells),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: width,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _counter(theme, 'У соперника', enemyLeft),
-                        _counter(theme, 'У вас', myLeft),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              _status,
+                              style: statusStyle,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        SizedBox.square(
+                          dimension: smallSide,
+                          child: _BsGrid(
+                            maxWidth: smallSide,
+                            small: true,
+                            cell: (i) => _ownCell(theme, i, water, myCells),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _stat(theme, 'у соперника', enemyLeft),
+                                const SizedBox(height: 8),
+                                _stat(theme, 'у вас', myLeft),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    Text('Поле соперника', style: theme.textTheme.labelLarge),
-                    const SizedBox(height: 6),
-                    _BsGrid(
-                      maxWidth: 340,
-                      onTap: _online ? _shootOnline : _shootPc,
-                      cell: (i) {
-                        final m = _marks[i];
-                        final ring = i == _lastMine
-                            ? theme.colorScheme.primary
-                            : null;
-                        if (m == null) return _box(water, ring: ring);
-                        if (m == 0) {
-                          return _box(
-                            water,
-                            ring: ring,
-                            child: _miss('m$i', theme.colorScheme.outline),
-                          );
-                        }
-                        final isSunk = sunkCells.contains(i);
-                        return _box(
-                          isSunk
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.errorContainer,
-                          ring: ring,
-                          child: _pop(
-                            'h$i',
-                            isSunk
-                                ? theme.colorScheme.onError
-                                : theme.colorScheme.onErrorContainer,
-                            16,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Text('Ваше поле', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: 6),
-                  _BsGrid(
-                    maxWidth: 220,
-                    small: true,
-                    cell: (i) {
-                      final ship = myCells.contains(i);
-                      final shot = _incoming.contains(i);
-                      final ring = i == _lastIn
-                          ? theme.colorScheme.tertiary
-                          : null;
-                      if (ship) {
-                        return _box(
-                          shot
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.primary,
-                          ring: ring,
-                          small: true,
-                          child: shot
-                              ? _pop('o$i', theme.colorScheme.onError, 9)
-                              : null,
-                        );
-                      }
-                      return _box(
-                        water,
-                        ring: ring,
-                        small: true,
-                        child: shot
-                            ? _miss('om$i', theme.colorScheme.outline)
-                            : null,
-                      );
-                    },
                   ),
+                  if (_verdict != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(_verdict!, textAlign: TextAlign.center),
+                    ),
                   if (_finished) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: _again,
                       icon: const Icon(Icons.replay),
@@ -779,9 +814,49 @@ class _BsPageState extends State<BsPage> {
                     ),
                   ],
                 ],
-              ],
-            ),
-          ),
+              );
+            } else {
+              // Ждём соперника или загрузку: статус и своё поле
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _status,
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  _BsGrid(
+                    maxWidth: 260,
+                    small: true,
+                    cell: (i) => _ownCell(theme, i, water, myCells),
+                  ),
+                  if (_finished) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _again,
+                      icon: const Icon(Icons.replay),
+                      label: Text(_online ? 'Сыграть ещё раз' : 'Новая партия'),
+                    ),
+                  ],
+                ],
+              );
+            }
+            return SingleChildScrollView(
+              // Пока идёт бой, экран не прокручивается: прицел ведётся пальцем
+              physics: showEnemy && !_finished
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
+              padding: const EdgeInsets.all(pad),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: box.maxHeight - pad * 2,
+                  minWidth: width,
+                ),
+                child: Center(child: content),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -813,17 +888,16 @@ class _RipplePainter extends CustomPainter {
   bool shouldRepaint(_RipplePainter old) => old.t != t || old.color != color;
 }
 
+/// Неинтерактивная сетка 10x10 (расстановка и своё поле)
 class _BsGrid extends StatelessWidget {
   const _BsGrid({
     required this.cell,
     required this.maxWidth,
-    this.onTap,
     this.small = false,
   });
 
   final Widget Function(int) cell;
   final double maxWidth;
-  final void Function(int)? onTap;
   final bool small;
 
   @override
@@ -833,17 +907,144 @@ class _BsGrid extends StatelessWidget {
       aspectRatio: 1,
       child: GridView.count(
         crossAxisCount: 10,
+        padding: EdgeInsets.zero,
         mainAxisSpacing: small ? 1 : 2,
         crossAxisSpacing: small ? 1 : 2,
         physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (var i = 0; i < 100; i++)
-            GestureDetector(
-              onTap: onTap == null ? null : () => onTap!(i),
-              child: cell(i),
-            ),
-        ],
+        children: [for (var i = 0; i < 100; i++) cell(i)],
       ),
     ),
   );
+}
+
+/// Поле соперника с прицелом: касание ставит квадрат, он идёт за пальцем,
+/// выстрел делается, когда палец оторван над полем. Оторвал за пределами поля — выстрела нет.
+class _AimGrid extends StatefulWidget {
+  const _AimGrid({
+    required this.side,
+    required this.cell,
+    required this.enabled,
+    required this.onShoot,
+    required this.aimColor,
+  });
+
+  final double side;
+  final Widget Function(int) cell;
+  final bool enabled;
+  final void Function(int) onShoot;
+  final Color aimColor;
+
+  @override
+  State<_AimGrid> createState() => _AimGridState();
+}
+
+class _AimGridState extends State<_AimGrid> {
+  static const double _gap = 2;
+
+  int? _pointer;
+  int? _aim;
+
+  double get _pitch => (widget.side + _gap) / 10;
+
+  int? _cellAt(Offset p) {
+    final side = widget.side;
+    if (p.dx < 0 || p.dy < 0 || p.dx >= side || p.dy >= side) return null;
+    final col = (p.dx ~/ _pitch).clamp(0, 9);
+    final row = (p.dy ~/ _pitch).clamp(0, 9);
+    return row * 10 + col;
+  }
+
+  void _down(PointerDownEvent e) {
+    if (!widget.enabled || _pointer != null) return;
+    _pointer = e.pointer;
+    setState(() => _aim = _cellAt(e.localPosition));
+  }
+
+  void _move(PointerMoveEvent e) {
+    if (e.pointer != _pointer) return;
+    final c = _cellAt(e.localPosition);
+    if (c != _aim) setState(() => _aim = c);
+  }
+
+  void _up(PointerUpEvent e) {
+    if (e.pointer != _pointer) return;
+    final c = _cellAt(e.localPosition);
+    _pointer = null;
+    setState(() => _aim = null);
+    if (c != null) widget.onShoot(c);
+  }
+
+  void _cancel(PointerCancelEvent e) {
+    if (e.pointer != _pointer) return;
+    _pointer = null;
+    setState(() => _aim = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final side = widget.side;
+    final pitch = _pitch;
+    final tile = pitch - _gap;
+    final aim = _aim;
+    final color = widget.aimColor;
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _down,
+      onPointerMove: _move,
+      onPointerUp: _up,
+      onPointerCancel: _cancel,
+      child: SizedBox.square(
+        dimension: side,
+        child: Stack(
+          children: [
+            IgnorePointer(
+              child: GridView.count(
+                crossAxisCount: 10,
+                padding: EdgeInsets.zero,
+                mainAxisSpacing: _gap,
+                crossAxisSpacing: _gap,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [for (var i = 0; i < 100; i++) widget.cell(i)],
+              ),
+            ),
+            if (aim != null) ...[
+              Positioned(
+                left: 0,
+                top: (aim ~/ 10) * pitch,
+                width: side,
+                height: tile,
+                child: IgnorePointer(
+                  child: ColoredBox(color: color.withAlpha(30)),
+                ),
+              ),
+              Positioned(
+                left: (aim % 10) * pitch,
+                top: 0,
+                width: tile,
+                height: side,
+                child: IgnorePointer(
+                  child: ColoredBox(color: color.withAlpha(30)),
+                ),
+              ),
+              Positioned(
+                left: (aim % 10) * pitch - 1,
+                top: (aim ~/ 10) * pitch - 1,
+                width: tile + 2,
+                height: tile + 2,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: color.withAlpha(70),
+                      border: Border.all(color: color, width: 3),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
