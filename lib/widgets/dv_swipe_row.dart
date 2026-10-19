@@ -53,7 +53,7 @@ class DvSwipeRow extends StatefulWidget {
 
 class _DvSwipeRowState extends State<DvSwipeRow>
     with SingleTickerProviderStateMixin {
-  static const double _panelWidth = 84;
+  static const double _panelWidth = 92;
 
   late final AnimationController _c = AnimationController(vsync: this);
 
@@ -88,12 +88,12 @@ class _DvSwipeRowState extends State<DvSwipeRow>
 
   void _dragUpdate(DragUpdateDetails d) {
     _c.stop();
-    _c.value = (_c.value - d.delta.dx / _panelWidth).clamp(0.0, 1.0);
+    _c.value = (_c.value - d.delta.dx * 1.25 / _panelWidth).clamp(0.0, 1.0);
   }
 
   void _dragEnd(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
-    _settle(v < -450 || (v <= 450 && _c.value > 0.5));
+    _settle(v < -220 || (v <= 220 && _c.value > 0.3));
   }
 
   void _settle(bool open) {
@@ -243,6 +243,6 @@ class _LeftDragRecognizer extends HorizontalDragGestureRecognizer {
   ) {
     if (!enabled()) return false;
     final rightWay = _sum < 0 || (allowRight() && _sum > 0);
-    return rightWay && _sum.abs() > 10 && _sum.abs() > _sumY.abs() * 2;
+    return rightWay && _sum.abs() > 4 && _sum.abs() > _sumY.abs() * 1.2;
   }
 }

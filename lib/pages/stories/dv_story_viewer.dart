@@ -337,12 +337,31 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   }
 
   /// Обычное сообщение автору в личный чат: оно шифруется как все и приходит уведомлением
+
+  /// Подпись конкретной сторис: «фото, 2 из 5, сегодня в 18:42, "подпись"»
+  String _storyLabel() {
+    final s = _s;
+    final items = _g.items;
+    final i = items.indexOf(s) + 1;
+    var ts = s.createdTs;
+    if (ts < 100000000000) ts *= 1000;
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    final now = DateTime.now();
+    final hm = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    final today = d.year == now.year && d.month == now.month && d.day == now.day;
+    final day = today ? 'сегодня' : 'вчера';
+    final kind = s.kind == 'video' ? 'видео' : 'фото';
+    final cap = s.caption.trim();
+    final capPart = cap.isEmpty ? '' : ', «${cap.length > 40 ? '${cap.substring(0, 40)}…' : cap}»';
+    final nth = items.length > 1 ? ', $i из ${items.length}' : '';
+    return 'Реакция на вашу сторис ($kind$nth, $day в $hm$capPart)';
+  }
   Future<void> _notifyAuthor(String emoji) async {
     try {
       final roomId = widget.client.getDirectChatFromUserId(_g.userId);
       final room = roomId == null ? null : widget.client.getRoomById(roomId);
       if (room == null || room.membership != Membership.join) return;
-      await room.sendTextEvent('$emoji Реакция на вашу сторис');
+      await room.sendTextEvent('$emoji ${_storyLabel()}');
     } catch (e) {
       Logs().w('DVChat: не удалось уведомить автора о реакции', e);
     }
