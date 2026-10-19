@@ -67,7 +67,7 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < blocks.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
+          if (i > 0) const SizedBox(height: 10),
           blocks[i],
         ],
       ],
@@ -117,15 +117,31 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
         _ => 1.0,
       };
       final headStyle = style.copyWith(
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
         fontSize: (style.fontSize ?? 16) * scale,
+        color: theme.colorScheme.primary,
+        height: 1.25,
+      );
+      final big = tag == 'h1' || tag == 'h2';
+      final text = Text.rich(
+        TextSpan(children: _spans(kids, headStyle, theme)),
+        style: headStyle,
       );
       return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text.rich(
-          TextSpan(children: _spans(kids, headStyle, theme)),
-          style: headStyle,
-        ),
+        padding: EdgeInsets.only(top: big ? 8 : 4),
+        child: big
+            ? Container(
+                padding: const EdgeInsets.only(bottom: 4),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ),
+                child: text,
+              )
+            : text,
       );
     }
     if (tag == 'pre') {
@@ -149,8 +165,9 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
     }
     if (tag == 'blockquote') {
       return Container(
-        padding: const EdgeInsets.only(left: 10),
+        padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
         decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.08),
           border: Border(
             left: BorderSide(color: theme.colorScheme.primary, width: 3),
           ),
@@ -186,13 +203,19 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
       children: [
         for (var i = 0; i < items.length; i++)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
                   width: ordered ? 28 : 18,
-                  child: Text(ordered ? '${start + i}.' : '•', style: style),
+                  child: Text(
+                    ordered ? '${start + i}.' : '•',
+                    style: style.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Column(
@@ -210,6 +233,14 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
           ),
       ],
     );
+  }
+
+  /// Фон строки таблицы: шапка заметнее, дальше через одну лёгкая подложка
+  Color? _rowTint(ThemeData theme, int i, List<md.Element> row) {
+    if (row.isNotEmpty && row.first.tag == 'th') {
+      return theme.colorScheme.primary.withValues(alpha: 0.14);
+    }
+    return i.isOdd ? theme.colorScheme.onSurface.withValues(alpha: 0.05) : null;
   }
 
   Widget _table(md.Element e, TextStyle style, ThemeData theme) {
@@ -236,6 +267,9 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
         children: [
           for (final row in rows)
             TableRow(
+              decoration: BoxDecoration(
+                color: _rowTint(theme, rows.indexOf(row), row),
+              ),
               children: [
                 for (var i = 0; i < columns; i++)
                   if (i < row.length)
@@ -282,7 +316,14 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
           out.add(
             TextSpan(
               children: _spans(kids, style, theme),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color.lerp(
+                  theme.colorScheme.onSurface,
+                  theme.colorScheme.primary,
+                  0.3,
+                ),
+              ),
             ),
           );
         case 'em':
@@ -308,8 +349,13 @@ class _LizaMarkdownState extends State<LizaMarkdown> {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: (style.fontSize ?? 16) * 0.92,
-                backgroundColor: theme.colorScheme.onSurface.withValues(
-                  alpha: 0.1,
+                color: Color.lerp(
+                  theme.colorScheme.onSurface,
+                  theme.colorScheme.primary,
+                  0.5,
+                ),
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.12,
                 ),
               ),
             ),

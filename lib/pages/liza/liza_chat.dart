@@ -8,9 +8,9 @@ import 'package:dvchat/pages/liza/liza_client.dart';
 import 'package:dvchat/pages/liza/liza_history.dart';
 import 'package:dvchat/pages/liza/liza_markdown.dart';
 import 'package:dvchat/pages/liza/liza_store.dart';
-import 'package:flutter/services.dart';
+import 'package:dvchat/widgets/dv_live_wave.dart';
 import 'package:flutter/rendering.dart' show RenderBox, ScrollDirection;
-import 'package:flutter/widgets.dart' show CustomPaint, CustomPainter;
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart' show Client;
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -56,7 +56,6 @@ class _LizaChatState extends State<LizaChat> {
   String _beforeSpeech = '';
   String _lastWords = '';
   final List<double> _levels = [];
-  final ValueNotifier<int> _tick = ValueNotifier<int>(0);
   Timer? _waveTimer;
   double _level = 0;
   double _smooth = 0;
@@ -84,7 +83,6 @@ class _LizaChatState extends State<LizaChat> {
   void dispose() {
     _speech.cancel();
     _waveTimer?.cancel();
-    _tick.dispose();
     _showUp.dispose();
     _showDown.dispose();
     _input.dispose();
@@ -423,18 +421,17 @@ class _LizaChatState extends State<LizaChat> {
     );
   }
 
-  /// Палочки добавляем по таймеру (≈8 в секунду), чат при этом не перерисовывается
+  /// Громкость 1..100 раз в 100 мс, как в записи голосовых сообщений: DvLiveWave
+  /// сама плавно выдвигает новую палочку справа и перерисовывается каждый кадр.
   void _startWave() {
     _waveTimer?.cancel();
-    _waveTimer = Timer.periodic(const Duration(milliseconds: 130), (t) {
+    _waveTimer = Timer.periodic(const Duration(milliseconds: 100), (t) {
       if (!_listening || !mounted) {
         t.cancel();
         return;
       }
-      _smooth += (_level - _smooth) * 0.6;
-      _levels.add(_smooth);
-      if (_levels.length > 80) _levels.removeAt(0);
-      _tick.value++;
+      _smooth += (_level - _smooth) * 0.5;
+      _levels.add(1 + _smooth * 99);
     });
   }
 
@@ -505,11 +502,7 @@ class _LizaChatState extends State<LizaChat> {
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: IconButton.filled(
-              tooltip: 'Новый разговор',
-              icon: const Icon(Icons.add),
-              onPressed: _busy || _messages.isEmpty ? null : _newChat,
-            ),
+            child: _plusButton(Theme.of(context)),
           ),
         ],
       ),
@@ -755,10 +748,17 @@ class _LizaChatState extends State<LizaChat> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _listening
-                      ? _WaveBar(
-                          levels: _levels,
-                          tick: _tick,
-                          color: theme.colorScheme.error,
+                      ? Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: DvLiveWave(
+                            samples: _levels,
+                            color: theme.colorScheme.error,
+                          ),
                         )
                       : TextField(
                           controller: _input,
@@ -806,6 +806,30 @@ class _LizaChatState extends State<LizaChat> {
     );
   }
 
+  /// «+»: кружок того же цвета, что микрофон; пока нечего начинать заново, серый
+  Widget _plusButton(ThemeData theme) {
+    final enabled = !_busy && _messages.isNotEmpty;
+    final background = enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.12);
+    final foreground = enabled
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.38);
+    return Semantics(
+      button: true,
+      label: 'Новый разговор',
+      child: GestureDetector(
+        onTap: enabled ? _newChat : null,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: background),
+          child: Icon(Icons.add, size: 24, color: foreground),
+        ),
+      ),
+    );
+  }
+
   Widget _micButton(ThemeData theme) {
     final active = _listening;
     final color = active ? theme.colorScheme.error : theme.colorScheme.primary;
@@ -842,70 +866,4 @@ class _LizaChatState extends State<LizaChat> {
       ),
     );
   }
-}
-
-/// Бегущая строка из палочек, пока идёт диктовка (как в голосовых сообщениях).
-/// Перерисовывается только она сама, чат вокруг не трогается.
-class _WaveBar extends StatelessWidget {
-  const _WaveBar({
-    required this.levels,
-    required this.tick,
-    required this.color,
-  });
-
-  final List<double> levels;
-  final Listenable tick;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: CustomPaint(
-        size: const Size(double.infinity, 52),
-        painter: _WavePainter(levels, tick, color),
-      ),
-    );
-  }
-}
-
-class _WavePainter extends CustomPainter {
-  _WavePainter(this.levels, Listenable tick, this.color) : super(repaint: tick);
-
-  final List<double> levels;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const barWidth = 4.0;
-    const gap = 3.0;
-    final count = (size.width / (barWidth + gap)).floor();
-    final paint = Paint()
-      ..color = color
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = barWidth;
-    final shown = levels.length > count
-        ? levels.sublist(levels.length - count)
-        : levels;
-    for (var i = 0; i < count; i++) {
-      // новые палочки появляются справа и бегут влево
-      final k = i - (count - shown.length);
-      final v = k >= 0 ? shown[k] : 0.0;
-      final h = 4 + v * (size.height - 16);
-      final x = i * (barWidth + gap) + barWidth / 2;
-      canvas.drawLine(
-        Offset(x, size.height / 2 - h / 2),
-        Offset(x, size.height / 2 + h / 2),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_WavePainter old) => true;
 }
