@@ -12,6 +12,7 @@ import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/dv_decrypt_state.dart';
 import 'package:dvchat/utils/dv_last_event.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_status_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
@@ -132,9 +133,7 @@ class _ChatListItemBody extends StatelessWidget {
     final backgroundColor = activeChat
         ? theme.colorScheme.secondaryContainer
         : DvListStyle.fill(context);
-    final displayname = room.getLocalizedDisplayname(
-      MatrixLocals(L10n.of(context)),
-    );
+    final displayname = room.dvDisplayname(MatrixLocals(L10n.of(context)));
     final filter = this.filter;
     if (filter != null && !displayname.toLowerCase().contains(filter)) {
       return const SizedBox.shrink();

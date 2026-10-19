@@ -12,6 +12,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/poll.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
 import 'package:dvchat/pages/image_viewer/image_viewer.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -243,8 +244,8 @@ class MessageContent extends StatelessWidget {
           builder: (context, snapshot) {
             return _ButtonContent(
               label: L10n.of(context).startedACall(
-                snapshot.data?.calcDisplayname() ??
-                    event.senderFromMemoryOrFallback.calcDisplayname(),
+                snapshot.data?.dvName() ??
+                    event.senderFromMemoryOrFallback.dvName(),
               ),
               icon: '📞',
               textColor: buttonTextColor,
@@ -259,8 +260,8 @@ class MessageContent extends StatelessWidget {
           builder: (context, snapshot) {
             return _ButtonContent(
               label: L10n.of(context).userSentUnknownEvent(
-                snapshot.data?.calcDisplayname() ??
-                    event.senderFromMemoryOrFallback.calcDisplayname(),
+                snapshot.data?.dvName() ??
+                    event.senderFromMemoryOrFallback.dvName(),
                 event.type,
               ),
               icon: 'ℹ️',

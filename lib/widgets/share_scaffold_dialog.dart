@@ -9,6 +9,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
@@ -147,7 +148,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
             itemCount: rooms.length,
             itemBuilder: (context, i) {
               final room = rooms[i];
-              final displayname = room.getLocalizedDisplayname(
+              final displayname = room.dvDisplayname(
                 MatrixLocals(L10n.of(context)),
               );
               final value = selectedRoomId == room.id;

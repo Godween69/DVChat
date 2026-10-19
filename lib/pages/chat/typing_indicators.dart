@@ -8,6 +8,7 @@
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat/chat.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/typing_animation.dart';
@@ -66,7 +67,7 @@ class TypingIndicators extends StatelessWidget {
                         Avatar(
                           size: avatarSize,
                           mxContent: typingUsers.first.avatarUrl,
-                          name: typingUsers.first.calcDisplayname(),
+                          name: typingUsers.first.dvName(),
                         ),
                       if (typingUsers.length == 2)
                         Padding(
@@ -77,7 +78,7 @@ class TypingIndicators extends StatelessWidget {
                                 ? typingUsers.last.avatarUrl
                                 : null,
                             name: typingUsers.length == 2
-                                ? typingUsers.last.calcDisplayname()
+                                ? typingUsers.last.dvName()
                                 : '+${typingUsers.length - 1}',
                           ),
                         ),

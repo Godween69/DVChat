@@ -12,6 +12,7 @@ import 'dart:math';
 import 'package:dvchat/pages/games/bs_logic.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/dv_game_sound.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -635,7 +636,7 @@ class _BsPageState extends State<BsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final title = _online
-        ? 'Морской бой · ${widget.room!.getLocalizedDisplayname()}'
+        ? 'Морской бой · ${widget.room!.dvDisplayname()}'
         : 'Морской бой · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
     final showPlacement = !_loading && !_placed && !_finished;
     final sunkCells = {for (final s in _sunk) ...s};

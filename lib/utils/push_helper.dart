@@ -17,6 +17,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/notification_avatar_extension.dart';
@@ -295,7 +296,7 @@ Future<void> _tryPushHelper(
   );
   final senderName = isServiceNotice
       ? 'DVChat'
-      : event.senderFromMemoryOrFallback.calcDisplayname();
+      : event.senderFromMemoryOrFallback.dvName();
   // Show notification
 
   final newMessage = Message(
@@ -355,7 +356,7 @@ Future<void> _tryPushHelper(
         messagingStyleInformation ??
         MessagingStyleInformation(
           Person(
-            name: ownUser.calcDisplayname(),
+            name: ownUser.dvName(),
             icon: userAvatarFile == null
                 ? null
                 : ByteArrayAndroidIcon(userAvatarFile),

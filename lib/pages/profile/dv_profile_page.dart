@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoPicker;
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/dv_profile_api.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -123,6 +124,32 @@ class _DvProfilePageState extends State<DvProfilePage> {
     if (success.error == null) _refreshProfile();
   }
 
+  /// Личное имя друга: видно только мне
+  Future<void> _editNick(String realName) async {
+    final l10n = L10n.of(context);
+    final input = await showTextInputDialog(
+      useRootNavigator: false,
+      context: context,
+      title: 'Как вы называете этого человека?',
+      message: 'Это имя увидите только вы. Пустое поле вернёт настоящее имя.',
+      okLabel: l10n.ok,
+      cancelLabel: l10n.cancel,
+      initialText: DvNicknames.of(_client, widget.userId) ?? realName,
+      maxLength: 40,
+    );
+    if (input == null || !mounted) return;
+    final value = input.trim();
+    final res = await showFutureLoadingDialog(
+      context: context,
+      future: () => DvNicknames.set(
+        _client,
+        widget.userId,
+        value.isEmpty || value == realName ? null : value,
+      ),
+    );
+    if (res.error == null && mounted) setState(() {});
+  }
+
   Future<void> _changeAvatar() async {
     final l10n = L10n.of(context);
     final profile = await _profile;
@@ -234,8 +261,10 @@ class _DvProfilePageState extends State<DvProfilePage> {
         future: _profile,
         builder: (context, snapshot) {
           final profile = snapshot.data;
-          final name =
+          final realName =
               profile?.displayName ?? widget.userId.localpart ?? widget.userId;
+          final nick = _mine ? null : DvNicknames.of(_client, widget.userId);
+          final name = nick ?? realName;
           final avatar = profile?.avatarUrl;
           final birthday = DvProfiles.cachedBirthday(widget.userId);
           final friendId = DvProfiles.cachedDvId(widget.userId);
@@ -309,15 +338,28 @@ class _DvProfilePageState extends State<DvProfilePage> {
                           style: const TextStyle(fontSize: 22),
                         ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          name,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.headlineSmall,
-                        ),
+                    : Column(
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => _editNick(realName),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            style: TextButton.styleFrom(
+                              foregroundColor: theme.colorScheme.onSurface,
+                              iconColor: theme.colorScheme.onSurface,
+                            ),
+                            label: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 22),
+                            ),
+                          ),
+                          if (nick != null)
+                            Text(
+                              'Настоящее имя: $realName',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                        ],
                       ),
               ),
               const SizedBox(height: 8),
@@ -345,6 +387,14 @@ class _DvProfilePageState extends State<DvProfilePage> {
                   subtitle: Text(birthday?.text ?? 'Не указан'),
                 ),
                 if (friendId != null) _FriendIdTile(friendId),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(72, 4, 16, 12),
+                  child: Text(
+                    'Нажмите на имя, чтобы назвать человека по-своему. '
+                    'Увидите это только вы.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
                 const DvBirthdayNotifyTile(),
               ],
             ],

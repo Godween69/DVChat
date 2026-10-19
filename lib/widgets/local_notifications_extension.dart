@@ -8,6 +8,7 @@
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_download_content_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
@@ -28,9 +29,7 @@ extension LocalNotificationsExtension on MatrixState {
       }
     }
 
-    final title = event.room.getLocalizedDisplayname(
-      MatrixLocals(L10n.of(context)),
-    );
+    final title = event.room.dvDisplayname(MatrixLocals(L10n.of(context)));
     final body = await event.calcLocalizedBody(
       MatrixLocals(L10n.of(context)),
       withSenderNamePrefix:

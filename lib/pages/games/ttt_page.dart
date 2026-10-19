@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/dv_game_sound.dart';
 import 'package:dvchat/pages/games/ttt_logic.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -326,15 +327,13 @@ class _TttPageState extends State<TttPage> {
     final theme = Theme.of(context);
     final line = TttLogic.winLine(_board);
     final title = _online
-        ? 'Крестики-нолики · ${widget.room!.getLocalizedDisplayname()}'
+        ? 'Крестики-нолики · ${widget.room!.dvDisplayname()}'
         : 'Крестики-нолики · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
     final mine = _mine;
     final other = mine == 'X' ? 'O' : 'X';
     final turn = TttLogic.turnOf(_board);
     final playing = !_loading && !_finished;
-    final oppName = _online
-        ? widget.room!.getLocalizedDisplayname()
-        : 'Компьютер';
+    final oppName = _online ? widget.room!.dvDisplayname() : 'Компьютер';
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(

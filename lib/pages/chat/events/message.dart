@@ -15,6 +15,7 @@ import 'package:dvchat/pages/chat/events/bubble_meta.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/file_description.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
@@ -335,7 +336,7 @@ class Message extends StatelessWidget {
                             final user = snapshot.data ?? sender;
                             return Avatar(
                               mxContent: user.avatarUrl,
-                              name: user.calcDisplayname(),
+                              name: user.dvName(),
 
                               size: avatarSize,
                               onTap: () => DvProfilePage.open(context, user.id),
@@ -381,8 +382,8 @@ class Message extends StatelessWidget {
                                       future: event.fetchSenderUser(),
                                       builder: (context, snapshot) {
                                         final displayname =
-                                            snapshot.data?.calcDisplayname() ??
-                                            sender.calcDisplayname();
+                                            snapshot.data?.dvName() ??
+                                            sender.dvName();
                                         return ConstrainedBox(
                                           constraints: BoxConstraints(
                                             maxWidth: 200,

@@ -8,6 +8,7 @@
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -57,12 +58,7 @@ class ParticipantListItem extends StatelessWidget {
                 size: 16,
               ),
             ),
-          Expanded(
-            child: Text(
-              user.calcDisplayname(),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Expanded(child: Text(user.dvName(), overflow: TextOverflow.ellipsis)),
           if (permissionBatch != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -108,7 +104,7 @@ class ParticipantListItem extends StatelessWidget {
         opacity: user.membership == Membership.join ? 1 : 0.5,
         child: Avatar(
           mxContent: user.avatarUrl,
-          name: user.calcDisplayname(),
+          name: user.dvName(),
           presenceUserId: user.stateKey,
           onTap: () => DvProfilePage.open(context, user.id),
         ),

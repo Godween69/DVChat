@@ -9,6 +9,7 @@ import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/sync_status_localization.dart';
@@ -49,9 +50,7 @@ class ChatAppBarTitle extends StatelessWidget {
             tag: 'content_banner',
             child: Avatar(
               mxContent: room.avatar,
-              name: room.getLocalizedDisplayname(
-                MatrixLocals(L10n.of(context)),
-              ),
+              name: room.dvDisplayname(MatrixLocals(L10n.of(context))),
               size: 32,
             ),
           ),
@@ -72,9 +71,7 @@ class ChatAppBarTitle extends StatelessWidget {
                       ),
                     Expanded(
                       child: Text(
-                        room.getLocalizedDisplayname(
-                          MatrixLocals(L10n.of(context)),
-                        ),
+                        room.dvDisplayname(MatrixLocals(L10n.of(context))),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 16),

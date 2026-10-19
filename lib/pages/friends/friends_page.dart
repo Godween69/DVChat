@@ -10,6 +10,7 @@ import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/best_friends.dart';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -317,23 +318,32 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     future: _profile(id),
     builder: (context, snapshot) {
       final profile = snapshot.data;
-      final name = profile?.displayName ?? id.localpart ?? id;
-      return DvListCard(
-        child: ListTile(
-          contentPadding: DvListStyle.isPlain
-              ? null
-              : const EdgeInsets.fromLTRB(18, 8, 8, 8),
-          leading: Avatar(
-            mxContent: profile?.avatarUrl,
-            name: name,
-            client: _client,
-            onTap: () => DvProfilePage.open(context, id),
-          ),
-          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: onTap,
-          onLongPress: onLongPress,
-          trailing: trailing,
-        ),
+      return ValueListenableBuilder<int>(
+        valueListenable: DvNicknames.revision,
+        builder: (context, _, _) {
+          final name =
+              DvNicknames.of(_client, id) ??
+              profile?.displayName ??
+              id.localpart ??
+              id;
+          return DvListCard(
+            child: ListTile(
+              contentPadding: DvListStyle.isPlain
+                  ? null
+                  : const EdgeInsets.fromLTRB(18, 8, 8, 8),
+              leading: Avatar(
+                mxContent: profile?.avatarUrl,
+                name: name,
+                client: _client,
+                onTap: () => DvProfilePage.open(context, id),
+              ),
+              title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: onTap,
+              onLongPress: onLongPress,
+              trailing: trailing,
+            ),
+          );
+        },
       );
     },
   );
@@ -351,7 +361,10 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
 
   Future<String> _nameOf(String id) async {
     try {
-      return (await _profile(id)).displayName ?? id.localpart ?? id;
+      return DvNicknames.of(_client, id) ??
+          (await _profile(id)).displayName ??
+          id.localpart ??
+          id;
     } catch (_) {
       return id.localpart ?? id;
     }

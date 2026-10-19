@@ -11,6 +11,7 @@ import 'package:dvchat/pages/chat_search/chat_search_files_tab.dart';
 import 'package:dvchat/pages/chat_search/chat_search_images_tab.dart';
 import 'package:dvchat/pages/chat_search/chat_search_message_tab.dart';
 import 'package:dvchat/pages/chat_search/chat_search_page.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
@@ -42,9 +43,9 @@ class ChatSearchView extends StatelessWidget {
         leading: const Center(child: BackButton()),
         titleSpacing: 0,
         title: Text(
-          L10n.of(context).searchIn(
-            room.getLocalizedDisplayname(MatrixLocals(L10n.of(context))),
-          ),
+          L10n.of(
+            context,
+          ).searchIn(room.dvDisplayname(MatrixLocals(L10n.of(context)))),
         ),
       ),
       body: MaxWidthBody(

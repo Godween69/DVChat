@@ -6,6 +6,7 @@
 // DVChat: Расширение Room: подпись состояния чата («печатает…», последняя активность, статус собеседника).
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:flutter/widgets.dart';
 import 'package:matrix/matrix.dart';
 
@@ -25,18 +26,16 @@ extension RoomStatusExtension on Room {
     } else if (typingUsers.length == 1) {
       typingText = L10n.of(context).isTyping;
       if (typingUsers.first.id != directChatMatrixID) {
-        typingText = L10n.of(
-          context,
-        ).userIsTyping(typingUsers.first.calcDisplayname());
+        typingText = L10n.of(context).userIsTyping(typingUsers.first.dvName());
       }
     } else if (typingUsers.length == 2) {
       typingText = L10n.of(context).userAndUserAreTyping(
-        typingUsers.first.calcDisplayname(),
-        typingUsers[1].calcDisplayname(),
+        typingUsers.first.dvName(),
+        typingUsers[1].dvName(),
       );
     } else if (typingUsers.length > 2) {
       typingText = L10n.of(context).userAndOthersAreTyping(
-        typingUsers.first.calcDisplayname(),
+        typingUsers.first.dvName(),
         (typingUsers.length - 1),
       );
     }

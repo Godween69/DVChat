@@ -9,6 +9,7 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/pages/chat_details/participant_list_item.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/dv_pins.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -56,9 +57,7 @@ class ChatDetailsView extends StatelessWidget {
             (room.summary.mInvitedMemberCount ?? 0) +
             (room.summary.mJoinedMemberCount ?? 0);
         final canRequestMoreMembers = members.length < actualMembersCount;
-        final displayname = room.getLocalizedDisplayname(
-          MatrixLocals(L10n.of(context)),
-        );
+        final displayname = room.dvDisplayname(MatrixLocals(L10n.of(context)));
         return Scaffold(
           appBar: AppBar(
             leading:

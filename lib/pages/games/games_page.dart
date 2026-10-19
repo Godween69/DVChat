@@ -10,6 +10,7 @@ import 'package:dvchat/pages/games/bs_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/dv_list_card.dart';
 import 'package:dvchat/widgets/matrix.dart';
@@ -175,7 +176,7 @@ class _GamesPageState extends State<GamesPage> {
           for (final r in rooms)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, r),
-              child: Text(r.getLocalizedDisplayname()),
+              child: Text(r.dvDisplayname()),
             ),
         ],
       ),
@@ -287,7 +288,7 @@ class _GamesPageState extends State<GamesPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Соперник: ${inv.room.getLocalizedDisplayname()}'),
+              Text('Соперник: ${inv.room.dvDisplayname()}'),
               const SizedBox(height: 6),
               Text(
                 'Приглашение: ${_dateTime(inv.time)} '
@@ -432,7 +433,7 @@ class _GamesPageState extends State<GamesPage> {
   /// Партия с другом: строка, как в списке чатов; три строки, чтобы ничего не обрезалось
   Widget _party(ThemeData theme, DvGameInvite inv, String? me) {
     final def = _def(inv.game)!;
-    final name = inv.room.getLocalizedDisplayname();
+    final name = inv.room.dvDisplayname();
     final muted = DvGameNet.isMuted(inv.gameId);
     final small = theme.textTheme.bodySmall;
     return DvListCard(

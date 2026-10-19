@@ -8,6 +8,7 @@
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_search/search_footer.dart';
 import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/url_launcher.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -47,9 +48,9 @@ class ChatSearchMessageTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Text(
-              L10n.of(context).searchIn(
-                room.getLocalizedDisplayname(MatrixLocals(L10n.of(context))),
-              ),
+              L10n.of(
+                context,
+              ).searchIn(room.dvDisplayname(MatrixLocals(L10n.of(context)))),
               textAlign: TextAlign.center,
             ),
           ),
