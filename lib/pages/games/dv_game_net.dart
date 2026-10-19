@@ -49,6 +49,7 @@ class DvGameNet {
     'ckr' => 'Шашки',
     'c4' => 'Четыре в ряд',
     'chess' => 'Шахматы',
+    'durak' => 'Дурак',
     _ => 'Крестики-нолики',
   };
 
@@ -109,6 +110,7 @@ class DvGameNet {
     required String game,
     required String gameTitle,
     bool announce = true,
+    Map<String, Object?>? extra,
   }) async {
     final id = DateTime.now().microsecondsSinceEpoch.toString();
     await room.sendEvent({
@@ -116,6 +118,7 @@ class DvGameNet {
       'id': id,
       'kind': 'invite',
       if (!announce) 'silent': true,
+      ...?extra,
     }, type: eventType);
     // Видимое сообщение в чат только при первом приглашении, не при реванше
     if (announce) {

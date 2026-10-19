@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:dvchat/pages/games/bs_page.dart';
 import 'package:dvchat/pages/games/c4_page.dart';
 import 'package:dvchat/pages/games/chess_page.dart';
+import 'package:dvchat/pages/games/durak_page.dart';
 import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
@@ -47,6 +48,8 @@ const _c4 = _GameDef('c4', 'Четыре в ряд', 'четыре в ряд', I
 
 const _chess = _GameDef('chess', 'Шахматы', 'шахматы', Icons.castle);
 
+const _durak = _GameDef('durak', 'Дурак', 'дурак', Icons.style);
+
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
 
@@ -68,6 +71,7 @@ class _GamesPageState extends State<GamesPage> {
     'ckr' => _ckr,
     'c4' => _c4,
     'chess' => _chess,
+    'durak' => _durak,
     _ => null,
   };
 
@@ -121,6 +125,7 @@ class _GamesPageState extends State<GamesPage> {
   Widget _pageFor(
     String game, {
     int? level,
+    String? mode,
     Room? room,
     String? gameId,
     String? hostId,
@@ -134,8 +139,36 @@ class _GamesPageState extends State<GamesPage> {
       gameId: gameId,
       hostId: hostId,
     ),
+    'durak' => DurakPage(
+      mode: mode,
+      level: level,
+      room: room,
+      gameId: gameId,
+      hostId: hostId,
+    ),
     _ => TttPage(level: level, room: room, gameId: gameId, hostId: hostId),
   };
+
+  /// Для дурака спрашивает, какой он: подкидной или переводной (для остальных игр вопроса нет)
+  Future<String?> _askVariant(_GameDef g) async {
+    if (g.id != 'durak') return 'podkid';
+    return showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Какой дурак?'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'podkid'),
+            child: const Text('Подкидной'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'perevod'),
+            child: const Text('Переводной'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _start(_GameDef g) async {
     final mode = await showModalBottomSheet<String>(
@@ -168,7 +201,9 @@ class _GamesPageState extends State<GamesPage> {
     if (!mounted || mode == null) return;
     if (mode == 'pc') {
       // Уровней сложности нет: компьютер играет на полную силу
-      _open(_pageFor(g.id, level: 2));
+      final variant = await _askVariant(g);
+      if (variant == null || !mounted) return;
+      _open(_pageFor(g.id, level: 2, mode: variant));
       return;
     }
     final rooms = DvGameNet.directRooms(_client);
@@ -206,14 +241,25 @@ class _GamesPageState extends State<GamesPage> {
         return;
       }
     }
+    final variant = await _askVariant(g);
+    if (variant == null || !mounted) return;
     try {
       final id = await DvGameNet.sendInvite(
         room,
         game: g.id,
         gameTitle: g.inviteTitle,
+        extra: g.id == 'durak' ? {'mode': variant} : null,
       );
       if (!mounted) return;
-      _open(_pageFor(g.id, room: room, gameId: id, hostId: _client.userID));
+      _open(
+        _pageFor(
+          g.id,
+          mode: variant,
+          room: room,
+          gameId: id,
+          hostId: _client.userID,
+        ),
+      );
     } catch (_) {
       _snack('Не удалось отправить приглашение');
     }
@@ -562,6 +608,12 @@ class _GamesPageState extends State<GamesPage> {
                     icon: _chess.icon,
                     title: _chess.title,
                     onTap: () => _start(_chess),
+                  ),
+                  _tile(
+                    theme,
+                    icon: _durak.icon,
+                    title: _durak.title,
+                    onTap: () => _start(_durak),
                   ),
                 ],
               ),
