@@ -6,6 +6,7 @@ import 'package:dvchat/pages/liza/liza_client.dart';
 import 'package:dvchat/pages/liza/liza_markdown.dart';
 import 'package:dvchat/pages/liza/liza_store.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show CustomPaint, CustomPainter;
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart' show Client;
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -48,6 +49,7 @@ class _LizaChatState extends State<LizaChat> {
   bool _listening = false;
   String _beforeSpeech = '';
   String _lastWords = '';
+  final List<double> _levels = [];
 
   String get _userId => widget.client.userID ?? '';
 
@@ -248,10 +250,12 @@ class _LizaChatState extends State<LizaChat> {
         ? ''
         : '${_input.text.trimRight()} ';
     _lastWords = '';
+    _levels.clear();
     if (!mounted) return;
     setState(() => _listening = true);
     await _speech.listen(
       onResult: _onSpeechResult,
+      onSoundLevelChange: _onSoundLevel,
       localeId: localeId,
       listenFor: const Duration(seconds: 90),
       pauseFor: const Duration(seconds: 5),
@@ -261,6 +265,15 @@ class _LizaChatState extends State<LizaChat> {
         cancelOnError: true,
       ),
     );
+  }
+
+  void _onSoundLevel(double level) {
+    if (!_listening || !mounted) return;
+    final v = ((level + 2) / 12).clamp(0.0, 1.0).toDouble();
+    setState(() {
+      _levels.add(v);
+      if (_levels.length > 80) _levels.removeAt(0);
+    });
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {
@@ -483,7 +496,7 @@ class _LizaChatState extends State<LizaChat> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'Говорите… нажмите на микрофон, когда закончите',
+                  'Говорите… нажмите на микрофон, когда закончите: текст появится в поле',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.error,
                   ),
@@ -505,26 +518,32 @@ class _LizaChatState extends State<LizaChat> {
                 _micButton(theme),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
-                    controller: _input,
-                    minLines: 1,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    keyboardType: TextInputType.multiline,
-                    decoration: InputDecoration(
-                      hintText: 'Спросите Лизу…',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
+                  child: _listening
+                      ? _WaveBar(
+                          levels: _levels,
+                          color: theme.colorScheme.error,
+                        )
+                      : TextField(
+                          controller: _input,
+                          minLines: 1,
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.multiline,
+                          decoration: InputDecoration(
+                            hintText: 'Спросите Лизу…',
+                            filled: true,
+                            fillColor:
+                                theme.colorScheme.surfaceContainerHighest,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(28),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 // Стрелка отправки всегда на одном месте справа, пока пусто или Лиза думает: серая
@@ -586,4 +605,64 @@ class _LizaChatState extends State<LizaChat> {
       ),
     );
   }
+}
+
+/// Бегущая строка из палочек, пока идёт диктовка (как в голосовых сообщениях)
+class _WaveBar extends StatelessWidget {
+  const _WaveBar({required this.levels, required this.color});
+
+  final List<double> levels;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: CustomPaint(
+        size: const Size(double.infinity, 52),
+        painter: _WavePainter(List.of(levels), color),
+      ),
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  _WavePainter(this.levels, this.color);
+
+  final List<double> levels;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const barWidth = 4.0;
+    const gap = 3.0;
+    final count = (size.width / (barWidth + gap)).floor();
+    final paint = Paint()
+      ..color = color
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = barWidth;
+    final shown = levels.length > count
+        ? levels.sublist(levels.length - count)
+        : levels;
+    for (var i = 0; i < count; i++) {
+      // новые палочки появляются справа и бегут влево
+      final k = i - (count - shown.length);
+      final v = k >= 0 ? shown[k] : 0.0;
+      final h = 4 + v * (size.height - 16);
+      final x = i * (barWidth + gap) + barWidth / 2;
+      canvas.drawLine(
+        Offset(x, size.height / 2 - h / 2),
+        Offset(x, size.height / 2 + h / 2),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter old) => true;
 }
