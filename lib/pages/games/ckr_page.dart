@@ -40,8 +40,6 @@ class CkrPage extends StatefulWidget {
 }
 
 class _CkrPageState extends State<CkrPage> {
-  static const List<String> _levelNames = ['Лёгкий', 'Средний', 'Сильный'];
-
   /// Ничья, если 30 ходов подряд ходят только дамки и никто никого не бьёт
   static const int _drawPlies = 30;
 
@@ -328,7 +326,7 @@ class _CkrPageState extends State<CkrPage> {
     setState(() => _busy = true);
     await Future<void>.delayed(const Duration(milliseconds: 550));
     if (!mounted) return;
-    final m = CkrLogic.aiMove(_board, _toMove, widget.level ?? 1, _rnd);
+    final m = CkrLogic.aiMove(_board, _toMove, 2, _rnd);
     setState(() => _busy = false);
     if (m == null) return;
     _commitLocal(m, mine: false);
@@ -464,58 +462,113 @@ class _CkrPageState extends State<CkrPage> {
   int _count0(int side) =>
       _board.where((v) => v != 0 && CkrLogic.sideOf(v) == side).length;
 
+  /// Объёмная фишка: тень, ободок, выпуклая лицевая сторона с бликом и выточенными
+  /// кольцами; у дамки золотая корона
   Widget _piece(int v, double size, {double opacity = 1}) {
     final white = v > 0;
     final king = v.abs() == 2;
-    final base = white ? const Color(0xFFF1EEE8) : const Color(0xFF26262B);
-    final edge = white ? const Color(0xFFB9B3A8) : const Color(0xFF8D8D96);
+    final rim = white
+        ? const [Color(0xFFFFFFFF), Color(0xFFB4A88F)]
+        : const [Color(0xFF7A7A86), Color(0xFF0C0C10)];
+    final face = white
+        ? const [Color(0xFFFFFCF3), Color(0xFFD6CBB2)]
+        : const [Color(0xFF51515B), Color(0xFF17171B)];
+    final groove = (white ? Colors.black : Colors.white).withAlpha(
+      white ? 38 : 34,
+    );
     return Opacity(
       opacity: opacity,
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: base,
-          border: Border.all(color: edge, width: max(1.5, size * 0.05)),
-        ),
-        alignment: Alignment.center,
-        child: king
-            ? Container(
-                width: size * 0.5,
-                height: size * 0.5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: white
-                        ? const Color(0xFFC59B2E)
-                        : const Color(0xFFE2B84A),
-                    width: max(2.0, size * 0.09),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(100),
+                    blurRadius: size * 0.16,
+                    offset: Offset(0, size * 0.07),
                   ),
-                ),
-              )
-            : Container(
-                width: size * 0.56,
-                height: size * 0.56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: edge.withAlpha(120), width: 1),
+                ],
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: rim,
                 ),
               ),
+            ),
+            Container(
+              width: size * 0.84,
+              height: size * 0.84,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  center: const Alignment(-0.35, -0.4),
+                  radius: 1.0,
+                  colors: face,
+                ),
+              ),
+            ),
+            Container(
+              width: size * 0.62,
+              height: size * 0.62,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: groove, width: max(1.0, size * 0.03)),
+              ),
+            ),
+            Container(
+              width: size * 0.42,
+              height: size * 0.42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: groove,
+                  width: max(1.0, size * 0.025),
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * 0.13,
+              left: size * 0.2,
+              child: Container(
+                width: size * 0.36,
+                height: size * 0.17,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(size),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withAlpha(white ? 170 : 80),
+                      Colors.white.withAlpha(0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (king)
+              CustomPaint(
+                size: Size(size * 0.5, size * 0.38),
+                painter: _CrownPainter(),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _boardView(ThemeData theme, double side) {
     final cs = side / 8;
-    final dark = Color.alphaBlend(
-      theme.bubbleColor.withAlpha(230),
-      theme.colorScheme.surface,
-    );
-    final light = Color.alphaBlend(
-      theme.bubbleColor.withAlpha(34),
-      theme.colorScheme.surfaceContainerHighest,
-    );
     final sel = _selected;
     final targets = sel == null ? const <int>{} : _targets(sel);
     final lastCells = <int>{...?_last?.path};
@@ -530,9 +583,14 @@ class _CkrPageState extends State<CkrPage> {
       final v = _board[i];
       final isTarget = targets.contains(i);
       final dragging = sel == i && _finger != null;
-      var fill = isDark ? dark : light;
+      // Дерево: тёмные клетки орех, светлые клён; последний ход подсвечен тёплым
+      var wood = isDark
+          ? const [Color(0xFF9C6C3C), Color(0xFF774B25)]
+          : const [Color(0xFFF2E0B9), Color(0xFFE1C795)];
       if (isDark && lastCells.contains(i)) {
-        fill = Color.alphaBlend(Colors.white.withAlpha(46), fill);
+        wood = [
+          for (final c in wood) Color.alphaBlend(const Color(0x55FFD54F), c),
+        ];
       }
       children.add(
         Positioned(
@@ -542,7 +600,11 @@ class _CkrPageState extends State<CkrPage> {
           height: cs,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: fill,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: wood,
+              ),
               border: sel == i
                   ? Border.all(color: accent, width: 3)
                   : (isTarget && hover == i
@@ -598,9 +660,7 @@ class _CkrPageState extends State<CkrPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final title = _online
-        ? 'Шашки · ${widget.room!.dvDisplayname()}'
-        : 'Шашки · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
+    final title = _online ? 'Шашки · ${widget.room!.dvDisplayname()}' : 'Шашки';
     final mineLeft = _count0(_mine);
     final oppLeft = _count0(-_mine);
     return Scaffold(
@@ -637,7 +697,25 @@ class _CkrPageState extends State<CkrPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-                      _boardView(theme, side),
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF6E4625), Color(0xFF45290F)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(80),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: _boardView(theme, side - 14),
+                      ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: side,
@@ -675,4 +753,41 @@ class _CkrPageState extends State<CkrPage> {
       ),
     );
   }
+}
+
+/// Золотая корона дамки
+class _CrownPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(0, h)
+      ..lineTo(0, h * 0.22)
+      ..lineTo(w * 0.26, h * 0.6)
+      ..lineTo(w * 0.5, 0)
+      ..lineTo(w * 0.74, h * 0.6)
+      ..lineTo(w, h * 0.22)
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFE08A), Color(0xFFD9A021)],
+        ).createShader(Rect.fromLTWH(0, 0, w, h)),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xFF7A5410),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CrownPainter old) => false;
 }

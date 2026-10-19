@@ -19,13 +19,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
 class _GameDef {
-  const _GameDef(this.id, this.title, this.inviteTitle, this.icon, this.levels);
+  const _GameDef(this.id, this.title, this.inviteTitle, this.icon);
 
   final String id;
   final String title;
   final String inviteTitle;
   final IconData icon;
-  final List<String> levels;
 }
 
 const _ttt = _GameDef(
@@ -33,21 +32,15 @@ const _ttt = _GameDef(
   'Крестики-нолики',
   'крестики-нолики',
   Icons.grid_3x3,
-  ['Лёгкий', 'Средний', 'Непобедимый'],
 );
 const _bs = _GameDef(
   'bs',
   'Морской бой',
   'морской бой',
   Icons.sailing_outlined,
-  ['Лёгкий', 'Средний', 'Сильный'],
 );
 
-const _ckr = _GameDef('ckr', 'Шашки', 'шашки', Icons.radio_button_checked, [
-  'Лёгкий',
-  'Средний',
-  'Сильный',
-]);
+const _ckr = _GameDef('ckr', 'Шашки', 'шашки', Icons.radio_button_checked);
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -160,21 +153,8 @@ class _GamesPageState extends State<GamesPage> {
     );
     if (!mounted || mode == null) return;
     if (mode == 'pc') {
-      final level = await showDialog<int>(
-        context: context,
-        builder: (context) => SimpleDialog(
-          title: const Text('Сложность'),
-          children: [
-            for (var i = 0; i < g.levels.length; i++)
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, i),
-                child: Text(g.levels[i]),
-              ),
-          ],
-        ),
-      );
-      if (level == null || !mounted) return;
-      _open(_pageFor(g.id, level: level));
+      // Уровней сложности нет: компьютер играет на полную силу
+      _open(_pageFor(g.id, level: 2));
       return;
     }
     final rooms = DvGameNet.directRooms(_client);

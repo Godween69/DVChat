@@ -56,8 +56,6 @@ class BsPage extends StatefulWidget {
 }
 
 class _BsPageState extends State<BsPage> {
-  static const List<String> _levelNames = ['Лёгкий', 'Средний', 'Сильный'];
-
   final Random _rnd = Random();
 
   // Общее состояние
@@ -112,7 +110,7 @@ class _BsPageState extends State<BsPage> {
       unawaited(_load());
     } else {
       _aiFleet = BsLogic.randomFleet(_rnd);
-      _ai = BsAi(widget.level ?? 1, _rnd);
+      _ai = BsAi(2, _rnd);
     }
   }
 
@@ -525,7 +523,7 @@ class _BsPageState extends State<BsPage> {
     setState(() {
       _fleet = BsLogic.randomFleet(_rnd);
       _aiFleet = BsLogic.randomFleet(_rnd);
-      _ai = BsAi(widget.level ?? 1, _rnd);
+      _ai = BsAi(2, _rnd);
       _marks = {};
       _sunk = [];
       _incoming = {};
@@ -679,7 +677,7 @@ class _BsPageState extends State<BsPage> {
     final theme = Theme.of(context);
     final title = _online
         ? 'Морской бой · ${widget.room!.dvDisplayname()}'
-        : 'Морской бой · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
+        : 'Морской бой';
     final showPlacement = !_loading && !_placed && !_finished;
     final playing = !showPlacement && (_placed || _finished);
     final showEnemy = playing && (_bothReady || !_online);

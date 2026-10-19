@@ -38,8 +38,6 @@ class TttPage extends StatefulWidget {
 }
 
 class _TttPageState extends State<TttPage> {
-  static const List<String> _levelNames = ['Лёгкий', 'Средний', 'Непобедимый'];
-
   List<String> _board = List.filled(9, '');
   bool _humanFirst = true;
   bool _busy = false;
@@ -231,7 +229,7 @@ class _TttPageState extends State<TttPage> {
     setState(() => _busy = true);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    final move = TttLogic.aiMove(_board, ai, widget.level ?? 1);
+    final move = TttLogic.aiMove(_board, ai, 2);
     final old = _count(_board);
     setState(() {
       _board = List.of(_board)..[move] = ai;
@@ -328,7 +326,7 @@ class _TttPageState extends State<TttPage> {
     final line = TttLogic.winLine(_board);
     final title = _online
         ? 'Крестики-нолики · ${widget.room!.dvDisplayname()}'
-        : 'Крестики-нолики · ${_levelNames[(widget.level ?? 1).clamp(0, 2)]}';
+        : 'Крестики-нолики';
     final mine = _mine;
     final other = mine == 'X' ? 'O' : 'X';
     final turn = TttLogic.turnOf(_board);
