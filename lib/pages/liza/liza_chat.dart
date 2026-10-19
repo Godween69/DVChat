@@ -53,6 +53,11 @@ class _LizaChatState extends State<LizaChat> {
   int? _limit;
   bool _speechReady = false;
   bool _listening = false;
+  // Пользователь хочет диктовать (пока не нажал стоп или отправку): сеансы продлеваются сами
+  bool _wantListen = false;
+  bool _restarting = false;
+  DateTime _dictStart = DateTime.now();
+  String? _localeId;
   String _beforeSpeech = '';
   String _lastWords = '';
   final List<double> _levels = [];
@@ -81,6 +86,7 @@ class _LizaChatState extends State<LizaChat> {
 
   @override
   void dispose() {
+    _wantListen = false;
     _speech.cancel();
     _waveTimer?.cancel();
     _showUp.dispose();
@@ -279,6 +285,7 @@ class _LizaChatState extends State<LizaChat> {
     if (text.isEmpty || _busy) return;
     // Диктовку обрываем и запоздалые слова от неё отбрасываем, поле очищаем
     _discardSpeech = true;
+    _wantListen = false;
     _beforeSpeech = '';
     _lastWords = '';
     try {
@@ -359,26 +366,59 @@ class _LizaChatState extends State<LizaChat> {
   }
 
   void _onSpeechStatus(String status) {
-    if ((status == 'done' || status == 'notListening') &&
-        mounted &&
-        _listening) {
+    if (status != 'done' && status != 'notListening') return;
+    if (!mounted) return;
+    if (_wantListen && !_discardSpeech) {
+      _restartSoon();
+    } else if (_listening) {
       setState(() => _listening = false);
     }
   }
 
   void _onSpeechError(SpeechRecognitionError error) {
-    if (mounted) setState(() => _listening = false);
-    if (error.errorMsg == 'error_no_match' ||
-        error.errorMsg == 'error_speech_timeout') {
+    if (!mounted) return;
+    final benign =
+        error.errorMsg == 'error_no_match' ||
+        error.errorMsg == 'error_speech_timeout' ||
+        error.errorMsg == 'error_client';
+    if (_wantListen && !_discardSpeech && benign) {
+      _restartSoon();
       return;
     }
+    _wantListen = false;
+    setState(() => _listening = false);
+    if (benign) return;
     _toast('Не получилось распознать речь. Можно продиктовать с клавиатуры.');
   }
 
-  Future<void> _toggleListening() async {
-    if (_listening) {
+  /// Распознаватель Android сам заканчивает сеанс на паузе или через минуту-другую.
+  /// Пока человек не нажал стоп, запускаем следующий сеанс: текст в поле копится.
+  void _restartSoon() {
+    if (_restarting) return;
+    _restarting = true;
+    Future<void>.delayed(const Duration(milliseconds: 250), () async {
+      _restarting = false;
+      if (!_wantListen || !mounted || _discardSpeech) return;
+      if (DateTime.now().difference(_dictStart) > const Duration(minutes: 10)) {
+        await _stopDictation();
+        _toast('Диктовка остановлена: длиннее 10 минут за раз нельзя.');
+        return;
+      }
+      await _listenOnce();
+    });
+  }
+
+  Future<void> _stopDictation() async {
+    _wantListen = false;
+    try {
       await _speech.stop();
-      if (mounted) setState(() => _listening = false);
+    } catch (_) {}
+    if (mounted) setState(() => _listening = false);
+  }
+
+  Future<void> _toggleListening() async {
+    if (_listening || _wantListen) {
+      await _stopDictation();
       return;
     }
     if (!await _ensureSpeech()) {
@@ -388,37 +428,47 @@ class _LizaChatState extends State<LizaChat> {
       );
       return;
     }
-    String? localeId;
     try {
       final locales = await _speech.locales();
-      localeId = locales
+      _localeId = locales
           .where((l) => l.localeId.toLowerCase().startsWith('ru'))
           .firstOrNull
           ?.localeId;
     } catch (_) {}
-    _beforeSpeech = _input.text.trim().isEmpty
-        ? ''
-        : '${_input.text.trimRight()} ';
-    _lastWords = '';
     _levels.clear();
     _discardSpeech = false;
     _level = 0;
     _smooth = 0;
     if (!mounted) return;
+    _wantListen = true;
+    _dictStart = DateTime.now();
     setState(() => _listening = true);
     _startWave();
-    await _speech.listen(
-      onResult: _onSpeechResult,
-      onSoundLevelChange: _onSoundLevel,
-      localeId: localeId,
-      listenFor: const Duration(seconds: 90),
-      pauseFor: const Duration(seconds: 5),
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        listenMode: ListenMode.dictation,
-        cancelOnError: true,
-      ),
-    );
+    await _listenOnce();
+  }
+
+  /// Один сеанс распознавания: что уже стоит в поле, остаётся, новые слова дописываются
+  Future<void> _listenOnce() async {
+    _beforeSpeech = _input.text.trim().isEmpty
+        ? ''
+        : '${_input.text.trimRight()} ';
+    _lastWords = '';
+    try {
+      await _speech.listen(
+        onResult: _onSpeechResult,
+        onSoundLevelChange: _onSoundLevel,
+        localeId: _localeId,
+        listenFor: const Duration(seconds: 120),
+        pauseFor: const Duration(seconds: 10),
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          listenMode: ListenMode.dictation,
+          cancelOnError: true,
+        ),
+      );
+    } catch (_) {
+      await _stopDictation();
+    }
   }
 
   /// Громкость 1..100 раз в 100 мс, как в записи голосовых сообщений: DvLiveWave
@@ -468,7 +518,7 @@ class _LizaChatState extends State<LizaChat> {
         _prevFinal = words;
       }
       _lastWords = '';
-      if (mounted) setState(() => _listening = false);
+      if (!_wantListen && mounted) setState(() => _listening = false);
     }
   }
 
