@@ -1,6 +1,7 @@
 // DVChat: сторис над списком чатов, как в Telegram. Свёрнуто: маленькие кружки
-// стопкой рядом с заголовком. Потянул список вниз: кружки раскрываются в ряд.
-// Смахнул вверх или прокрутил список: снова сворачиваются.
+// стопкой в углу перед заголовком. Тянешь список вниз: ряд вытягивается за пальцем,
+// отпустил далеко: остаётся раскрытым, близко: прячется. Смахнул вверх или прокрутил
+// список: сворачивается.
 
 import 'dart:async';
 
@@ -117,13 +118,44 @@ class DvStoriesStrip extends StatefulWidget {
 }
 
 class _DvStoriesStripState extends State<DvStoriesStrip>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   Timer? _timer;
+  late final AnimationController _c;
+
+  void _onPull() {
+    final p = DvStories.pull.value;
+    if (p != null) {
+      _c.stop();
+      _c.value = p;
+    } else {
+      _settle();
+    }
+  }
+
+  void _settle() {
+    unawaited(
+      _c.animateTo(
+        DvStories.expanded.value ? 1 : 0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  void _publish() => DvStories.reveal.value = _c.value;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _c = AnimationController(
+      vsync: this,
+      value: DvStories.expanded.value ? 1 : 0,
+    );
+    _c.addListener(_publish);
+    DvStories.pull.addListener(_onPull);
+    DvStories.expanded.addListener(_settle);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _publish());
     unawaited(DvStories.refresh(widget.client));
     _timer = Timer.periodic(
       const Duration(seconds: 60),
@@ -134,6 +166,9 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
   @override
   void dispose() {
     _timer?.cancel();
+    DvStories.pull.removeListener(_onPull);
+    DvStories.expanded.removeListener(_settle);
+    _c.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -187,19 +222,32 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: DvStories.expanded,
-      builder: (context, open, _) => AnimatedSize(
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.topCenter,
-        child: open
-            ? ValueListenableBuilder<DvStoriesFeed?>(
-                valueListenable: DvStories.feed,
-                builder: (context, feed, _) => _row(feed),
-              )
-            : const SizedBox(width: double.infinity, height: 0),
-      ),
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final v = _c.value.clamp(0.0, 1.0);
+        if (v < 0.002) {
+          return const SizedBox(width: double.infinity, height: 0);
+        }
+        // Высота растёт вместе с пальцем, кружки «выпрыгивают» из угла
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.topCenter,
+            heightFactor: v,
+            child: Opacity(
+              opacity: v,
+              child: Transform.scale(
+                scale: 0.55 + 0.45 * v,
+                alignment: Alignment.topLeft,
+                child: ValueListenableBuilder<DvStoriesFeed?>(
+                  valueListenable: DvStories.feed,
+                  builder: (context, feed, _) => _row(feed),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -215,92 +263,97 @@ class DvStoriesCompact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ValueListenableBuilder<bool>(
-      valueListenable: DvStories.expanded,
-      builder: (context, open, _) {
-        if (open) return const SizedBox.shrink();
-        return ValueListenableBuilder<DvStoriesFeed?>(
-          valueListenable: DvStories.feed,
-          builder: (context, feed, _) {
-            final me = client.userID ?? '';
-            final mine = feed?.mine ?? const <DvStory>[];
-            final groups = (feed?.groups ?? const <DvStoryGroup>[])
-                .take(3)
-                .toList();
-            final ids = <String>[me, ...groups.map((g) => g.userId)];
-            Color ringOf(int i) {
-              if (i == 0) {
-                return mine.isEmpty
-                    ? Colors.transparent
-                    : theme.colorScheme.tertiary;
-              }
-              return groups[i - 1].hasUnseen
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant;
-            }
+    return ValueListenableBuilder<double>(
+      valueListenable: DvStories.reveal,
+      builder: (context, reveal, _) {
+        return Opacity(
+          opacity: (1 - reveal * 1.6).clamp(0.0, 1.0),
+          child: IgnorePointer(
+            ignoring: reveal > 0.3,
+            child: ValueListenableBuilder<DvStoriesFeed?>(
+              valueListenable: DvStories.feed,
+              builder: (context, feed, _) {
+                final me = client.userID ?? '';
+                final mine = feed?.mine ?? const <DvStory>[];
+                final groups = (feed?.groups ?? const <DvStoryGroup>[])
+                    .take(3)
+                    .toList();
+                final ids = <String>[me, ...groups.map((g) => g.userId)];
+                Color ringOf(int i) {
+                  if (i == 0) {
+                    return mine.isEmpty
+                        ? Colors.transparent
+                        : theme.colorScheme.tertiary;
+                  }
+                  return groups[i - 1].hasUnseen
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outlineVariant;
+                }
 
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => DvStories.expanded.value = true,
-              child: SizedBox(
-                width: _d + _step * (ids.length - 1),
-                height: _d,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Первый (мой) сверху: рисуем с конца
-                    for (var i = ids.length - 1; i >= 0; i--)
-                      Positioned(
-                        left: _step * i,
-                        child: Container(
-                          width: _d,
-                          height: _d,
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: theme.colorScheme.surface,
-                            border: Border.all(color: ringOf(i), width: 2),
-                          ),
-                          child: FutureBuilder<Profile>(
-                            initialData: DvStories.profileData[ids[i]],
-                            future: DvStories.profile(client, ids[i]),
-                            builder: (context, snapshot) => Avatar(
-                              mxContent: snapshot.data?.avatarUrl,
-                              name: DvStories.nameOf(
-                                client,
-                                ids[i],
-                                snapshot.data,
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => DvStories.expanded.value = true,
+                  child: SizedBox(
+                    width: _d + _step * (ids.length - 1),
+                    height: _d,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Первый (мой) сверху: рисуем с конца
+                        for (var i = ids.length - 1; i >= 0; i--)
+                          Positioned(
+                            left: _step * i,
+                            child: Container(
+                              width: _d,
+                              height: _d,
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colorScheme.surface,
+                                border: Border.all(color: ringOf(i), width: 2),
                               ),
-                              client: client,
-                              size: _d - 8,
-                              borderRadius: BorderRadius.circular(_d),
+                              child: FutureBuilder<Profile>(
+                                initialData: DvStories.profileData[ids[i]],
+                                future: DvStories.profile(client, ids[i]),
+                                builder: (context, snapshot) => Avatar(
+                                  mxContent: snapshot.data?.avatarUrl,
+                                  name: DvStories.nameOf(
+                                    client,
+                                    ids[i],
+                                    snapshot.data,
+                                  ),
+                                  client: client,
+                                  size: _d - 8,
+                                  borderRadius: BorderRadius.circular(_d),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (mine.isEmpty)
-                      Positioned(
-                        left: _d - 12,
-                        bottom: -2,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            shape: BoxShape.circle,
+                        if (mine.isEmpty)
+                          Positioned(
+                            left: _d - 12,
+                            bottom: -2,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.add,
+                                size: 11,
+                                color: theme.colorScheme.onPrimary,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            Icons.add,
-                            size: 11,
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         );
       },
     );

@@ -68,6 +68,10 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 const SizedBox(width: 12),
               ],
+              if (synced) ...[
+                DvStoriesCompact(client: client),
+                const SizedBox(width: 12),
+              ],
               Flexible(
                 // DVChat: 20 быстрых нажатий на заголовок открывают скрытое меню разработчика
                 child: GestureDetector(
@@ -83,10 +87,6 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
               ),
-              if (synced) ...[
-                const SizedBox(width: 12),
-                DvStoriesCompact(client: client),
-              ],
               const Spacer(),
             ],
           );

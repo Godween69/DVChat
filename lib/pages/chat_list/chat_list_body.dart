@@ -118,6 +118,7 @@ class ChatListViewBody extends StatelessWidget {
           onNotification: DvStories.onListScroll,
           child: CustomScrollView(
             controller: controller.scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               ChatListHeader(controller: controller),
               if (client.prevBatch != null)

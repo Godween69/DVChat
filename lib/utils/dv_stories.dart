@@ -117,21 +117,33 @@ class DvStories {
   static final ValueNotifier<DvStoriesFeed?> feed = ValueNotifier(null);
   static bool _loading = false;
 
-  /// Раскрыта ли полоса сторис над списком чатов (потянули вниз)
+  /// Раскрыта ли полоса сторис над списком чатов
   static final ValueNotifier<bool> expanded = ValueNotifier(false);
-  static double _pull = 0;
 
-  /// Слушатель прокрутки списка чатов: потянул вниз у самого верха: раскрыть,
-  /// прокрутил список вверх: свернуть
+  /// Насколько сейчас тянут список вниз у самого верха (0..1); null, когда не тянут
+  static final ValueNotifier<double?> pull = ValueNotifier(null);
+
+  /// Насколько раскрыта полоса (0..1), публикует сама полоса
+  static final ValueNotifier<double> reveal = ValueNotifier(0);
+  static double _pullPx = 0;
+  static const double _pullFull = 140;
+
+  /// Слушатель прокрутки списка чатов: тянешь вниз у самого верха, полоса растёт
+  /// за пальцем; отпустил далеко: остаётся, близко: прячется. Прокрутил список: свернуть.
   static bool onListScroll(ScrollNotification n) {
     if (n.depth != 0) return false;
     if (n is OverscrollNotification) {
-      if (n.overscroll < 0 && n.metrics.pixels <= 0) {
-        _pull += -n.overscroll;
-        if (_pull > 36 && !expanded.value) expanded.value = true;
+      if (!expanded.value && n.overscroll < 0 && n.metrics.pixels <= 0) {
+        _pullPx += -n.overscroll;
+        pull.value = (_pullPx / _pullFull).clamp(0.0, 1.0);
       }
     } else if (n is ScrollEndNotification) {
-      _pull = 0;
+      final p = pull.value;
+      _pullPx = 0;
+      if (p != null) {
+        expanded.value = p > 0.35;
+        pull.value = null;
+      }
     } else if (n is ScrollUpdateNotification) {
       if (n.metrics.pixels > 24 && expanded.value) expanded.value = false;
     }

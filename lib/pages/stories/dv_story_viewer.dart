@@ -43,11 +43,13 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   bool _failed = false;
   bool _holding = false;
   bool _sheetOpen = false;
+  bool _panel = false;
+  String? _burst;
 
   DvStoryGroup get _g => widget.groups[_group];
   DvStory get _s => _g.items[_item];
   bool get _isMine => _g.userId == widget.client.userID;
-  bool get _paused => _holding || _sheetOpen;
+  bool get _paused => _holding || _sheetOpen || _panel;
 
   @override
   void initState() {
@@ -413,13 +415,16 @@ class _DvStoryViewerState extends State<DvStoryViewer>
 
   Widget _bottom() {
     if (_isMine) {
-      return Center(
-        child: TextButton.icon(
-          style: TextButton.styleFrom(foregroundColor: Colors.white),
-          onPressed: _showViewers,
-          icon: const Icon(Icons.visibility_outlined),
-          label: Text('Просмотры: ${_s.views}   Реакции: ${_s.reactions}'),
-        ),
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            onPressed: _showViewers,
+            icon: const Icon(Icons.visibility_outlined),
+            label: Text('Просмотры: ${_s.views}   Реакции: ${_s.reactions}'),
+          ),
+        ],
       );
     }
     return Row(
@@ -441,11 +446,102 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     );
   }
 
+  void _openPanel() {
+    setState(() => _panel = true);
+    _pause();
+  }
+
+  void _closePanel() {
+    setState(() => _panel = false);
+    _resume();
+  }
+
+  /// Выбор реакции из панели долгого нажатия: эмодзи «выпрыгивает» на экран
+  void _pick(String emoji) {
+    final removing = _s.myReaction == emoji;
+    setState(() {
+      _panel = false;
+      _burst = removing ? null : emoji;
+    });
+    unawaited(_react(emoji));
+    Future<void>.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _burst = null);
+    });
+    _resume();
+  }
+
+  Widget _panelView() {
+    final theme = Theme.of(context);
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _closePanel,
+        child: Container(
+          color: Colors.black54,
+          alignment: Alignment.center,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutBack,
+            builder: (context, v, child) => Transform.scale(
+              scale: v,
+              child: Opacity(opacity: v.clamp(0.0, 1.0), child: child),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final e in DvStories.emojis)
+                    GestureDetector(
+                      onTap: () => _pick(e),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text(e, style: const TextStyle(fontSize: 34)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _burstView(String emoji) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Center(
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(emoji),
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 900),
+            builder: (context, v, _) => Opacity(
+              opacity: (1 - v * v).clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: 0.5 + 1.3 * v,
+                child: Text(emoji, style: const TextStyle(fontSize: 80)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      // Stack на весь экран: без этого он сжимался до высоты шапки, фото и
+      // область нажатий становились крошечными
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: LayoutBuilder(
@@ -454,12 +550,18 @@ class _DvStoryViewerState extends State<DvStoryViewer>
                 onTapUp: (d) =>
                     d.localPosition.dx < box.maxWidth / 3 ? _prev() : _next(),
                 onLongPressStart: (_) {
-                  _holding = true;
-                  _pause();
+                  if (_isMine) {
+                    _holding = true;
+                    _pause();
+                  } else {
+                    _openPanel();
+                  }
                 },
                 onLongPressEnd: (_) {
-                  _holding = false;
-                  _resume();
+                  if (_holding) {
+                    _holding = false;
+                    _resume();
+                  }
                 },
                 onVerticalDragEnd: (d) {
                   if ((d.primaryVelocity ?? 0) > 300) {
@@ -470,12 +572,17 @@ class _DvStoryViewerState extends State<DvStoryViewer>
               ),
             ),
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [_bars(), const SizedBox(height: 8), _header()],
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [_bars(), const SizedBox(height: 8), _header()],
+                ),
               ),
             ),
           ),
@@ -490,6 +597,8 @@ class _DvStoryViewerState extends State<DvStoryViewer>
               ),
             ),
           ),
+          if (_burst != null) _burstView(_burst!),
+          if (_panel) _panelView(),
         ],
       ),
     );
