@@ -459,21 +459,7 @@ class AudioPlayerState extends State<AudioPlayerWidget>
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          widget.color.withAlpha(104),
-                                          widget.color.withAlpha(46),
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withAlpha(60),
-                                          blurRadius: 3,
-                                          offset: const Offset(0, 1.5),
-                                        ),
-                                      ],
+                                      color: widget.color.withAlpha(64),
                                     ),
                                     child: Center(
                                       child: Icon(

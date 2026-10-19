@@ -476,7 +476,7 @@ class Message extends StatelessWidget {
                                   child: _BubbleTail(
                                     show: hasTail,
                                     own: ownMessage,
-                                    color: _lift(color),
+                                    color: _haze(color),
                                     onForward:
                                         ({
                                               MessageTypes.Image,
@@ -495,30 +495,9 @@ class Message extends StatelessWidget {
                                               borderRadius: borderRadius,
                                             )
                                           : BoxDecoration(
-                                              // DVChat: едва заметный градиент и мягкая тень
-                                              gradient: LinearGradient(
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                                colors: [
-                                                  _lift(color),
-                                                  color,
-                                                  _sink(color),
-                                                ],
-                                                stops: const [0, 0.45, 1],
-                                              ),
+                                              // DVChat: матовый сплошной цвет, без блеска и тени
+                                              color: _haze(color),
                                               borderRadius: borderRadius,
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withAlpha(
-                                                    theme.brightness ==
-                                                            Brightness.dark
-                                                        ? 70
-                                                        : 32,
-                                                  ),
-                                                  blurRadius: 3,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ],
                                             ),
                                       clipBehavior: Clip.antiAlias,
                                       child: BubbleBackground(
@@ -1065,16 +1044,10 @@ class __AnimateInState extends State<_AnimateIn> {
 /// DVChat: радиус скругления пузыря сообщения (как в WhatsApp)
 const double _bubbleRadius = 11;
 
-/// DVChat: верхний цвет едва заметного градиента пузыря (чуть светлее основного)
-Color _lift(Color c) {
+/// DVChat: матовая «дымка»: цвет пузыря слегка приглушён, как в Telegram
+Color _haze(Color c) {
   final hsl = HSLColor.fromColor(c);
-  return hsl.withLightness((hsl.lightness + 0.055).clamp(0.0, 1.0)).toColor();
-}
-
-/// DVChat: нижний цвет градиента пузыря (чуть темнее основного)
-Color _sink(Color c) {
-  final hsl = HSLColor.fromColor(c);
-  return hsl.withLightness((hsl.lightness - 0.04).clamp(0.0, 1.0)).toColor();
+  return hsl.withSaturation((hsl.saturation * 0.82).clamp(0.0, 1.0)).toColor();
 }
 
 /// DVChat: метка (время, галочки) лежит поверх пузыря справа внизу

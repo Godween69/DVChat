@@ -148,7 +148,7 @@ class SettingsStyleView extends StatelessWidget {
                     Theme.of(context).brightness == Brightness.light
                     ? light?.primary
                     : dark?.primary;
-                final colors = [null, AppConfig.chatColor, ...Colors.primaries];
+                final colors = [null, AppConfig.chatColor, ..._dvSeeds];
                 if (systemColor == null) {
                   colors.remove(null);
                 }
@@ -161,6 +161,24 @@ class SettingsStyleView extends StatelessWidget {
                   itemCount: colors.length,
                   itemBuilder: (context, i) {
                     final color = colors[i];
+                    // Показываем цвет, который реально получится у сообщений в этой теме
+                    final seed = color ?? systemColor;
+                    final isDark = theme.brightness == Brightness.dark;
+                    final scheme = seed == null
+                        ? null
+                        : ColorScheme.fromSeed(
+                            seedColor: seed,
+                            brightness: theme.brightness,
+                            dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
+                          );
+                    final swatch = scheme == null
+                        ? null
+                        : (isDark ? scheme.primaryContainer : scheme.primary);
+                    final onSwatch = scheme == null
+                        ? null
+                        : (isDark
+                              ? scheme.onPrimaryContainer
+                              : scheme.onPrimary);
                     return Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Tooltip(
@@ -171,7 +189,7 @@ class SettingsStyleView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(colorPickerSize),
                           onTap: () => controller.setChatColor(color),
                           child: Material(
-                            color: color ?? systemColor,
+                            color: swatch,
                             elevation: 6,
                             borderRadius: BorderRadius.circular(
                               colorPickerSize,
@@ -179,14 +197,14 @@ class SettingsStyleView extends StatelessWidget {
                             child: SizedBox(
                               width: colorPickerSize,
                               height: colorPickerSize,
-                              child: controller.currentColor == color
+                              child:
+                                  controller.currentColor?.toARGB32() ==
+                                      color?.toARGB32()
                                   ? Center(
                                       child: Icon(
                                         Icons.check,
                                         size: 16,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimary,
+                                        color: onSwatch,
                                       ),
                                     )
                                   : null,
@@ -487,3 +505,13 @@ class SettingsStyleView extends StatelessWidget {
     );
   }
 }
+
+/// DVChat: 19 заметно разных оттенков по кругу (красный, оранжевый, олива, зелёные,
+/// бирюза, голубые, синие, фиолетовые, розовые)
+final List<Color> _dvSeeds = [
+  for (final h in const [
+    0, 14, 28, 62, 90, 120, 145, 165, 180, 195,
+    210, 225, 240, 258, 275, 292, 310, 328, 345, //
+  ])
+    HSLColor.fromAHSL(1, h.toDouble(), 0.78, 0.5).toColor(),
+];
