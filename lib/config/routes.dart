@@ -24,6 +24,7 @@ import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/pages/intro/intro_page_presenter.dart';
 import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
+import 'package:dvchat/pages/liza/liza_page.dart';
 import 'package:dvchat/pages/new_group/new_group.dart';
 import 'package:dvchat/pages/new_private_chat/new_private_chat.dart';
 import 'package:dvchat/pages/settings/settings.dart';
@@ -156,6 +157,17 @@ abstract class AppRoutes {
                 state,
                 DvThemes.isColumnMode(context)
                     ? const GamesPage()
+                    : const SizedBox.shrink(),
+              ),
+              redirect: loggedOutRedirect,
+            ),
+            GoRoute(
+              path: 'liza',
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const LizaPage()
                     : const SizedBox.shrink(),
               ),
               redirect: loggedOutRedirect,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: нижняя панель вкладок на телефоне: «Чаты», «Друзья», «Игры».
-// Панель видна только на этих трёх экранах и прячется внутри чата, настроек и игр.
+// DVChat: нижняя панель вкладок на телефоне: «Чаты», «Друзья», «Игры», «Лиза».
+// Панель видна только на этих четырёх экранах и прячется внутри чата, настроек и игр.
 // На широком экране (планшет, веб) ничего не меняется: там боковая панель.
 // Вид панели следует оформлению списков: обычный (без заливки, в цвет страницы),
 // плашки (парящая «таблетка» с лёгкой тенью) и рамки (то же с тонкой обводкой).
@@ -13,6 +13,7 @@ import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/games/games_page.dart';
+import 'package:dvchat/pages/liza/liza_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_resend.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
@@ -21,7 +22,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
-/// Каркас телефона: три вкладки в общем PageView (листаются свайпом за пальцем)
+/// Каркас телефона: четыре вкладки в общем PageView (листаются свайпом за пальцем)
 /// и нижняя панель. Маршруты вкладок в роутере пустые, сами экраны живут здесь,
 /// поэтому прокрутка и состояние вкладок сохраняются. Остальные экраны (чат,
 /// настройки, архив) открываются поверх через [child].
@@ -38,6 +39,7 @@ class DvMainShell extends StatefulWidget {
     '/rooms',
     '/rooms/friends',
     '/rooms/games',
+    '/rooms/liza',
   ];
 
   static int? indexFor(String path) {
@@ -148,6 +150,11 @@ class _DvMainShellState extends State<DvMainShell> {
                   index: 2,
                   child: const _KeepAlive(child: GamesPage()),
                 ),
+                _TabFx(
+                  controller: _controller,
+                  index: 3,
+                  child: const _KeepAlive(child: LizaPage()),
+                ),
               ],
             ),
           ),
@@ -199,12 +206,13 @@ class _DvTabBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   static const double _height = 54;
-  static const List<String> _labels = ['Чаты', 'Друзья', 'Игры'];
+  static const List<String> _labels = ['Чаты', 'Друзья', 'Игры', 'Лиза'];
 
   Widget _icon(int i, bool selected) => switch (i) {
     0 => _ChatsIcon(selected: selected),
     1 => Icon(selected ? Icons.people : Icons.people_outline),
-    _ => Icon(selected ? Icons.sports_esports : Icons.sports_esports_outlined),
+    2 => Icon(selected ? Icons.sports_esports : Icons.sports_esports_outlined),
+    _ => Icon(selected ? Icons.auto_awesome : Icons.auto_awesome_outlined),
   };
 
   Widget _tab(ThemeData theme, int i) {
