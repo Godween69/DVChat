@@ -16,6 +16,7 @@ import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/stream_extension.dart';
 import 'package:dvchat/widgets/closed_chat_notice.dart';
 import 'package:dvchat/widgets/dv_encryption_note.dart';
+import 'package:dvchat/widgets/dv_stories_strip.dart';
 import 'package:dvchat/widgets/dv_swipe_row.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -116,6 +117,8 @@ class ChatListViewBody extends StatelessWidget {
           controller: controller.scrollController,
           slivers: [
             ChatListHeader(controller: controller),
+            if (client.prevBatch != null)
+              SliverToBoxAdapter(child: DvStoriesStrip(client: client)),
             if (client.prevBatch != null && rooms.isEmpty)
               SliverToBoxAdapter(
                 child: Column(

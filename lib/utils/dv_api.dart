@@ -19,13 +19,16 @@ class DvApiException implements Exception {
 
 class DvApi {
   final Client client;
-  const DvApi(this.client);
+
+  /// Какой модуль сервера: dv (друзья, профили) или dvs (сторис)
+  final String prefix;
+  const DvApi(this.client, {this.prefix = 'dv'});
 
   /// ID не меняется, поэтому хранится в памяти после первого запроса
   static final Map<String, String> _idCache = {};
 
   Uri _uri(String path) =>
-      Uri.https(AppConfig.defaultHomeserver, '/_synapse/client/dv/$path');
+      Uri.https(AppConfig.defaultHomeserver, '/_synapse/client/$prefix/$path');
 
   Map<String, String> get _headers => {
     'Authorization': 'Bearer ${client.accessToken}',
