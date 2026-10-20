@@ -60,6 +60,7 @@ class _DvMainShellState extends State<DvMainShell> {
 
   /// Идёт прокрутка от нажатия на панель: промежуточные страницы адрес не меняют
   bool _animating = false;
+  int _animToken = 0;
 
   @override
   void initState() {
@@ -80,6 +81,13 @@ class _DvMainShellState extends State<DvMainShell> {
     super.didUpdateWidget(old);
     final i = DvMainShell.indexFor(widget.path);
     if (i == null || i == _page) return;
+    // Пока вкладки листают пальцем, запоздавший адрес не должен возвращать страницу:
+    // после остановки адрес подтянется сам (см. _onScroll)
+    if (!_animating &&
+        _controller.hasClients &&
+        _controller.position.isScrollingNotifier.value) {
+      return;
+    }
     final cameFromTab = DvMainShell.indexFor(old.path) != null;
     _page = i;
     _showPage(i, animate: cameFromTab);
@@ -91,6 +99,7 @@ class _DvMainShellState extends State<DvMainShell> {
       _controller.jumpToPage(i);
       return;
     }
+    final token = ++_animToken;
     _animating = true;
     unawaited(
       _controller
@@ -99,7 +108,9 @@ class _DvMainShellState extends State<DvMainShell> {
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
           )
-          .whenComplete(() => _animating = false),
+          .whenComplete(() {
+            if (token == _animToken) _animating = false;
+          }),
     );
   }
 
@@ -107,7 +118,19 @@ class _DvMainShellState extends State<DvMainShell> {
   void _onPageChanged(int i) {
     if (_animating || i == _page) return;
     setState(() => _page = i);
-    context.go(DvMainShell._paths[i]);
+  }
+
+  /// Лист остановился: подтягиваем адрес к странице, на которой он встал
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n is! ScrollEndNotification || _animating) return false;
+    if (!_controller.hasClients) return false;
+    if (DvMainShell.indexFor(widget.path) == null) return false;
+    final p = (_controller.page ?? _page.toDouble()).round().clamp(0, 3);
+    if (p != _page) setState(() => _page = p);
+    if (DvMainShell.indexFor(widget.path) != p) {
+      context.go(DvMainShell._paths[p]);
+    }
+    return false;
   }
 
   @override
@@ -128,34 +151,37 @@ class _DvMainShellState extends State<DvMainShell> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: PageView(
-              controller: _controller,
-              allowImplicitScrolling: true,
-              onPageChanged: _onPageChanged,
-              // Когда сверху открыт чат или настройки, листать вкладки нельзя
-              physics: onTab ? null : const NeverScrollableScrollPhysics(),
-              children: [
-                _TabFx(
-                  controller: _controller,
-                  index: 0,
-                  child: const _KeepAlive(child: ChatList(activeChat: null)),
-                ),
-                _TabFx(
-                  controller: _controller,
-                  index: 1,
-                  child: const _KeepAlive(child: FriendsPage()),
-                ),
-                _TabFx(
-                  controller: _controller,
-                  index: 2,
-                  child: const _KeepAlive(child: GamesPage()),
-                ),
-                _TabFx(
-                  controller: _controller,
-                  index: 3,
-                  child: const _KeepAlive(child: LizaPage()),
-                ),
-              ],
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScroll,
+              child: PageView(
+                controller: _controller,
+                allowImplicitScrolling: true,
+                onPageChanged: _onPageChanged,
+                // Когда сверху открыт чат или настройки, листать вкладки нельзя
+                physics: onTab ? null : const NeverScrollableScrollPhysics(),
+                children: [
+                  _TabFx(
+                    controller: _controller,
+                    index: 0,
+                    child: const _KeepAlive(child: ChatList(activeChat: null)),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 1,
+                    child: const _KeepAlive(child: FriendsPage()),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 2,
+                    child: const _KeepAlive(child: GamesPage()),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 3,
+                    child: const _KeepAlive(child: LizaPage()),
+                  ),
+                ],
+              ),
             ),
           ),
           // Слой роутера на вкладках пустой, но его Navigator (ModalBarrier) глотает
