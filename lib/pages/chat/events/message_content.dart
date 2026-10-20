@@ -10,6 +10,7 @@ import 'dart:math';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/events/poll.dart';
+import 'package:dvchat/pages/chat/events/shopping_list.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
 import 'package:dvchat/pages/image_viewer/image_viewer.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
@@ -186,6 +187,13 @@ class MessageContent extends StatelessWidget {
                   onInfoTab: onInfoTab,
                   fontSize: fontSize,
                 ),
+              );
+            }
+            if (dvShoppingOf(event) != null) {
+              return ShoppingListCard(
+                event: event,
+                timeline: timeline,
+                textColor: textColor,
               );
             }
             var html = AppSettings.renderHtml.value && event.isRichMessage

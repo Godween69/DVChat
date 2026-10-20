@@ -432,8 +432,8 @@ const Color _marker = Color(0xFF2E9E4F);
 /// Размеры листа: сетка N x N с полями слева (красная линия) и небольшими отступами
 class _Geo {
   _Geo(double width) {
-    cs = width / (TttLogic.n + 1.6);
-    lm = cs * 1.1;
+    cs = width / (TttLogic.n + 1);
+    lm = cs * 0.5;
     tp = cs * 0.5;
     w = width;
     h = (TttLogic.n + 1) * cs;
@@ -599,24 +599,6 @@ class _SheetPainter extends CustomPainter {
         ..strokeWidth = 1.6
         ..color = _gridBlue.withValues(alpha: 0.95),
     );
-
-    // красная линия полей и дырки от переплёта
-    canvas.drawLine(
-      Offset(g.cs * 0.72, 0),
-      Offset(g.cs * 0.72, s.height),
-      Paint()
-        ..color = const Color(0xFFE57373)
-        ..strokeWidth = 1.4,
-    );
-    for (final f in [0.2, 0.5, 0.8]) {
-      final c = Offset(g.cs * 0.3, s.height * f);
-      canvas.drawCircle(
-        c,
-        g.cs * 0.17,
-        Paint()..color = const Color(0x22000000),
-      );
-      canvas.drawCircle(c, g.cs * 0.14, Paint()..color = const Color(0xFFD9D3C0));
-    }
 
     // подсветка последнего хода — жёлтый маркер
     if (last >= 0 && board[last] != '') {

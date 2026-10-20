@@ -178,6 +178,20 @@ class ChatInputRow extends StatelessWidget {
                             contentPadding: const EdgeInsets.all(0),
                           ),
                         ),
+                        PopupMenuItem(
+                          value: AddPopupMenuActions.shopping,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  theme.colorScheme.onPrimaryContainer,
+                              foregroundColor:
+                                  theme.colorScheme.primaryContainer,
+                              child: const Icon(Icons.shopping_cart_outlined),
+                            ),
+                            title: const Text('Список покупок'),
+                            contentPadding: const EdgeInsets.all(0),
+                          ),
+                        ),
                         PopupMenuDivider(),
                         if (PlatformInfos.isMobile) ...[
                           PopupMenuItem(

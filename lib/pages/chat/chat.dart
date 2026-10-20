@@ -15,6 +15,7 @@ import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat_view.dart';
 import 'package:dvchat/pages/chat/event_info_dialog.dart';
+import 'package:dvchat/pages/chat/events/shopping_list.dart';
 import 'package:dvchat/pages/chat/start_poll_bottom_sheet.dart';
 import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
 import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
@@ -1493,6 +1494,12 @@ class ChatController extends State<ChatPageWithRoom>
       case AddPopupMenuActions.location:
         sendLocationAction();
         return;
+      case AddPopupMenuActions.shopping:
+        showAdaptiveBottomSheet(
+          context: context,
+          builder: (context) => ShoppingListSheet(room: room),
+        );
+        return;
     }
   }
 
@@ -1703,4 +1710,5 @@ enum AddPopupMenuActions {
   photoCamera,
   videoCamera,
   location,
+  shopping,
 }

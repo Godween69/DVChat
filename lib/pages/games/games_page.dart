@@ -12,6 +12,8 @@ import 'package:dvchat/pages/games/chess_page.dart';
 import 'package:dvchat/pages/games/durak_page.dart';
 import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
+import 'package:dvchat/pages/games/domino_page.dart';
+import 'package:dvchat/pages/games/game_rules.dart';
 import 'package:dvchat/pages/games/nardy_page.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
@@ -51,6 +53,7 @@ const _chess = _GameDef('chess', 'Шахматы', 'шахматы', Icons.castl
 
 const _durak = _GameDef('durak', 'Дурак', 'дурак', Icons.style);
 const _nardy = _GameDef('nardy', 'Нарды', 'нарды', Icons.casino);
+const _domino = _GameDef('domino', 'Домино', 'домино', Icons.splitscreen);
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -75,6 +78,7 @@ class _GamesPageState extends State<GamesPage> {
     'chess' => _chess,
     'durak' => _durak,
     'nardy' => _nardy,
+    'domino' => _domino,
     _ => null,
   };
 
@@ -150,6 +154,12 @@ class _GamesPageState extends State<GamesPage> {
       hostId: hostId,
     ),
     'nardy' => NardyPage(
+      level: level,
+      room: room,
+      gameId: gameId,
+      hostId: hostId,
+    ),
+    'domino' => DominoPage(
       level: level,
       room: room,
       gameId: gameId,
@@ -431,7 +441,58 @@ class _GamesPageState extends State<GamesPage> {
   );
 
   /// Квадратная плитка игры («кубик»)
+  /// Плитка игры с круглой кнопкой «i» (правила) в углу
   Widget _tile(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool soon = false,
+    String? rulesId,
+  }) {
+    final body = _tileBody(
+      theme,
+      icon: icon,
+      title: title,
+      onTap: onTap,
+      soon: soon,
+    );
+    if (rulesId == null) return body;
+    return Stack(
+      children: [
+        Positioned.fill(child: body),
+        Positioned(
+          top: 5,
+          right: 5,
+          child: Material(
+            color: theme.colorScheme.primary.withAlpha(36),
+            shape: const CircleBorder(),
+            child: InkResponse(
+              customBorder: const CircleBorder(),
+              onTap: () => showGameRules(context, rulesId),
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: Center(
+                  child: Text(
+                    'i',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      fontStyle: FontStyle.italic,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tileBody(
     ThemeData theme, {
     required IconData icon,
     required String title,
@@ -593,42 +654,56 @@ class _GamesPageState extends State<GamesPage> {
                     icon: _ttt.icon,
                     title: _ttt.title,
                     onTap: () => _start(_ttt),
+                    rulesId: _ttt.id,
                   ),
                   _tile(
                     theme,
                     icon: _bs.icon,
                     title: _bs.title,
                     onTap: () => _start(_bs),
+                    rulesId: _bs.id,
                   ),
                   _tile(
                     theme,
                     icon: _ckr.icon,
                     title: _ckr.title,
                     onTap: () => _start(_ckr),
+                    rulesId: _ckr.id,
                   ),
                   _tile(
                     theme,
                     icon: _c4.icon,
                     title: _c4.title,
                     onTap: () => _start(_c4),
+                    rulesId: _c4.id,
                   ),
                   _tile(
                     theme,
                     icon: _chess.icon,
                     title: _chess.title,
                     onTap: () => _start(_chess),
+                    rulesId: _chess.id,
                   ),
                   _tile(
                     theme,
                     icon: _durak.icon,
                     title: _durak.title,
                     onTap: () => _start(_durak),
+                    rulesId: _durak.id,
                   ),
                   _tile(
                     theme,
                     icon: _nardy.icon,
                     title: _nardy.title,
                     onTap: () => _start(_nardy),
+                    rulesId: _nardy.id,
+                  ),
+                  _tile(
+                    theme,
+                    icon: _domino.icon,
+                    title: _domino.title,
+                    onTap: () => _start(_domino),
+                    rulesId: _domino.id,
                   ),
                 ],
               ),

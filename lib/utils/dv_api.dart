@@ -35,6 +35,25 @@ class DvApi {
     'Content-Type': 'application/json',
   };
 
+  /// При холодном старте токен появляется не сразу: ждём его до 15 секунд
+  Future<void> _ready() async {
+    for (var i = 0; i < 75 && client.accessToken == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
+  /// Отправка с ожиданием токена и одним повтором, если сервер ответил 401
+  Future<http.Response> _send(Future<http.Response> Function() request) async {
+    await _ready();
+    var response = await request();
+    if (response.statusCode == 401) {
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      await _ready();
+      response = await request();
+    }
+    return response;
+  }
+
   Map<String, Object?> _check(http.Response response) {
     var json = <String, Object?>{};
     try {
@@ -52,9 +71,11 @@ class DvApi {
   }
 
   Future<Map<String, Object?>> get(String path) async {
-    final response = await http
-        .get(_uri(path), headers: _headers)
-        .timeout(const Duration(seconds: 20));
+    final response = await _send(
+      () => http
+          .get(_uri(path), headers: _headers)
+          .timeout(const Duration(seconds: 20)),
+    );
     return _check(response);
   }
 
@@ -62,9 +83,11 @@ class DvApi {
     String path,
     Map<String, Object?> body,
   ) async {
-    final response = await http
-        .post(_uri(path), headers: _headers, body: jsonEncode(body))
-        .timeout(const Duration(seconds: 20));
+    final response = await _send(
+      () => http
+          .post(_uri(path), headers: _headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 20)),
+    );
     return _check(response);
   }
 
