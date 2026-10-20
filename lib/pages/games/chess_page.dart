@@ -6,6 +6,7 @@
 // Касаешься своей фигуры, подсвечиваются доступные клетки, касаешься клетки, и фигура плавно идёт.
 // Доска деревянная, фигуры нарисованы кодом. Мат, пат, ничья по правилам и повторению ходов.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 
 import 'package:dvchat/pages/games/chess_logic.dart';
@@ -80,6 +81,7 @@ class _ChessPageState extends State<ChessPage> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('chess', offline: widget.room == null);
     if (_online) {
       _loading = true;
       _sub = widget.room!.client.onTimelineEvent.stream.listen((e) {
@@ -96,6 +98,7 @@ class _ChessPageState extends State<ChessPage> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('chess');
     super.dispose();
   }
 

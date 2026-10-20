@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
@@ -34,6 +35,7 @@ class DvGameSound {
   }
 
   static Future<void> play(DvSound s) async {
+    DvLocalStats.noteSound(s);
     if (kIsWeb || !enabled || volume <= 0) return;
     try {
       final p = await (_players[s] ??= _player(s));

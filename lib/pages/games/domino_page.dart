@@ -5,6 +5,7 @@
 //  - с другом (room + gameId + hostId), ходы идут через личный чат.
 // Раздача общая: фишки тасуются по номеру партии, поэтому у обоих телефонов одинаковый расклад.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -80,6 +81,7 @@ class _DominoPageState extends State<DominoPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('domino', offline: widget.room == null);
     _pulseC.repeat();
     _seed = _online ? widget.gameId! : DateTime.now().microsecondsSinceEpoch.toString();
     _game = DominoGame(_seed);
@@ -104,6 +106,7 @@ class _DominoPageState extends State<DominoPage> with TickerProviderStateMixin {
     _scroll.dispose();
     _placeC.dispose();
     _pulseC.dispose();
+    DvLocalStats.close('domino');
     super.dispose();
   }
 

@@ -77,19 +77,29 @@ class ShoppingListCard extends StatelessWidget {
     final accent = all ? Colors.green : theme.colorScheme.primary;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
-      child: Column(
+      constraints: const BoxConstraints(minWidth: 230, maxWidth: 330),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                all ? Icons.check_circle : Icons.shopping_cart_outlined,
-                color: accent,
-                size: 22,
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withAlpha(46),
+                ),
+                child: Icon(
+                  all ? Icons.check_circle : Icons.shopping_cart_outlined,
+                  color: accent,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   data.title,
@@ -109,17 +119,17 @@ class ShoppingListCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: total == 0 ? 0 : done / total,
-              minHeight: 5,
+              minHeight: 6,
               color: accent,
               backgroundColor: textColor.withAlpha(40),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           for (var i = 0; i < total; i++)
             _row(context, room, i + 1, data.items[i], checkOf(i + 1), canTap),
           if (all)
@@ -141,6 +151,7 @@ class ShoppingListCard extends StatelessWidget {
             ),
         ],
       ),
+      ),
     );
   }
 
@@ -156,8 +167,13 @@ class ShoppingListCard extends StatelessWidget {
     // снять отметку может только тот, кто её поставил
     final mine = check == null || check.senderId == room.client.userID;
     final enabled = canTap && mine && event.eventId.isNotEmpty;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: checked ? Colors.green.withAlpha(26) : textColor.withAlpha(18),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: !enabled
           ? null
           : () async {
@@ -176,13 +192,13 @@ class ShoppingListCard extends StatelessWidget {
               }
             },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 22,
-              height: 22,
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: checked ? Colors.green : Colors.transparent,
@@ -192,7 +208,7 @@ class ShoppingListCard extends StatelessWidget {
                 ),
               ),
               child: checked
-                  ? const Icon(Icons.check, size: 15, color: Colors.white)
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
                   : null,
             ),
             const SizedBox(width: 10),
@@ -212,6 +228,8 @@ class ShoppingListCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

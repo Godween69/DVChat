@@ -6,6 +6,7 @@
 // Доска деревянная, шашки и кости нарисованы, шашки плавно ездят, кости кувыркаются.
 // Кости общие для двоих: считаются из номера партии, поэтому обоим телефонам выпадает одно и то же.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -102,6 +103,7 @@ class _NardyPageState extends State<NardyPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('nardy', offline: widget.room == null);
     _pulseC.repeat();
     _seed = _online ? widget.gameId! : DateTime.now().microsecondsSinceEpoch.toString();
     _game = NardyGame(_seed);
@@ -126,6 +128,7 @@ class _NardyPageState extends State<NardyPage> with TickerProviderStateMixin {
     _slideC.dispose();
     _rollC.dispose();
     _pulseC.dispose();
+    DvLocalStats.close('nardy');
     super.dispose();
   }
 

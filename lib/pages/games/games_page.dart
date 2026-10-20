@@ -14,6 +14,7 @@ import 'package:dvchat/pages/games/ckr_page.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/domino_page.dart';
 import 'package:dvchat/pages/games/game_rules.dart';
+import 'package:dvchat/pages/games/stats_page.dart';
 import 'package:dvchat/pages/games/nardy_page.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
@@ -54,6 +55,18 @@ const _chess = _GameDef('chess', 'Шахматы', 'шахматы', Icons.castl
 const _durak = _GameDef('durak', 'Дурак', 'дурак', Icons.style);
 const _nardy = _GameDef('nardy', 'Нарды', 'нарды', Icons.casino);
 const _domino = _GameDef('domino', 'Домино', 'домино', Icons.splitscreen);
+
+/// Цвета иконок игр (градиент сверху вниз по диагонали)
+const Map<String, List<Color>> _gameColors = {
+  'ttt': [Color(0xFFFF6B6B), Color(0xFF4D96FF)],
+  'bs': [Color(0xFF00C2FF), Color(0xFF0066FF)],
+  'ckr': [Color(0xFFFFB347), Color(0xFFE8590C)],
+  'c4': [Color(0xFFFFD43B), Color(0xFFE03131)],
+  'chess': [Color(0xFF9775FA), Color(0xFF5F3DC4)],
+  'durak': [Color(0xFFFF6B9D), Color(0xFFC2255C)],
+  'nardy': [Color(0xFF63E6BE), Color(0xFF0CA678)],
+  'domino': [Color(0xFF74C0FC), Color(0xFF845EF7)],
+};
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -456,6 +469,7 @@ class _GamesPageState extends State<GamesPage> {
       title: title,
       onTap: onTap,
       soon: soon,
+      grad: rulesId == null ? null : _gameColors[rulesId],
     );
     if (rulesId == null) return body;
     return Stack(
@@ -465,7 +479,7 @@ class _GamesPageState extends State<GamesPage> {
           top: 5,
           right: 5,
           child: Material(
-            color: theme.colorScheme.primary.withAlpha(36),
+            color: theme.colorScheme.primary.withAlpha(14),
             shape: const CircleBorder(),
             child: InkResponse(
               customBorder: const CircleBorder(),
@@ -480,7 +494,7 @@ class _GamesPageState extends State<GamesPage> {
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       fontStyle: FontStyle.italic,
-                      color: theme.colorScheme.primary,
+                      color: theme.colorScheme.primary.withAlpha(120),
                     ),
                   ),
                 ),
@@ -498,6 +512,7 @@ class _GamesPageState extends State<GamesPage> {
     required String title,
     required VoidCallback onTap,
     bool soon = false,
+    List<Color>? grad,
   }) {
     final plain = DvListStyle.isPlain;
     return Material(
@@ -516,11 +531,21 @@ class _GamesPageState extends State<GamesPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                foregroundColor: theme.colorScheme.onPrimaryContainer,
-                child: Icon(icon, size: 24),
+              SizedBox(
+                height: 48,
+                child: Center(
+                  child: ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (rect) => LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors:
+                          grad ??
+                          [theme.colorScheme.primary, theme.colorScheme.primary],
+                    ).createShader(rect),
+                    child: Icon(icon, size: 44, color: Colors.white),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -624,6 +649,15 @@ class _GamesPageState extends State<GamesPage> {
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text('Игры'),
+        actions: [
+          IconButton(
+            tooltip: 'Статистика',
+            icon: const Icon(Icons.bar_chart_rounded),
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(builder: (_) => const DvStatsPage()),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _reload,

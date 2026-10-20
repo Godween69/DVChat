@@ -6,6 +6,7 @@
 // Управление под большой палец: касаешься своей шашки, подсвечиваются клетки, куда она
 // может пойти, ведёшь палец и отпускаешь на нужной клетке. Бить обязательно.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -94,6 +95,7 @@ class _CkrPageState extends State<CkrPage> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('ckr', offline: widget.room == null);
     _legal = CkrLogic.moves(_board, _toMove);
     if (_online) {
       _loading = true;
@@ -111,6 +113,7 @@ class _CkrPageState extends State<CkrPage> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('ckr');
     super.dispose();
   }
 

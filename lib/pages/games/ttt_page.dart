@@ -7,6 +7,7 @@
 // Крестики (синяя ручка) и нолики (красная) рисуются от руки с лёгкой неровностью,
 // победная цепочка зачёркивается маркером. Поле можно приближать двумя пальцами.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -68,6 +69,7 @@ class _TttPageState extends State<TttPage> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('ttt', offline: widget.room == null);
     if (_online) {
       _loading = true;
       _sub = widget.room!.client.onTimelineEvent.stream.listen((e) {
@@ -84,6 +86,7 @@ class _TttPageState extends State<TttPage> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('ttt');
     super.dispose();
   }
 

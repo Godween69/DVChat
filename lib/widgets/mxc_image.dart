@@ -40,6 +40,30 @@ class MxcImage extends StatefulWidget {
   static void clearCache(String cacheName) =>
       _MxcImageState._imageDataCaches.remove(cacheName);
 
+  /// Заранее кладёт миниатюру в кеш, чтобы аватар не мигал буквой при первом показе
+  static Future<void> prefetch(
+    Client client,
+    Uri uri,
+    double size,
+    double devicePixelRatio,
+  ) async {
+    final cache = _MxcImageState._imageDataCaches[''] ??= {};
+    final key = '${uri}_$size';
+    if (cache.containsKey(key)) return;
+    try {
+      cache[key] = await client.downloadMxcCached(
+        uri,
+        width: size * devicePixelRatio,
+        height: size * devicePixelRatio,
+        thumbnailMethod: ThumbnailMethod.scale,
+        isThumbnail: true,
+        animated: false,
+      );
+    } catch (_) {
+      // не вышло заранее: аватар загрузится обычным путём
+    }
+  }
+
   const MxcImage({
     this.uri,
     this.event,

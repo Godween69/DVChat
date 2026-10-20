@@ -6,6 +6,7 @@
 // Касаешься нужного столбца, фишка падает вниз и подпрыгивает. Фишки лежат за синей доской
 // и видны через отверстия, выигрышная четвёрка подсвечивается кольцами.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -61,6 +62,7 @@ class _C4PageState extends State<C4Page> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('c4', offline: widget.room == null);
     if (_online) {
       _loading = true;
       _sub = widget.room!.client.onTimelineEvent.stream.listen((e) {
@@ -77,6 +79,7 @@ class _C4PageState extends State<C4Page> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('c4');
     super.dispose();
   }
 

@@ -11,6 +11,7 @@ import 'package:dvchat/utils/best_friends.dart';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_profile_cache.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -141,7 +142,18 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     userId,
     () => _client
         .getProfileFromUserId(userId)
-        .then((p) => _profileData[userId] = p),
+        .then((p) {
+          _profileData[userId] = p;
+          if (mounted) {
+            DvProfileCache.remember(
+              _client,
+              userId,
+              p,
+              MediaQuery.devicePixelRatioOf(context),
+            );
+          }
+          return p;
+        }),
   );
 
   static List<String> _ids(Object? value) => value is List

@@ -3,6 +3,7 @@
 // DVChat: профиль человека. Свой: фото, имя, день рождения, мой ID и QR.
 // Чужой (друг): фото, имя, день рождения, ID и QR, переключатель уведомлений.
 
+import 'package:dvchat/utils/dv_profile_cache.dart';
 import 'dart:async';
 
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoPicker;
@@ -77,7 +78,10 @@ class _DvProfilePageState extends State<DvProfilePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _profile ??= _client.getProfileFromUserId(widget.userId);
+    final cached = DvProfileCache.data[widget.userId];
+    _profile ??= cached != null
+        ? Future.value(cached)
+        : _client.getProfileFromUserId(widget.userId);
     if (!_started) {
       _started = true;
       unawaited(_loadBirthday());
@@ -258,6 +262,7 @@ class _DvProfilePageState extends State<DvProfilePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Профиль')),
       body: FutureBuilder<Profile>(
+        initialData: DvProfileCache.data[widget.userId],
         future: _profile,
         builder: (context, snapshot) {
           final profile = snapshot.data;

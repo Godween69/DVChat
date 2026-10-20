@@ -6,6 +6,7 @@
 //    партии, а через личный чат уходят только действия (выложил, побил, беру, бито, перевёл).
 // Карты нарисованы кодом. Внизу ваша рука, на сукне стол, сверху колода с козырем и бито.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -78,6 +79,7 @@ class _DurakPageState extends State<DurakPage> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('durak', offline: widget.room == null);
     _mode = widget.mode ?? 'podkid';
     _seed = _online
         ? Dk.seedOf(widget.gameId!)
@@ -102,6 +104,7 @@ class _DurakPageState extends State<DurakPage> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('durak');
     super.dispose();
   }
 

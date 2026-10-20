@@ -6,6 +6,7 @@
 //    хранится только на его телефоне, соперник получает её отпечаток, а в конце партии
 //    расстановка раскрывается и проверяется.
 
+import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -100,6 +101,7 @@ class _BsPageState extends State<BsPage> {
   @override
   void initState() {
     super.initState();
+    DvLocalStats.open('bs', offline: widget.room == null);
     _fleet = BsLogic.randomFleet(_rnd);
     if (_online) {
       _loading = true;
@@ -120,6 +122,7 @@ class _BsPageState extends State<BsPage> {
       DvGameNet.activeGameId = null;
     }
     _sub?.cancel();
+    DvLocalStats.close('bs');
     super.dispose();
   }
 
