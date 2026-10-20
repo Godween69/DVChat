@@ -58,7 +58,12 @@ class _DvStoryViewerState extends State<DvStoryViewer>
     super.initState();
     _group = widget.startGroup.clamp(0, widget.groups.length - 1);
     _item = _g.startIndex;
-    _progress = AnimationController(vsync: this)
+    // preserve: при включённом «уменьшить анимацию» (часто в вебе) обычный режим
+    // сжимает 5 секунд до долей секунды, и лента пролетает мгновенно
+    _progress = AnimationController(
+      vsync: this,
+      animationBehavior: AnimationBehavior.preserve,
+    )
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _next();
       });

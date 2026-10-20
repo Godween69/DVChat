@@ -7,9 +7,24 @@
 import 'dart:math';
 
 class TttLogic {
-  static const int n = 15;
-  static const int cells = n * n;
-  static const int need = 5;
+  // Режимы: classic — обычное 3x3, big — расширенный лист 12x12 (5 в ряд),
+  // иное (старые партии без режима) — прежнее поле 15x15
+  static int n = 15;
+  static int need = 5;
+  static int get cells => n * n;
+
+  static void configure(String? mode) {
+    if (mode == 'classic') {
+      n = 3;
+      need = 3;
+    } else if (mode == 'big') {
+      n = 12;
+      need = 5;
+    } else {
+      n = 15;
+      need = 5;
+    }
+  }
 
   static const List<List<int>> _dirs = [
     [1, 0],
@@ -57,7 +72,55 @@ class TttLogic {
   static final Random _rnd = Random();
 
   // Цена окна из пяти клеток по числу своих камней (с учётом ставимого)
-  static const List<int> _price = [0, 4, 40, 400, 6000, 1000000];
+  static int _price(int mine) {
+    if (mine >= need) return 1000000;
+    final left = need - mine; // сколько ещё не хватает до победы
+    return switch (left) {
+      1 => 6000,
+      2 => 400,
+      3 => 40,
+      _ => 4,
+    };
+  }
+
+  // Полный перебор для поля 3x3: не проигрывает, но и не мухлюет
+  static int _minimax(List<String> b, String turn, String ai, int depth) {
+    final w = winner(b);
+    if (w != null) return w == ai ? 10 - depth : depth - 10;
+    if (isFull(b)) return 0;
+    final other = turn == 'X' ? 'O' : 'X';
+    var best = turn == ai ? -100 : 100;
+    for (var i = 0; i < 9; i++) {
+      if (b[i] != '') continue;
+      b[i] = turn;
+      final v = _minimax(b, other, ai, depth + 1);
+      b[i] = '';
+      best = turn == ai ? max(best, v) : min(best, v);
+    }
+    return best;
+  }
+
+  static int _classicMove(List<String> board, String ai) {
+    final b = List<String>.of(board);
+    final other = ai == 'X' ? 'O' : 'X';
+    var best = -100;
+    final opts = <int>[];
+    for (var i = 0; i < 9; i++) {
+      if (b[i] != '') continue;
+      b[i] = ai;
+      final v = _minimax(b, other, ai, 1);
+      b[i] = '';
+      if (v > best) {
+        best = v;
+        opts
+          ..clear()
+          ..add(i);
+      } else if (v == best) {
+        opts.add(i);
+      }
+    }
+    return opts[_rnd.nextInt(opts.length)];
+  }
 
   /// Оценка клетки i для игрока who: сумма цен окон по четырём направлениям
   static int _score(List<String> b, int i, String who, String other) {
@@ -82,7 +145,7 @@ class TttLogic {
           }
           if (v == who) mine++;
         }
-        if (ok) total += _price[mine];
+        if (ok) total += _price(mine);
       }
     }
     return total;
@@ -91,6 +154,7 @@ class TttLogic {
   /// Ход компьютера: сначала свой выигрыш, потом защита, иначе лучшая по оценке клетка
   static int aiMove(List<String> board, String ai) {
     final hu = ai == 'X' ? 'O' : 'X';
+    if (n == 3) return _classicMove(board, ai);
     final stones = [
       for (var i = 0; i < cells; i++)
         if (board[i] != '') i,
@@ -130,8 +194,10 @@ class TttLogic {
         s = 1 << 39; // иначе проигрываем
       }
       // двойная угроза (сразу две «тройки/четвёрки») — сильный ход
-      if (a >= 6000 + 400) s += 3000;
-      if (d >= 6000 + 400) s += 2000;
+      if (need > 3) {
+        if (a >= 6000 + 400) s += 3000;
+        if (d >= 6000 + 400) s += 2000;
+      }
       // лёгкая тяга к центру
       final cx = (i % n - n ~/ 2).abs(), cy = (i ~/ n - n ~/ 2).abs();
       s += 7 - max(cx, cy).clamp(0, 7);

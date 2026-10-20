@@ -28,6 +28,7 @@ class _Move {
 class TttPage extends StatefulWidget {
   // level оставлен для совместимости со списком игр, на поле 15x15 он не нужен
   const TttPage({
+    this.mode,
     this.level,
     this.room,
     this.gameId,
@@ -36,6 +37,9 @@ class TttPage extends StatefulWidget {
   });
 
   final int? level;
+
+  /// classic — 3x3, big — расширенный лист; null у гостя: берётся из приглашения
+  final String? mode;
 
   /// Для игры с другом
   final Room? room;
@@ -47,7 +51,8 @@ class TttPage extends StatefulWidget {
 }
 
 class _TttPageState extends State<TttPage> {
-  List<String> _board = List.filled(TttLogic.cells, '');
+  List<String> _board = [];
+  String? _mode;
   final List<int> _order = [];
   bool _humanFirst = true;
   bool _busy = false;
@@ -69,6 +74,8 @@ class _TttPageState extends State<TttPage> {
   @override
   void initState() {
     super.initState();
+    _mode = widget.mode ?? (widget.room == null ? 'big' : null);
+    _applyMode();
     DvLocalStats.open('ttt', offline: widget.room == null);
     if (_online) {
       _loading = true;
@@ -79,6 +86,15 @@ class _TttPageState extends State<TttPage> {
       unawaited(_load());
     }
   }
+
+  void _applyMode() {
+    TttLogic.configure(_mode);
+    _board = List.filled(TttLogic.cells, '');
+  }
+
+  String get _rule => TttLogic.need == 3
+      ? 'Нужно собрать 3 подряд.'
+      : 'Нужно собрать ${TttLogic.need} подряд. Поле можно приблизить двумя пальцами.';
 
   @override
   void dispose() {
@@ -121,6 +137,13 @@ class _TttPageState extends State<TttPage> {
     }
     final c = e.content;
     if (c['game'] != 'ttt' || '${c['id']}' != widget.gameId) return false;
+    if (c['kind'] == 'invite') {
+      final m = c['mode'];
+      if (m is String && (m == 'classic' || m == 'big') && widget.mode == null) {
+        _mode = m;
+      }
+      return false;
+    }
     if (c['kind'] == 'end' && c['reason'] == 'surrender') {
       final by = c['by'];
       if (by is String && _surrenderBy == null) {
@@ -143,8 +166,13 @@ class _TttPageState extends State<TttPage> {
   Future<void> _load() async {
     try {
       final tl = await widget.room!.getTimeline(limit: 300);
+      // сначала приглашение (там режим), потом ходы
       for (final e in tl.events) {
-        _ingest(e);
+        if (e.content['kind'] == 'invite') _ingest(e);
+      }
+      _applyMode();
+      for (final e in tl.events) {
+        if (e.content['kind'] != 'invite') _ingest(e);
       }
       tl.cancelSubscriptions();
     } catch (_) {
@@ -271,11 +299,17 @@ class _TttPageState extends State<TttPage> {
           game: 'ttt',
           gameTitle: 'крестики-нолики',
           announce: false,
+          extra: _mode == null ? null : {'mode': _mode},
         );
         if (!mounted) return;
         await Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => TttPage(room: widget.room, gameId: id, hostId: _me),
+            builder: (_) => TttPage(
+              mode: _mode,
+              room: widget.room,
+              gameId: id,
+              hostId: _me,
+            ),
           ),
         );
       } catch (_) {
@@ -350,7 +384,9 @@ class _TttPageState extends State<TttPage> {
     final line = TttLogic.winLine(_board);
     final title = _online
         ? 'Крестики-нолики · ${widget.room!.dvDisplayname()}'
-        : 'Крестики-нолики · 5 в ряд';
+        : TttLogic.need == 3
+        ? 'Крестики-нолики · 3×3'
+        : 'Крестики-нолики · ${TttLogic.need} в ряд';
     final mine = _mine;
     final other = mine == 'X' ? 'O' : 'X';
     final turn = TttLogic.turnOf(_board);
@@ -402,7 +438,7 @@ class _TttPageState extends State<TttPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Нужно собрать 5 подряд. Поле можно приблизить двумя пальцами.',
+                  _rule,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -586,22 +622,45 @@ class _SheetPainter extends CustomPainter {
     final grid = Paint()
       ..color = _gridBlue
       ..strokeWidth = 1;
-    for (var x = g.lm - g.cs; x <= s.width; x += g.cs) {
-      if (x < 0) continue;
+    // на поле 3x3 клетки листа мельче игровых, чтобы лист выглядел тетрадным
+    final classic = TttLogic.n == 3;
+    final step = classic ? g.cs / 3 : g.cs;
+    for (var x = g.lm - (g.lm / step).floor() * step; x <= s.width; x += step) {
       canvas.drawLine(Offset(x, 0), Offset(x, s.height), grid);
     }
-    for (var y = g.tp - g.cs; y <= s.height; y += g.cs) {
-      if (y < 0) continue;
+    for (var y = g.tp - (g.tp / step).floor() * step; y <= s.height; y += step) {
       canvas.drawLine(Offset(0, y), Offset(s.width, y), grid);
     }
-    // игровое поле слегка обведено
-    canvas.drawRect(
-      Rect.fromLTWH(g.lm, g.tp, g.cs * TttLogic.n, g.cs * TttLogic.n),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = _gridBlue.withValues(alpha: 0.95),
-    );
+    if (classic) {
+      // решётка «#», нарисованная ручкой
+      final hash = Paint()
+        ..color = _inkBlue.withValues(alpha: 0.75)
+        ..strokeWidth = 5
+        ..strokeCap = StrokeCap.round;
+      for (var k = 1; k <= 2; k++) {
+        final dx = g.lm + g.cs * k;
+        final dy = g.tp + g.cs * k;
+        canvas.drawLine(
+          Offset(dx, g.tp + g.cs * 0.05),
+          Offset(dx, g.tp + g.cs * 2.95),
+          hash,
+        );
+        canvas.drawLine(
+          Offset(g.lm + g.cs * 0.05, dy),
+          Offset(g.lm + g.cs * 2.95, dy),
+          hash,
+        );
+      }
+    } else {
+      // игровое поле слегка обведено
+      canvas.drawRect(
+        Rect.fromLTWH(g.lm, g.tp, g.cs * TttLogic.n, g.cs * TttLogic.n),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = _gridBlue.withValues(alpha: 0.95),
+      );
+    }
 
     // подсветка последнего хода — жёлтый маркер
     if (last >= 0 && board[last] != '') {
@@ -657,7 +716,7 @@ class _SheetPainter extends CustomPainter {
     final rnd = Random(i * 7919 + (v == 'X' ? 13 : 71));
     double j(double a) => (rnd.nextDouble() - 0.5) * 2 * a;
     final r = cs * 0.30;
-    final width = max(1.6, cs * 0.095);
+    final width = min(9.0, max(1.6, cs * 0.095));
     if (v == 'X') {
       final a1 = Offset(c.dx - r + j(cs * 0.06), c.dy - r + j(cs * 0.06));
       final b1 = Offset(c.dx + r + j(cs * 0.08), c.dy + r + j(cs * 0.08));
@@ -732,7 +791,7 @@ class _SheetPainter extends CustomPainter {
       Paint()
         ..color = _marker.withValues(alpha: 0.55)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = g.cs * 0.34
+        ..strokeWidth = min(26.0, g.cs * 0.34)
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );

@@ -178,11 +178,35 @@ class _GamesPageState extends State<GamesPage> {
       gameId: gameId,
       hostId: hostId,
     ),
-    _ => TttPage(level: level, room: room, gameId: gameId, hostId: hostId),
+    _ => TttPage(
+      mode: mode,
+      level: level,
+      room: room,
+      gameId: gameId,
+      hostId: hostId,
+    ),
   };
 
   /// Для дурака спрашивает, какой он: подкидной или переводной (для остальных игр вопроса нет)
   Future<String?> _askVariant(_GameDef g) async {
+    if (g.id == 'ttt') {
+      return showDialog<String>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: const Text('Какое поле?'),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, 'classic'),
+              child: const Text('Обычные: 3×3'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, 'big'),
+              child: const Text('Расширенный: тетрадный лист, 5 в ряд'),
+            ),
+          ],
+        ),
+      );
+    }
     if (g.id != 'durak') return 'podkid';
     return showDialog<String>(
       context: context,
@@ -280,7 +304,7 @@ class _GamesPageState extends State<GamesPage> {
         room,
         game: g.id,
         gameTitle: g.inviteTitle,
-        extra: g.id == 'durak' ? {'mode': variant} : null,
+        extra: (g.id == 'durak' || g.id == 'ttt') ? {'mode': variant} : null,
       );
       if (!mounted) return;
       _open(
