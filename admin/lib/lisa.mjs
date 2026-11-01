@@ -7,6 +7,56 @@ export const GAMES = [
   ['chess', 'Шахматы'], ['durak', 'Дурак'], ['nardy', 'Нарды'], ['domino', 'Домино'],
 ];
 const GAME_IDS = new Set(GAMES.map((g) => g[0]));
+// Статистика игр хранится в профиле человека (account data, тип dv.game_stats), её сохраняет приложение.
+// Формат v1: { v: 1, games: { chess: { played, won, lost, drawn, last, days: { "2026-11-01": 3 } } } }
+// last = время последней партии (мс), days = сколько партий по дням (необязательно, последние 30 дней).
+export const GAME_STATS_TYPE = 'dv.game_stats';
+const natural = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.floor(Number(v)) : 0);
+export function parseGameStats(content) {
+  const out = {};
+  if (!content || typeof content !== 'object' || !content.games || typeof content.games !== 'object') return out;
+  for (const [id, g] of Object.entries(content.games)) {
+    if (!GAME_IDS.has(id) || !g || typeof g !== 'object') continue;
+    const played = natural(g.played);
+    if (!played) continue;
+    const days = {};
+    if (g.days && typeof g.days === 'object') for (const [d, n] of Object.entries(g.days).slice(0, 60)) if (/^\d{4}-\d{2}-\d{2}$/.test(d) && natural(n)) days[d] = natural(n);
+    out[id] = { played, won: Math.min(natural(g.won), played), lost: Math.min(natural(g.lost), played), drawn: Math.min(natural(g.drawn), played), last: natural(g.last) || null, days };
+  }
+  return out;
+}
+
+// Сводка по всем людям: по играм, по людям и по дням (последние 14 суток по Москве)
+export function summarizeGames(rows, now = Date.now()) {
+  const names = new Map(GAMES);
+  const games = GAMES.map(([id, name]) => ({ id, name, players: 0, played: 0, won: 0, lost: 0, drawn: 0, last: null, top: [] }));
+  const byId = new Map(games.map((g) => [g.id, g]));
+  const dayKey = (ms) => new Date(ms + 3 * 3600e3).toISOString().slice(0, 10);
+  const perDay = new Map();
+  const people = [];
+  for (const r of rows) {
+    const st = parseGameStats(r.data), ids = Object.keys(st);
+    if (!ids.length) continue;
+    let played = 0, won = 0, last = 0, fav = null;
+    for (const id of ids) {
+      const s = st[id], g = byId.get(id);
+      g.players++; g.played += s.played; g.won += s.won; g.lost += s.lost; g.drawn += s.drawn;
+      if (s.last) g.last = Math.max(g.last || 0, s.last);
+      g.top.push({ label: r.label, played: s.played, won: s.won });
+      played += s.played; won += s.won; last = Math.max(last, s.last || 0);
+      if (!fav || s.played > st[fav].played) fav = id;
+      for (const [d, n] of Object.entries(s.days)) perDay.set(d, (perDay.get(d) || 0) + n);
+    }
+    people.push({ user_id: r.user_id, label: r.label, played, won, last: last || null, favorite: fav, favorite_name: names.get(fav), games: st });
+  }
+  for (const g of games) { g.top.sort((a, b) => b.played - a.played); g.top = g.top.slice(0, 5); }
+  people.sort((a, b) => b.played - a.played || a.label.localeCompare(b.label));
+  const series = [];
+  for (let i = 13; i >= 0; i--) { const d = dayKey(now - i * 86400e3); series.push({ day: d, n: perDay.get(d) || 0 }); }
+  return { games: games.sort((a, b) => b.played - a.played || a.name.localeCompare(b.name)), people, with_data: people.length,
+    total_played: people.reduce((a, p) => a + p.played, 0), series, has_days: perDay.size > 0 };
+}
+
 export const FEATURES = [
   ['search', 'Поиск в интернете'], ['weather', 'Погода'], ['chat_context', 'Разбор выбранного чата (по согласию человека)'],
 ];
@@ -79,6 +129,11 @@ export function applyGlobal(cfg, p) {
     const f = featuresOf(cfg);
     for (const k of FEATURE_IDS) if (k in p.features_defaults) f.defaults[k] = bool(p.features_defaults[k], k);
   }
+  if ('games_off_all' in p) {
+    if (!Array.isArray(p.games_off_all) || p.games_off_all.some((g) => !GAME_IDS.has(g))) throw bad('Неизвестная игра в списке');
+    const f = featuresOf(cfg);
+    if (p.games_off_all.length) f.games_off = [...new Set(p.games_off_all)]; else delete f.games_off;
+  }
   if ('allow_all' in p) {
     const list = (cfg.allowed_dv_ids ||= []).map(String).filter((x) => x !== '*');
     cfg.allowed_dv_ids = bool(p.allow_all, 'Всем') ? [...list, '*'] : list;
@@ -111,6 +166,20 @@ export function applyUser(cfg, { userId, dvId }, p) {
   return cfg;
 }
 
+// Массово разрешить или запретить Лизу людям. Люди без ID (ещё не входили) пропускаются и возвращаются списком.
+export function applyAllowBulk(cfg, items, allowed) {
+  if (!Array.isArray(items) || items.length > 500) throw bad('Список людей: до 500 человек');
+  bool(allowed, 'Доступ');
+  const set = new Set((cfg.allowed_dv_ids ||= []).map(String));
+  const skipped = [];
+  for (const it of items) {
+    if (!it.dvId) { skipped.push(it.userId); continue; }
+    if (allowed) set.add(String(it.dvId)); else set.delete(String(it.dvId));
+  }
+  cfg.allowed_dv_ids = [...set];
+  return { cfg, skipped };
+}
+
 export function lisaView(cfg, people) {
   const allow = (cfg.allowed_dv_ids || []).map(String);
   const f = cfg.features || { defaults: DEFAULT_FEATURES, users: {} };
@@ -126,7 +195,7 @@ export function lisaView(cfg, people) {
     limits: { per_user_per_day: cfg.limits?.per_user_per_day, global_per_day: cfg.limits?.global_per_day, max_output_tokens: cfg.limits?.max_output_tokens, max_history_messages: cfg.limits?.max_history_messages },
     allow_all: allow.includes('*'),
     features_defaults: { ...DEFAULT_FEATURES, ...(f.defaults || {}) },
-    features: FEATURES, games: GAMES,
+    features: FEATURES, games: GAMES, games_off_all: f.games_off || [],
     people: people.map((p) => ({
       user_id: p.user_id, displayname: p.displayname, dv_id: p.dv_id,
       admin: (cfg.admins || []).includes(p.user_id),
@@ -145,6 +214,66 @@ export function readPanel(dir, name) {
     const p = join(dir, name);
     return { data: JSON.parse(readFileSync(p, 'utf8')), age: (Date.now() - statSync(p).mtimeMs) / 1000 };
   } catch { return null; }
+}
+
+// Каталог пишет Лиза: pin/pout (доллары за миллион токенов), ctx. Панели удобнее price_in/price_out/context и признак free
+// Для чего подходит модель. Каталог OpenRouter оценок качества не даёт, поэтому метки выводятся из того,
+// что в нём есть: имя, возможности (инструменты, рассуждения, картинки), размер контекста.
+export function purposeTags(m) {
+  const id = String(m.id || '').toLowerCase(), t = [];
+  t.push({ key: 'chat', label: 'чат', hint: 'Обычный разговор и вопросы-ответы.' });
+  if (/code|coder|codestral|devstral|codex/.test(id)) t.push({ key: 'code', label: 'кодинг', hint: 'Сделана для написания и разбора кода.' });
+  if (m.reasoning) t.push({ key: 'reason', label: 'рассуждения', hint: 'Умеет «думать» перед ответом: лучше с задачами и логикой, но медленнее и дороже.' });
+  if (m.tools) t.push({ key: 'tools', label: 'инструменты', hint: 'Умеет вызывать инструменты (поиск, функции). Лизе это нужно для поиска в интернете.' });
+  if (m.vision) t.push({ key: 'vision', label: 'картинки', hint: 'Понимает присланные картинки.' });
+  if ((m.context || m.ctx || 0) >= 200000) t.push({ key: 'long', label: 'длинные тексты', hint: 'Контекст от 200 тысяч токенов: помнит длинную переписку и большие документы.' });
+  if (/flash|mini|lite|haiku|small|nano|instant/.test(id)) t.push({ key: 'fast', label: 'быстрая', hint: 'Лёгкая версия: отвечает быстро и дёшево, но проще в сложных задачах.' });
+  return t;
+}
+
+export function catalogView(raw) {
+  return (raw || []).map((m) => {
+    const pin = Number(m.pin ?? m.price_in), pout = Number(m.pout ?? m.price_out);
+    const ok = Number.isFinite(pin) && Number.isFinite(pout);
+    return { id: m.id, name: m.name || m.id, price_in: ok ? pin : null, price_out: ok ? pout : null,
+      context: m.ctx ?? m.context ?? null, vision: Boolean(m.vision), free: ok && pin === 0 && pout === 0,
+      tags: purposeTags({ id: m.id, vision: Boolean(m.vision), tools: Boolean(m.tools), reasoning: Boolean(m.reasoning), context: m.ctx ?? m.context }),
+      tier: !ok ? 'unknown' : (pin === 0 && pout === 0) ? 'free' : pout <= 0.6 ? 'cheap' : pout <= 8 ? 'middle' : 'expensive' };
+  });
+}
+
+// Расшифровка ошибки модели простыми словами: что случилось и что делать
+export function explainError(text) {
+  const s = String(text || '');
+  const m = /\b([45]\d\d)\b/.exec(s);
+  const code = m ? Number(m[1]) : 0;
+  const T = {
+    429: ['Лимит запросов', 'Модель сейчас перегружена или вы исчерпали её лимит. Для бесплатных моделей это обычное дело: лимит общий для всех пользователей OpenRouter.', 'Подождать, поставить другую модель главной или использовать платную (там лимиты свободнее).'],
+    401: ['Ключ не принят', 'OpenRouter не узнал ключ.', 'Заменить ключ: кнопка «Сменить ключ…».'],
+    402: ['Не хватает денег', 'На счёте OpenRouter нет средств для платной модели.', 'Пополнить счёт на openrouter.ai или выбрать бесплатную модель.'],
+    403: ['Доступ запрещён', 'Провайдер не пускает этот ключ или регион.', 'Выбрать другую модель.'],
+    404: ['Модели нет', 'Такой модели у OpenRouter больше нет или у неё нет провайдера.', 'Убрать её из списка и выбрать другую.'],
+    408: ['Долгий ответ', 'Модель не ответила вовремя.', 'Обычно проходит само; если повторяется, выберите другую.'],
+    500: ['Ошибка у провайдера', 'Сбой на стороне модели.', 'Подождать. Лиза сама переключится на запасную.'],
+    502: ['Провайдер недоступен', 'Нет связи с провайдером модели.', 'Подождать. Лиза сама переключится на запасную.'],
+    503: ['Модель отключена', 'Провайдер временно не принимает запросы.', 'Подождать или выбрать другую модель.'],
+  };
+  const t = T[code] || (code >= 500 ? T[500] : null);
+  return t ? { code, title: t[0], what: t[1], todo: t[2] } : { code, title: 'Неизвестная ошибка', what: s.slice(0, 200) || 'Причина не указана.', todo: 'Подождать; если не проходит, выбрать другую модель.' };
+}
+
+// Подсказки по выбору: из каталога берём только то, что в нём есть (цена, контекст, картинки).
+// Качество каталог не сообщает, поэтому «лучше всех» не утверждаем.
+export function recommend(list) {
+  const paid = list.filter((m) => m.price_out != null && !m.free);
+  const cheapest = (arr) => arr.slice().sort((a, b) => (a.price_out + a.price_in) - (b.price_out + b.price_in) || (b.context || 0) - (a.context || 0))[0];
+  const pick = (title, m, why) => (m ? { title, id: m.id, price_in: m.price_in, price_out: m.price_out, context: m.context, vision: m.vision, why } : null);
+  const longest = list.filter((m) => m.free).sort((a, b) => (b.context || 0) - (a.context || 0))[0];
+  return [
+    pick('Самая дешёвая с картинками', cheapest(paid.filter((m) => m.vision && (m.context || 0) >= 32000)), 'Платная, понимает картинки, контекст от 32 тысяч.'),
+    pick('Самая дешёвая только для текста', cheapest(paid.filter((m) => !m.vision && (m.context || 0) >= 64000)), 'Платная, без картинок, контекст от 64 тысяч.'),
+    pick('Бесплатная с самым длинным контекстом', longest, 'Бесплатно, но с общим лимитом (возможна ошибка 429).'),
+  ].filter(Boolean);
 }
 
 export function applyModels(cfg, ids, catalog) {

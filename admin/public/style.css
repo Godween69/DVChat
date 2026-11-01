@@ -50,3 +50,46 @@ textarea{resize:vertical;font-family:inherit}
 
 .bars { display: flex; align-items: flex-end; gap: 2px; height: 70px; margin-top: 6px; }
 .bar { flex: 1; background: var(--accent, #3b7dd8); border-radius: 2px 2px 0 0; min-height: 2px; }
+
+/* Меню «⋯», дашборд, подвкладки, матрица игр */
+.small{font-size:13px}
+.nw{white-space:nowrap}
+td.act,th.act{width:1%;white-space:nowrap;text-align:right}
+.menuwrap{position:relative;display:inline-block}
+.dots{padding:2px 12px;font-size:20px;line-height:1.2;letter-spacing:1px}
+.menu{position:absolute;right:0;top:calc(100% + 4px);min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.45);display:grid;gap:2px}
+.menuitem{text-align:left;border:0;background:none;border-radius:6px;padding:9px 12px;width:100%}
+.menuitem:hover{background:#1b2128}
+.menuitem.danger{color:var(--danger)}.menuitem.danger:hover{background:var(--danger);color:#fff}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.stat .tag{margin:6px 0 0;display:inline-block}
+.bar.zero{opacity:.35}
+.axis{margin-top:4px;font-size:12px}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.subtabs button{border-radius:99px}
+.subtabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.listrow{padding:7px 0;border-bottom:1px solid var(--line)}.listrow .grow{flex:1}
+.scroll{overflow-x:auto}
+table.matrix th.c,table.matrix td.c{text-align:center;font-size:12px}
+table.matrix td.dim{opacity:.35}
+
+/* 0.3.1: плитки с подробностями, колонка «для чего модель», кнопка «i» */
+.stat.click { cursor: pointer; }
+.stat.click:hover { border-color: var(--accent, #4f8cff); }
+.stat .more { margin-top: 6px; font-size: 12px; color: var(--accent, #4f8cff); }
+.line { border-bottom: 1px solid var(--line, #1f2530); padding-bottom: 4px; }
+.modelrow { align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+.modelrow.alt { background: rgba(79, 140, 255, .07); }
+.modelrow .tag { white-space: nowrap; }
+.tagcol { align-self: stretch; display: flex; flex-direction: column; gap: 3px; border-left: 1px solid var(--line, #2a303c); padding-left: 10px; min-width: 112px; }
+.ptag { font-size: 12px; line-height: 1.3; color: var(--muted, #8b94a5); cursor: help; }
+.ptag::before { content: '• '; }
+.ptag.code, .ptag.reason { color: #b99bff; }
+.ptag.vision { color: #6fd3a0; }
+.ptag.tools { color: #7fb4ff; }
+.infobtn { width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 13px; font-style: italic; font-family: serif; line-height: 1; }
+.reco { border: 1px solid rgba(79, 140, 255, .55); border-left: 4px solid var(--accent); background: rgba(79, 140, 255, .12); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+.reco b { color: #9cc0ff; }
+.gline { margin: 10px 0; }
+.gbar { height: 8px; border-radius: 4px; background: var(--accent); margin: 4px 0; }
+table th.c, table td.c { text-align: center; }

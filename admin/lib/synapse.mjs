@@ -33,6 +33,7 @@ export class Synapse {
   putUser(id, body) { return this.req('PUT', `/_synapse/admin/v2/users/${encodeURIComponent(id)}`, body); }
   devices(id) { return this.req('GET', `/_synapse/admin/v2/users/${encodeURIComponent(id)}/devices`); }
   deleteDevices(id, ids) { return this.req('POST', `/_synapse/admin/v2/users/${encodeURIComponent(id)}/delete_devices`, { devices: ids }); }
+  accountData(id) { return this.req('GET', `/_synapse/admin/v1/users/${encodeURIComponent(id)}/accountdata`); }
   joinedRooms(id) { return this.req('GET', `/_synapse/admin/v1/users/${encodeURIComponent(id)}/joined_rooms`); }
   deactivate(id, erase) { return this.req('POST', `/_synapse/admin/v1/deactivate/${encodeURIComponent(id)}`, { erase: Boolean(erase) }); }
   rooms(query) { return this.req('GET', '/_synapse/admin/v1/rooms', undefined, query); }

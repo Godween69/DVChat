@@ -138,7 +138,7 @@ test('сценарии админки на настоящем Synapse', async (t
     assert.match(r.json.text, /DVCHAT_HOMESERVER=chat.example.org\nDVCHAT_PUSH_GATEWAY=https:\/\/push.example.org\n/);
     const { statSync } = await import('node:fs');
     assert.equal((statSync(cfg.envPath).mode & 0o777), 0o600);
-    assert.match((await c2('GET', '/api/setup/env')).json.text, /chat.example.org/);
+    assert.equal((await c2('GET', '/api/setup/env')).json.fields.homeserver, 'chat.example.org');
   });
 
   await t.test('выход закрывает сессию', async () => {
