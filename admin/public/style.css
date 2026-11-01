@@ -1,0 +1,49 @@
+:root{--bg:#0b0d10;--panel:#14181d;--line:#222932;--text:#e8ecf1;--muted:#8b97a5;--accent:#4f8cff;--danger:#e5484d;--ok:#3ecf8e;--radius:12px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.hidden{display:none!important}
+.muted{color:var(--muted)}.err{color:var(--danger);min-height:1.2em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.narrow{width:min(360px,92vw);display:grid;gap:12px}
+.login{min-height:100vh;display:grid;place-items:center}
+h1{margin:0;font-size:22px}h2{margin:0 0 12px;font-size:18px}h3{margin:16px 0 8px;font-size:15px;color:var(--muted)}
+input,select,textarea{width:100%;background:#0f1216;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button{font:inherit;border-radius:8px;border:1px solid var(--line);background:#1b2128;color:var(--text);padding:8px 14px;cursor:pointer}
+button:hover{border-color:#34404d}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{border-color:var(--danger);color:var(--danger)}button.danger:hover{background:var(--danger);color:#fff}
+button.ghost{background:none}
+button:disabled{opacity:.5;cursor:default}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{font-weight:700;font-size:18px;margin-bottom:12px}.brand small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.side a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:8px}
+.side a.on,.side a:hover{background:#1b2128;color:var(--text)}
+.side .ghost{margin-top:auto}
+main{padding:24px;max-width:1100px;width:100%}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>.grow{flex:1;min-width:160px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.stat b{display:block;font-size:28px}.stat span{color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-weight:500;font-size:13px}
+tr.click{cursor:pointer}tr.click:hover{background:#171c22}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#1b2128;color:var(--muted);margin-right:4px}
+.tag.ok{color:var(--ok)}.tag.bad{color:var(--danger)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px;z-index:10;overflow:auto}
+.modal .card{width:min(560px,100%);max-height:92vh;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1b2128;border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:20}
+.qrbox{background:#fff;padding:8px;border-radius:10px;width:fit-content;margin:8px auto}
+.copy{display:flex;gap:8px}.copy input{font-family:ui-monospace,monospace;font-size:13px}
+.checks label{display:flex;gap:8px;align-items:center;padding:6px 0}.checks input{width:auto}
+pre{background:#0f1216;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.secret{border:1px dashed var(--accent);border-radius:8px;padding:10px;margin:10px 0}
+@media(max-width:760px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.brand{width:100%}.side .ghost{margin:0 0 0 auto}main{padding:14px}}
+.sp8{height:8px}.mt6{margin-top:6px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt14{margin-top:14px}.mt16{margin-top:16px}.mt18{margin-top:18px}
+.memberbox{margin:10px 0;padding:12px}
+.permrow{display:flex;gap:6px;align-items:center;font-size:13px}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+.permrow{margin:4px 0}
+textarea{resize:vertical;font-family:inherit}
