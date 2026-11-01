@@ -166,7 +166,10 @@
           tbody.appendChild(h('tr', null, h('td', null, x.label, x.has_deleted ? h('span', { class: 'tag bad' }, 'есть удалённый') : ''),
             h('td', null, KIND[x.kind] || x.kind), h('td', { class: 'muted' }, who || '—', x.note ? h('div', { class: 'muted' }, x.note) : ''),
             h('td', null, x.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'без шифр.')),
-            h('td', null, x.kind === 'service' ? '' : h('button', { class: 'danger', onclick: function () { confirmDanger('Удалить комнату?', 'Комната «' + x.label + '» будет удалена с сервера у всех участников. Это нельзя отменить.', expected, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }, 'Удалить…'))));
+            h('td', null, x.kind === 'service' ? '' : h('div', { class: 'row' }, h('button', { onclick: function () {
+              confirmDanger('Очистить переписку?', 'Все сообщения комнаты «' + x.label + '» будут стёрты на сервере. Комната, участники, друзья и группы останутся. Это нельзя отменить. Файлы и картинки из зашифрованных чатов этой кнопкой с сервера не удаляются. На телефонах, где чат уже открыт, старые сообщения могут оставаться в памяти приложения до его обновления.', 'очистить',
+                function (c) { return post('/api/rooms/clear', { room_id: x.room_id, confirm: c }).then(function () { toast('Переписка очищена'); setTimeout(load, 1000); }); }, 'Очистить');
+            } }, 'Очистить…'), h('button', { class: 'danger', onclick: function () { confirmDanger('Удалить комнату?', 'Комната «' + x.label + '» будет удалена с сервера у всех участников. Это нельзя отменить.', expected, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }, 'Удалить…')))));
         });
         if (!r.rooms.length) tbody.appendChild(h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'Ничего нет')));
       }).catch(fail);
@@ -273,6 +276,124 @@
     draw();
   }
 
+
+  // ---------- Лиза: ключ, модели, деньги, запросы ----------
+  function usd(n) { n = Number(n) || 0; return '$' + (n < 1 ? n.toFixed(4) : n.toFixed(2)); }
+  function num(n) { return (Number(n) || 0).toLocaleString('ru-RU'); }
+  function ago(sec) { if (sec == null) return '—'; if (sec < 90) return 'только что'; if (sec < 5400) return Math.round(sec / 60) + ' мин назад'; return Math.round(sec / 3600) + ' ч назад'; }
+
+  function lisaOverview(box, o, reload) {
+    var st = o.state;
+    var top = h('div', { class: 'card' }, h('h2', null, 'Ключ и состояние'));
+    if (!o.panel) top.appendChild(h('p', { class: 'muted' }, 'Каталог данных Лизы не подключён (DVADMIN_LISA_PANEL_DIR): ключ, цены и статистика недоступны.'));
+    else if (!st) top.appendChild(h('p', { class: 'muted' }, 'Лиза ещё не записала состояние. Нужен сервер Лизы версии 3.'));
+    else {
+      var k = st.key || {};
+      var stale = st.age > 180;
+      top.appendChild(h('p', null, h('span', { class: 'tag ' + (stale ? 'bad' : 'ok') }, stale ? 'Лиза молчит ' + ago(st.age) : 'Лиза работает'), ' версия сервера ' + st.version));
+      top.appendChild(h('p', null, 'Ключ OpenRouter: ', h('b', null, k.mask || '—'), ' ', h('span', { class: 'tag ' + (k.ok ? 'ok' : 'bad') }, k.ok ? 'принят' : ('проблема: ' + (k.error || 'не проверен')))));
+      top.appendChild(h('p', null, 'Потрачено по ключу: ' + (k.usage == null ? '—' : usd(k.usage)) + '. ' +
+        (k.limit == null ? 'Лимит на ключе не задан.' : ('Лимит: ' + usd(k.limit) + ', остаток: ' + (k.remaining == null ? '—' : usd(k.remaining)) + '.'))));
+      top.appendChild(h('p', { class: 'muted' }, 'Проверено ' + ago(k.checked ? (Date.now() / 1000 - k.checked) : null) + '. Сам ключ здесь не показывается и не меняется: замена только отдельным скриптом на сервере со скрытым вводом.'));
+      var warn = h('input', { type: 'number', step: '0.5', value: o.key_warn_usd });
+      top.appendChild(h('div', { class: 'row mt6' }, h('span', { class: 'grow muted' }, 'Предупредить администратора, когда остаток ключа меньше (доллары)'), h('div', null, warn),
+        h('button', { onclick: function () { post('/api/lisa/global', { key_warn_usd: Number(warn.value) }).then(function () { toast('Сохранено'); }).catch(fail); } }, 'Сохранить')));
+    }
+    box.appendChild(top);
+
+    // Модели: порядок = очередь. Первая главная, остальные запасные
+    var ids = o.models.map(function (m) { return m.id; });
+    var mc = h('div', { class: 'card mt12' }, h('h2', null, 'Модель под именем Лиза'),
+      h('p', { class: 'muted' }, 'Первая в списке отвечает людям. Если она не отвечает, подставляется следующая, администратор получает сообщение от служебного бота. Цены за миллион токенов.'));
+    function saveModels(list) { return post('/api/lisa/models', { models: list }).then(function () { toast('Порядок моделей сохранён'); reload(); }).catch(fail); }
+    o.models.forEach(function (m, i) {
+      var active = st && st.active === m.id;
+      var price = m.price_in == null ? 'цена неизвестна' : ('вход $' + m.price_in + ' / выход $' + m.price_out);
+      var up = h('button', { disabled: i === 0, onclick: function () { var l = ids.slice(); l.splice(i - 1, 2, l[i], l[i - 1]); saveModels(l); } }, '↑');
+      var rm = h('button', { disabled: ids.length < 2, onclick: function () { var l = ids.slice(); l.splice(i, 1); saveModels(l); } }, 'Убрать');
+      mc.appendChild(h('div', { class: 'row mt6' },
+        h('div', { class: 'grow' }, h('b', null, (i === 0 ? 'Главная: ' : 'Запасная ' + i + ': ') + m.id), h('div', { class: 'muted' }, price + (m.vision ? ', понимает картинки' : '') + (m.up === false ? ', причина: ' + (m.error || 'недоступна') : ''))),
+        active ? h('span', { class: 'tag ok' }, 'сейчас отвечает') : null,
+        m.up === false ? h('span', { class: 'tag bad' }, 'недоступна') : null, up, rm));
+    });
+    var q = h('input', { placeholder: 'Найти модель в каталоге OpenRouter (например, haiku)' });
+    var res = h('div', { class: 'mt6' });
+    var timer = null;
+    q.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        get('/api/lisa/catalog?q=' + encodeURIComponent(q.value)).then(function (c) {
+          res.textContent = '';
+          if (!c.ready) { res.appendChild(h('p', { class: 'muted' }, 'Каталог ещё не загружен Лизой.')); return; }
+          c.models.filter(function (m) { return ids.indexOf(m.id) < 0; }).slice(0, 12).forEach(function (m) {
+            res.appendChild(h('div', { class: 'row mt6' }, h('div', { class: 'grow' }, h('b', null, m.id), h('div', { class: 'muted' }, 'вход $' + m.price_in + ' / выход $' + m.price_out + (m.context ? ', контекст ' + num(m.context) : ''))),
+              h('button', { disabled: ids.length >= 6, onclick: function () { saveModels(ids.concat([m.id])); } }, 'Добавить в конец')));
+          });
+        }).catch(fail);
+      }, 300);
+    });
+    mc.appendChild(h('h3', null, 'Добавить запасную')); mc.appendChild(q); mc.appendChild(res);
+    box.appendChild(mc);
+
+    // Деньги и токены
+    var sm = o.stats;
+    var money = h('div', { class: 'card mt12' }, h('h2', null, 'Расход'));
+    if (!sm) money.appendChild(h('p', { class: 'muted' }, 'Статистики пока нет.'));
+    else {
+      function line(name, t) { return h('div', { class: 'row mt6' }, h('span', { class: 'grow' }, name), h('span', null, 'запросов: ' + num(t.n) + ', токенов: ' + num(t.tin + t.tout) + ', ' + usd(t.cost))); }
+      money.appendChild(line('Сегодня', sm.totals.today)); money.appendChild(line('7 дней', sm.totals.d7)); money.appendChild(line('30 дней', sm.totals.d30));
+      var max = Math.max.apply(null, sm.series.map(function (r) { return r.cost; }).concat([0.0001]));
+      var bars = h('div', { class: 'bars' });
+      sm.series.forEach(function (r) { var b = h('div', { class: 'bar', title: r.day + ': ' + usd(r.cost) + ', запросов ' + r.n }); b.style.height = Math.max(2, Math.round(r.cost / max * 100)) + '%'; bars.appendChild(b); });
+      money.appendChild(h('h3', null, 'Деньги по дням (30 дней)')); money.appendChild(bars);
+      money.appendChild(h('h3', null, 'По людям'));
+      sm.users.forEach(function (u) { money.appendChild(h('div', { class: 'row mt6' }, h('b', { class: 'grow' }, u.label || u.user), h('span', { class: 'muted' }, 'сегодня ' + usd(u.today.cost) + ' · 7 дн ' + usd(u.d7.cost) + ' · 30 дн ' + usd(u.d30.cost) + ' · запросов за 30 дн ' + num(u.d30.n)))); });
+      money.appendChild(h('h3', null, 'По моделям (30 дней)'));
+      sm.models.forEach(function (m) { money.appendChild(h('div', { class: 'row mt6' }, h('b', { class: 'grow' }, m.model), h('span', { class: 'muted' }, 'ответов: ' + num(m.n) + ', вход: ' + num(m.tin) + ', выход: ' + num(m.tout) + ', ' + usd(m.cost)))); });
+      money.appendChild(h('p', { class: 'muted mt6' }, 'Суммы взяты из ответов OpenRouter. Данные обновлены ' + ago(o.stats_age) + '.'));
+    }
+    box.appendChild(money);
+  }
+
+  function lisaGuide(box) {
+    var card = h('div', { class: 'card mt12' }, h('h2', null, 'Справочник по DVChat'),
+      h('p', { class: 'muted' }, 'Это знания Лизы о приложении: отвечая на вопросы о DVChat, она опирается на этот текст. Добавьте новую функцию или поправьте описание и нажмите «Сохранить»: Лиза подхватит правку сама, в течение нескольких секунд, без перезапуска. Старые версии сохраняются как копии.'));
+    get('/api/lisa/guide').then(function (g) {
+      if (!g.enabled) { card.appendChild(h('p', { class: 'muted' }, 'Файл справочника не подключён (DVADMIN_LISA_GUIDE).')); return; }
+      var ta = h('textarea', { rows: 18 }); ta.value = g.text;
+      var cnt = h('span', { class: 'muted' });
+      function upd() { cnt.textContent = 'Знаков: ' + ta.value.length + ' из ' + g.max; cnt.style.color = ta.value.length > g.max ? 'var(--danger)' : ''; }
+      ta.addEventListener('input', upd); upd();
+      card.appendChild(ta);
+      card.appendChild(h('div', { class: 'row mt6' }, h('div', { class: 'grow' }, cnt), h('button', { class: 'primary', onclick: function () {
+        post('/api/lisa/guide', { text: ta.value }).then(function () { toast('Справочник сохранён'); }).catch(fail);
+      } }, 'Сохранить справочник')));
+    }).catch(fail);
+    box.appendChild(card);
+  }
+
+  function lisaRequests(box, o) {
+    var card = h('div', { class: 'card mt12' }, h('h2', null, 'Запросы людей'));
+    card.appendChild(h('p', { class: 'muted' }, o.settings.log_questions_days > 0
+      ? 'Вопросы хранятся ' + o.settings.log_questions_days + ' дн., затем стираются. Людей об этом предупреждает приложение. Читайте только по необходимости.'
+      : 'Хранение вопросов выключено: видны только числа.'));
+    var list = h('div'); card.appendChild(list);
+    var btn = h('button', { onclick: function () {
+      btn.disabled = true;
+      get('/api/lisa/requests').then(function (r) {
+        list.textContent = '';
+        if (!r.items.length) list.appendChild(h('p', { class: 'muted' }, 'Пока пусто.'));
+        r.items.forEach(function (x) {
+          list.appendChild(h('div', { class: 'card memberbox' }, h('div', { class: 'row' }, h('b', { class: 'grow' }, x.label || x.user), h('span', { class: 'muted' }, date(x.ts * 1000) + ' · ' + usd(x.cost))),
+            h('div', { class: 'muted' }, x.model + (x.tool && x.tool !== 'none' ? ' · ' + x.tool : '') + (x.ok ? '' : ' · ошибка')),
+            h('div', null, x.question || '(вопрос не сохранён)')));
+        });
+      }).catch(fail).then(function () { btn.disabled = false; });
+    } }, 'Показать последние запросы');
+    card.appendChild(btn);
+    box.appendChild(card);
+  }
+
   // ---------- Лиза ----------
   function viewLisa(v) {
     v.appendChild(h('h1', null, 'Лиза'));
@@ -284,7 +405,17 @@
       get('/api/lisa').then(function (d) {
         root.textContent = '';
         if (!d.enabled) { root.appendChild(h('p', { class: 'muted' }, 'Файл настроек Лизы не подключён (переменная DVADMIN_LISA_CONFIG).')); return; }
+        var ov = h('div'); root.appendChild(ov);
+        get('/api/lisa/overview').then(function (o) { lisaOverview(ov, o, load); lisaGuide(ov); lisaRequests(ov, o); }).catch(fail);
         var prompt = h('textarea', { rows: 8 }); prompt.value = d.system_prompt;
+        var S = d.settings || {};
+        var sset = {
+          log_questions_days: h('input', { type: 'number', value: S.log_questions_days }), model_timeout: h('input', { type: 'number', value: S.model_timeout }),
+          read_pages: h('input', { type: 'number', value: S.read_pages }), key_warn_usd: h('input', { type: 'number', step: '0.5', value: S.key_warn_usd }),
+          search_engines: h('input', { value: (S.search_engines || []).join(', '), placeholder: 'пусто = как настроено в SearXNG' }),
+          safesearch: h('select', null, h('option', { value: '2' }, 'строгий (рекомендуется)'), h('option', { value: '1' }, 'умеренный')),
+          news_range: h('select', null, h('option', { value: 'day' }, 'за сутки'), h('option', { value: 'week' }, 'за неделю'), h('option', { value: 'month' }, 'за месяц')) };
+        sset.safesearch.value = String(S.safesearch || 2); sset.news_range.value = S.news_range || 'week';
         var city = h('input', { value: d.default_city }), search = h('input', { value: d.search_url });
         var lim = {}; ['per_user_per_day', 'global_per_day', 'max_output_tokens', 'max_history_messages'].forEach(function (k) { lim[k] = h('input', { type: 'number', value: d.limits[k] }); });
         var featBoxes = d.features.map(function (f) { return check(f[1] + ' (по умолчанию для всех)', d.features_defaults[f[0]], function (on) { var o = {}; o[f[0]] = on; saveGlobal({ features_defaults: o }); }); });
@@ -295,18 +426,27 @@
         gl.appendChild(h('h3', null, 'Инструкция Лизы')); gl.appendChild(prompt);
         gl.appendChild(h('h3', null, 'Город по умолчанию')); gl.appendChild(city);
         gl.appendChild(h('h3', null, 'Адрес поиска (SearXNG)')); gl.appendChild(search);
+        gl.appendChild(h('h3', null, 'Интернет-поиск: фильтр взрослого содержимого')); gl.appendChild(sset.safesearch);
+        gl.appendChild(h('h3', null, 'Поисковые движки SearXNG (через запятую)')); gl.appendChild(sset.search_engines);
+        gl.appendChild(h('h3', null, 'Сколько страниц из результатов читать целиком (0–4)')); gl.appendChild(sset.read_pages);
+        gl.appendChild(h('h3', null, 'Свежесть новостей')); gl.appendChild(sset.news_range);
+        gl.appendChild(h('h3', null, 'Ждать ответ модели, секунд (потом запасная)')); gl.appendChild(sset.model_timeout);
+        gl.appendChild(h('h3', null, 'Хранить вопросы людей, дней (0 = не хранить)')); gl.appendChild(sset.log_questions_days);
         gl.appendChild(h('h3', null, 'Запросов на человека в сутки')); gl.appendChild(lim.per_user_per_day);
         gl.appendChild(h('h3', null, 'Запросов всего в сутки')); gl.appendChild(lim.global_per_day);
         gl.appendChild(h('h3', null, 'Длина ответа (токены)')); gl.appendChild(lim.max_output_tokens);
         gl.appendChild(h('h3', null, 'Сообщений истории')); gl.appendChild(lim.max_history_messages);
         gl.appendChild(h('div', { class: 'mt14' }, h('button', { class: 'primary', onclick: function () {
-          saveGlobal({ system_prompt: prompt.value, default_city: city.value, search_url: search.value, limits: {
+          saveGlobal({ system_prompt: prompt.value, default_city: city.value, search_url: search.value,
+            safesearch: Number(sset.safesearch.value), news_range: sset.news_range.value, read_pages: Number(sset.read_pages.value),
+            model_timeout: Number(sset.model_timeout.value), log_questions_days: Number(sset.log_questions_days.value),
+            search_engines: sset.search_engines.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean), limits: {
             per_user_per_day: Number(lim.per_user_per_day.value), global_per_day: Number(lim.global_per_day.value),
             max_output_tokens: Number(lim.max_output_tokens.value), max_history_messages: Number(lim.max_history_messages.value) } });
         } }, 'Сохранить общие настройки')));
         root.appendChild(gl);
-        root.appendChild(h('h2', { class: 'mt16' }, 'Люди'));
-        root.appendChild(h('p', { class: 'muted' }, 'Свои права для каждого: доступ, лимит, возможности и игры. Пустой флажок возможности = как по умолчанию. Доступ к чатам включайте только с согласия человека: Лиза видит лишь то, что приложение отправит по его команде.'));
+        var ppl = h('details', { class: 'mt16' }, h('summary', null, 'Люди: доступ, лимиты, возможности и игры (' + d.people.length + ')')); root.appendChild(ppl);
+        ppl.appendChild(h('p', { class: 'muted' }, 'Свои права для каждого: доступ, лимит, возможности и игры. Пустой флажок возможности = как по умолчанию. Доступ к чатам включайте только с согласия человека: Лиза видит лишь то, что приложение отправит по его команде.'));
         d.people.forEach(function (p) {
           var name = p.displayname || p.user_id;
           var box = h('div', { class: 'card memberbox' }, h('div', { class: 'row' }, h('b', { class: 'grow' }, name), p.admin ? h('span', { class: 'tag' }, 'админ') : null, p.dv_id ? h('span', { class: 'tag' }, 'ID ' + p.dv_id) : h('span', { class: 'tag bad' }, 'ещё не входил')));
@@ -330,7 +470,7 @@
               saveUser(p.user_id, { games_off: off });
             }));
           });
-          root.appendChild(box);
+          ppl.appendChild(box);
         });
       }).catch(fail);
     }

@@ -31,6 +31,10 @@ export function loadConfig(env = process.env) {
     absoluteMs: Number(env.DVADMIN_ABSOLUTE_HOURS || 8) * 3_600_000,
     // Лиза: файл настроек сервиса (если смонтирован), иначе раздел скрыт
     lisaConfigPath: env.DVADMIN_LISA_CONFIG || '',
+    // Справочник по DVChat (текстовый файл; правится в панели, Лиза перечитывает его сама)
+    lisaGuidePath: env.DVADMIN_LISA_GUIDE || '',
+    // Каталог, куда Лиза пишет состояние, каталог моделей и статистику (панель читает его только на чтение)
+    lisaPanelDir: env.DVADMIN_LISA_PANEL_DIR || '',
     hasDataDir: existsSync(dataDir),
   };
 }

@@ -160,3 +160,23 @@ test('выход на остальных устройствах, кроме вы
   const left = (await c('POST', '/api/users/devices', { user_id: B })).json.devices;
   assert.deepEqual(left.map((x) => x.id), [keep]);
 });
+
+test('очистка переписки: сообщения стёрты, комната и люди остаются', async () => {
+  const g = await c('POST', '/api/groups', { name: 'Очистка ' + sfx, owner: B, members: [C], encrypted: true });
+  const rid = g.json.room_id; const q = encodeURIComponent(rid);
+  const say = (as, t) => as.req('PUT', `/_matrix/client/v3/rooms/${q}/send/m.room.message/${Math.random().toString(36).slice(2)}`, { msgtype: 'm.text', body: t });
+  const lineOf = (as) => as.req('GET', `/_matrix/client/v3/rooms/${q}/messages?dir=b&limit=100`).then((r) => r.chunk.filter((e) => e.state_key === undefined && e.type === 'm.room.message'));
+  await syn.asUser(id(B), async (as) => { for (let i = 1; i <= 4; i++) await say(as, 'привет ' + i); });
+  await syn.asUser(id(C), async (as) => { await say(as, 'ответ'); });
+  assert.equal((await syn.asUser(id(B), lineOf)).length, 5);
+  assert.equal((await c('POST', '/api/rooms/clear', { room_id: rid, confirm: 'не то' })).status, 400);
+  const r = await c('POST', '/api/rooms/clear', { room_id: rid, confirm: 'очистить' });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal((await syn.asUser(id(B), lineOf)).length, 0, 'лента пустая');
+  const d = (await c('POST', '/api/groups/details', { room_id: rid })).json;
+  assert.equal(d.members.length, 2); assert.equal(d.name, 'Очистка ' + sfx);
+  await syn.asUser(id(C), async (as) => { await say(as, 'после очистки'); });
+  assert.equal((await syn.asUser(id(B), lineOf)).length, 1, 'новые сообщения работают');
+  const svc = (await c('GET', '/api/rooms')).json.rooms.find((x) => x.kind === 'service');
+  assert.equal((await c('POST', '/api/rooms/clear', { room_id: svc.room_id, confirm: 'очистить' })).status, 400);
+});

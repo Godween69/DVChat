@@ -183,3 +183,40 @@ test('Лиза: запись файла с копией и без потери �
   assert.equal(readLisa(p).secret_like, 'keep'); assert.equal(readLisa(p).default_city, 'Город'); assert.deepEqual(readLisa(p).models, [{ id: 'm' }]);
   assert.ok(rd(dir).some((f) => f.startsWith('lisa.json.bak-')), 'копия создана');
 });
+
+// ---------- Лиза: модели, настройки, сводка расходов ----------
+import { applyModels, summarize, readPanel } from '../lib/lisa.mjs';
+
+test('Лиза: порядок моделей и проверка по каталогу', () => {
+  const cat = [{ id: 'a/one', vision: true }, { id: 'b/two', vision: false }];
+  const c = { models: [{ id: 'a/one', timeout: 9 }] };
+  applyModels(c, ['a/one', 'b/two'], cat);
+  assert.deepEqual(c.models.map((m) => m.id), ['a/one', 'b/two']); assert.equal(c.models[0].timeout, 9, 'свои поля модели сохраняются');
+  assert.throws(() => applyModels(c, [], cat), /от 1 до 6/);
+  assert.throws(() => applyModels(c, ['a/one', 'a/one'], cat), /дважды/);
+  assert.throws(() => applyModels(c, ['x/none'], cat), /нет в каталоге/);
+  assert.throws(() => applyModels(c, ['плохо'], cat), /Некорректное/);
+  applyModels(c, ['b/two'], []); assert.equal(c.models.length, 1, 'без каталога допустим только известный/верный по формату id');
+});
+
+test('Лиза: новые настройки проверяются', () => {
+  const c = { system_prompt: 'x'.repeat(30) };
+  applyGlobal(c, { safesearch: 2, read_pages: 3, news_range: 'day', model_timeout: 30, log_questions_days: 14, key_warn_usd: 1.5, search_engines: ['google', 'bing'] });
+  assert.equal(c.read_pages, 3); assert.deepEqual(c.search_engines, ['google', 'bing']); assert.equal(c.log_questions_days, 14);
+  assert.throws(() => applyGlobal(c, { safesearch: 0 }), /Фильтр/);
+  assert.throws(() => applyGlobal(c, { news_range: 'year' }), /Свежесть/);
+  assert.throws(() => applyGlobal(c, { search_engines: ['a;rm -rf'] }), /движки/);
+  assert.throws(() => applyGlobal(c, { log_questions_days: 99 }), /Срок/);
+  applyGlobal(c, { search_engines: [] }); assert.equal(c.search_engines, undefined);
+  assert.equal(lisaView(c, []).settings.news_range, 'day');
+});
+
+test('Лиза: сводка расходов за день, неделю и месяц', () => {
+  const s = summarize({ today: '2026-10-30',
+    days: [{ day: '2026-10-30', n: 2, tin: 100, tout: 50, cost: 0.5 }, { day: '2026-10-26', n: 1, tin: 10, tout: 5, cost: 0.25 }, { day: '2026-10-05', n: 1, tin: 1, tout: 1, cost: 1 }, { day: '2026-08-01', n: 9, tin: 9, tout: 9, cost: 9 }],
+    users: [{ user: '@a:s', day: '2026-10-30', n: 2, tin: 100, tout: 50, cost: 0.5 }, { user: '@b:s', day: '2026-10-05', n: 1, tin: 1, tout: 1, cost: 1 }], models: [] });
+  assert.equal(s.totals.today.cost, 0.5); assert.equal(s.totals.d7.cost, 0.75); assert.equal(s.totals.d30.cost, 1.75);
+  assert.equal(s.series.length, 30); assert.equal(s.series[29].day, '2026-10-30');
+  assert.equal(s.users[0].user, '@b:s', 'сортировка по деньгам за 30 дней'); assert.equal(s.users[1].today.n, 2);
+  assert.equal(readPanel('/нет/такого', 'state.json'), null);
+});

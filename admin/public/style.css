@@ -47,3 +47,6 @@ pre{background:#0f1216;border:1px solid var(--line);border-radius:8px;padding:12
 input[type=checkbox]{width:auto;accent-color:var(--accent)}
 .permrow{margin:4px 0}
 textarea{resize:vertical;font-family:inherit}
+
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 70px; margin-top: 6px; }
+.bar { flex: 1; background: var(--accent, #3b7dd8); border-radius: 2px 2px 0 0; min-height: 2px; }

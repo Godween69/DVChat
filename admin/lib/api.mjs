@@ -3,7 +3,8 @@ import { writeFileSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path';
 import { generateSecret } from './auth.mjs';
 import * as G from './groups.mjs';
-import { readLisa, saveLisa, applyGlobal, applyUser, lisaView, lisaConfigured } from './lisa.mjs';
+import { clearRoom } from './clear.mjs';
+import { readLisa, saveLisa, applyGlobal, applyUser, lisaView, lisaConfigured, readPanel, applyModels, summarize, readGuide, saveGuide, GUIDE_MAX } from './lisa.mjs';
 
 export class HttpError extends Error {
   constructor(status, message, code = 'ERROR') { super(message); this.status = status; this.code = code; }
@@ -299,6 +300,16 @@ export function createApi({ cfg, syn, audit }) {
       return { delete_id: r.delete_id || '' };
     },
 
+    'POST /api/rooms/clear': async ({ body }) => {
+      const id = roomId(body.room_id);
+      if (id === svcPeek()) throw bad('Служебную комнату админки очищать не нужно: в ней нет переписки');
+      if (String(body.confirm || '').trim() !== 'очистить') throw bad('Подтверждение не совпало: введите слово «очистить»');
+      await syn.room(id);
+      const r = await clearRoom(syn, id);
+      audit('room.clear', { room: id, ...r });
+      return { ok: true, ...r };
+    },
+
     'POST /api/rooms/delete-empty': async ({ body }) => {
       const service = svcPeek();
       const r = await syn.rooms({ limit: 500 });
@@ -357,6 +368,67 @@ export function createApi({ cfg, syn, audit }) {
       const dv = await dvPeople();
       const people = (r.users || []).map((u) => ({ user_id: u.name, displayname: u.displayname || '', dv_id: dv.get(u.name) || '' }));
       return lisaView(readLisa(cfg.lisaConfigPath), people);
+    },
+
+    // Модели, ключ, деньги: файлы пишет сама Лиза (state.json, catalog.json, stats.json, requests.json)
+    'GET /api/lisa/overview': async () => {
+      if (!lisaConfigured(cfg.lisaConfigPath)) return { enabled: false };
+      const c = readLisa(cfg.lisaConfigPath);
+      const dir = cfg.lisaPanelDir;
+      const st = dir ? readPanel(dir, 'state.json') : null;
+      const sts = dir ? readPanel(dir, 'stats.json') : null;
+      const cat = dir ? readPanel(dir, 'catalog.json') : null;
+      const map = await usersMap();
+      const label = (id) => personLabel(map, id);
+      const sum = sts ? summarize(sts.data) : null;
+      if (sum) sum.users = sum.users.map((u) => ({ ...u, label: label(u.user) }));
+      const prices = new Map((st?.data.models || []).map((m) => [m.id, m]));
+      return {
+        enabled: true, panel: Boolean(dir),
+        state: st ? { ...st.data, age: Math.round(st.age) } : null,
+        models: (c.models || []).map((m) => ({ id: m.id, vision: Boolean(m.vision), up: prices.get(m.id)?.up ?? null, error: prices.get(m.id)?.error || null,
+          price_in: prices.get(m.id)?.price_in ?? null, price_out: prices.get(m.id)?.price_out ?? null })),
+        catalog: Boolean(cat), stats: sum, stats_age: sts ? Math.round(sts.age) : null,
+        settings: lisaView(c, []).settings, key_warn_usd: c.key_warn_usd ?? 2,
+      };
+    },
+
+    'GET /api/lisa/catalog': async ({ query }) => {
+      const cat = cfg.lisaPanelDir ? readPanel(cfg.lisaPanelDir, 'catalog.json') : null;
+      if (!cat) return { models: [], ready: false };
+      const q = String(query.q || '').trim().toLowerCase();
+      const list = cat.data.models.filter((m) => !q || m.id.toLowerCase().includes(q) || String(m.name).toLowerCase().includes(q)).slice(0, 40);
+      return { models: list, ready: true, total: cat.data.models.length };
+    },
+
+    'GET /api/lisa/requests': async ({ query }) => {
+      const r = cfg.lisaPanelDir ? readPanel(cfg.lisaPanelDir, 'requests.json') : null;
+      if (!r) return { items: [], days: 0 };
+      const map = await usersMap();
+      let items = r.data.items.map((x) => ({ ...x, label: personLabel(map, x.user) }));
+      if (query.user) items = items.filter((x) => x.user === query.user);
+      return { items: items.slice(0, 200), days: r.data.days };
+    },
+
+    'GET /api/lisa/guide': async () => {
+      if (!cfg.lisaGuidePath) return { enabled: false };
+      return { enabled: true, text: readGuide(cfg.lisaGuidePath), max: GUIDE_MAX };
+    },
+
+    'POST /api/lisa/guide': async ({ body }) => {
+      if (!cfg.lisaGuidePath) throw bad('Файл справочника не подключён');
+      saveGuide(cfg.lisaGuidePath, body.text);
+      audit('lisa.guide', { length: String(body.text).length });
+      return { ok: true };
+    },
+
+    'POST /api/lisa/models': async ({ body }) => {
+      if (!lisaConfigured(cfg.lisaConfigPath)) throw bad('Файл настроек Лизы не подключён');
+      const cat = cfg.lisaPanelDir ? readPanel(cfg.lisaPanelDir, 'catalog.json') : null;
+      const c = applyModels(readLisa(cfg.lisaConfigPath), body.models, cat?.data.models);
+      saveLisa(cfg.lisaConfigPath, c);
+      audit('lisa.models', { models: body.models });
+      return { ok: true };
     },
 
     'POST /api/lisa/global': async ({ body }) => {

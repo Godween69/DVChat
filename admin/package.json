@@ -1,9 +1,9 @@
 {
   "name": "dvchat-admin",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Локальная админка DVChat: люди, ссылки входа, группы, комнаты, мастер настройки",
-  "scripts": { "start": "node server.mjs", "test": "node --test test/app.test.mjs" },
+  "scripts": { "start": "node server.mjs", "test": "node --test test/app.test.mjs test/groups.test.mjs test/lisa_api.test.mjs" },
   "license": "AGPL-3.0-or-later"
 }
