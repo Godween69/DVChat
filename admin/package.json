@@ -1,6 +1,6 @@
 {
   "name": "dvchat-admin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Локальная админка DVChat: люди, ссылки входа, группы, комнаты, мастер настройки",

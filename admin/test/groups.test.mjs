@@ -106,12 +106,23 @@ test('комнаты: подписи безымянных, пустые, фил�
   // чат, где остался один (второй удалён): D и удалённый E
   const half = (await syn.createRoom({ preset: 'trusted_private_chat', is_direct: true })).room_id;
   await syn.joinUser(half, id(D)); await syn.leaveRoom(half); await syn.forgetRoom(half);
+  // чат, где собеседник вышел: B вошёл и вышел, остался C
+  const gone = (await syn.createRoom({ preset: 'trusted_private_chat', is_direct: true })).room_id;
+  await syn.joinUser(gone, id(B)); await syn.joinUser(gone, id(C)); await syn.leaveRoom(gone); await syn.forgetRoom(gone);
+  await syn.asUser(id(B), (as) => as.leaveRoom(gone));
+  // обращение в поддержку: название «Имя @логин (ID)», внутри админ, человек приглашён
+  const sup = (await syn.createRoom({ name: 'Проба @' + C + ' (1234567890)', preset: 'private_chat', invite: [id(C)] }).catch(() => syn.createRoom({ name: 'Проба @' + C + ' (1234567890)', preset: 'private_chat' }))).room_id;
   // пустая
   const empty = (await syn.createRoom({ name: undefined })).room_id; await syn.leaveRoom(empty); await syn.forgetRoom(empty);
 
   const rooms = (await c('GET', '/api/rooms')).json;
   const m = rooms.rooms.find((x) => x.room_id === dm);
   assert.equal(m.kind, 'direct'); assert.match(m.label, /^Личный чат: Имя ob.+ и Имя oc.+|^Личный чат: Имя oc.+ и Имя ob.+/);
+  const gn = rooms.rooms.find((x) => x.room_id === gone);
+  assert.match(gn.label, /собеседник вышел/, gn.label);
+  const sp = rooms.rooms.find((x) => x.room_id === sup);
+  assert.equal(sp.kind, 'support'); assert.match(sp.label, /^Поддержка: /);
+  assert.ok((await c('GET', '/api/rooms?filter=support')).json.rooms.every((x) => x.kind === 'support'));
   const e = rooms.rooms.find((x) => x.room_id === empty);
   assert.equal(e.kind, 'empty'); assert.equal(e.label, 'Пустая комната (никого внутри)');
   assert.ok(rooms.empty_count >= 1);

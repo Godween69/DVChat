@@ -249,25 +249,42 @@ export function createApi({ cfg, syn, audit }) {
           const mem = x.joined_members > 0 ? ((await syn.roomMembers(x.room_id).catch(() => ({ members: [] }))).members || []) : [];
           const people = mem.map((id) => ({ id, label: personLabel(map, id), deleted: Boolean(map.get(id)?.deactivated) }));
           const names = people.map((p) => p.label);
+          // Кто вышел и кого пригласили, но он ещё не зашёл (по состоянию комнаты; только для небольших комнат)
+          let left = [], invited = [];
+          if (x.joined_members > 0 && x.joined_members <= 2) {
+            const st = await syn.roomState(x.room_id).catch(() => ({ state: [] }));
+            for (const e of st.state || []) {
+              if (e.type !== 'm.room.member') continue;
+              const who = personLabel(map, e.state_key);
+              if (e.content?.membership === 'leave' || e.content?.membership === 'ban') left.push(who);
+              if (e.content?.membership === 'invite') invited.push(who);
+            }
+          }
+          // Обращение в поддержку: комната с названием «Имя @логин (ID)», создаётся модулем при обращении человека
+          const support = /\s@[\w.\-]+\s\(\d{6,}\)\s*$/.test(x.name || '');
           let kind = 'direct';
           if (x.room_id === service) kind = 'service';
           else if (x.joined_members === 0) kind = 'empty';
           else if (x.joined_members > 2) kind = 'group';
+          else if (support) kind = 'support';
           let label = kind === 'service' ? 'Служебная комната админки' : (x.name || '');
-          if (!label) {
+          if (kind === 'support') label = 'Поддержка: ' + (x.name || '');
+          else if (!label) {
             if (kind === 'empty') label = 'Пустая комната (никого внутри)';
             else if (kind === 'group') label = 'Группа без названия: ' + names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : '');
-            else if (names.length === 1) label = 'Личный чат: ' + names[0] + ' (собеседника нет)';
+            else if (names.length === 1) label = 'Личный чат: ' + names[0] + (left.length ? ' (собеседник вышел: ' + left.join(', ') + ')' : invited.length ? ' (собеседник приглашён, ещё не зашёл)' : ' (собеседника нет)');
             else label = 'Личный чат: ' + names.join(' и ');
           }
+          const note = [left.length ? 'вышли: ' + left.join(', ') : '', invited.length ? 'приглашены, не зашли: ' + invited.join(', ') : ''].filter(Boolean).join('; ');
           return { room_id: x.room_id, name: x.name || '', label, kind, members: x.joined_members, local_members: x.joined_local_members,
-            creator: x.creator, encrypted: Boolean(x.encryption), people, has_deleted: people.some((p) => p.deleted) };
+            creator: x.creator, encrypted: Boolean(x.encryption), people, note, has_deleted: people.some((p) => p.deleted) };
         })));
       }
       let out = rooms;
       if (query.filter === 'empty' || query.filter === 'orphans') out = rooms.filter((x) => x.kind === 'empty');
       if (query.filter === 'groups') out = rooms.filter((x) => x.kind === 'group');
       if (query.filter === 'direct') out = rooms.filter((x) => x.kind === 'direct');
+      if (query.filter === 'support') out = rooms.filter((x) => x.kind === 'support');
       if (query.filter === 'deleted') out = rooms.filter((x) => x.has_deleted);
       return { total: r.total_rooms, rooms: out, empty_count: rooms.filter((x) => x.kind === 'empty').length };
     },

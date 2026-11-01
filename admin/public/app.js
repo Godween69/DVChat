@@ -147,8 +147,8 @@
 
   // ---------- Комнаты ----------
   function viewRooms(v) {
-    var KIND = { group: 'группа', direct: 'личная', empty: 'пустая', service: 'служебная' };
-    var filter = h('select', null, h('option', { value: '' }, 'Все'), h('option', { value: 'direct' }, 'Личные'), h('option', { value: 'groups' }, 'Группы'),
+    var KIND = { group: 'группа', direct: 'личная', empty: 'пустая', service: 'служебная', support: 'поддержка' };
+    var filter = h('select', null, h('option', { value: '' }, 'Все'), h('option', { value: 'direct' }, 'Личные'), h('option', { value: 'groups' }, 'Группы'), h('option', { value: 'support' }, 'Обращения в поддержку'),
       h('option', { value: 'empty' }, 'Пустые (никого внутри)'), h('option', { value: 'deleted' }, 'С удалёнными аккаунтами'));
     var q = h('input', { placeholder: 'Поиск по названию' });
     var tbody = h('tbody');
@@ -164,7 +164,7 @@
           var who = x.people.map(function (p) { return p.label; }).join(', ');
           var expected = x.name || 'удалить';
           tbody.appendChild(h('tr', null, h('td', null, x.label, x.has_deleted ? h('span', { class: 'tag bad' }, 'есть удалённый') : ''),
-            h('td', null, KIND[x.kind] || x.kind), h('td', { class: 'muted' }, who || '—'),
+            h('td', null, KIND[x.kind] || x.kind), h('td', { class: 'muted' }, who || '—', x.note ? h('div', { class: 'muted' }, x.note) : ''),
             h('td', null, x.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'без шифр.')),
             h('td', null, x.kind === 'service' ? '' : h('button', { class: 'danger', onclick: function () { confirmDanger('Удалить комнату?', 'Комната «' + x.label + '» будет удалена с сервера у всех участников. Это нельзя отменить.', expected, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }, 'Удалить…'))));
         });
