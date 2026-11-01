@@ -89,6 +89,8 @@ test('сценарии админки на настоящем Synapse', async (t
   await t.test('новая ссылка для существующего', async () => {
     const r = await c2('POST', '/api/users/link', { user_id: uname, ttl_hours: 1 });
     assert.equal(r.status, 200); assert.ok(r.json.code);
+    const r2 = await c2('POST', '/api/users/link', { user_id: uname, ttl_hours: 1 });
+    assert.equal(r2.status, 200, 'повторная выдача тому же человеку без технических условий');
     assert.equal((await c2('POST', '/api/users/link', { user_id: 'nobody-here' })).status, 404);
   });
 

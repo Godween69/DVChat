@@ -25,7 +25,7 @@ if (cmd === 'set-password') {
   console.log('Пароль админки сохранён.');
 } else if (cmd === 'synapse-login') {
   // Получает токен администратора Synapse по его паролю и кладёт в файл; сам пароль нигде не хранится
-  const user = process.env.DVADMIN_MATRIX_USER || (await ask('Имя администратора Synapse (без @ и домена): ', false));
+  const user = process.env.DVADMIN_MATRIX_USER || (await ask('Имя администратора Synapse (без @ и домена, Enter = admin): ', false)).trim() || 'admin';
   const pw = process.env.DVADMIN_MATRIX_PASSWORD || (await ask('Пароль администратора Synapse: ', true));
   const r = await fetch(cfg.synapseUrl + '/_matrix/client/v3/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

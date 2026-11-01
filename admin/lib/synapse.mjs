@@ -58,6 +58,7 @@ export class Synapse {
   // Модули DVChat (dv_social)
   dvIssue(body) { return this.req('POST', '/_synapse/client/dv/issue', body); }
   dvFriends() { return this.req('GET', '/_synapse/client/dv/friends'); }
+  dvKeysPhrase() { return this.req('POST', '/_synapse/client/dv/keys/phrase', {}); }
   dvMe() { return this.req('GET', '/_synapse/client/dv/me'); }
 }
 

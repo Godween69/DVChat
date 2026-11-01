@@ -1,6 +1,6 @@
 // Маршруты админки. Каждая изменяющая операция пишется в журнал (без секретов).
 import { writeFileSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { generateSecret } from './auth.mjs';
 import * as G from './groups.mjs';
 import { readLisa, saveLisa, applyGlobal, applyUser, lisaView, lisaConfigured } from './lisa.mjs';
@@ -74,6 +74,40 @@ export function createApi({ cfg, syn, audit }) {
     if (!given || String(given).trim() !== String(expected)) throw bad('Подтверждение не совпало: введите имя точно');
   };
 
+  // Служебная комната: в ней состоит только администратор, она нужна для входа в группы без приглашения
+  const svcFile = join(cfg.dataDir, 'service_room.json');
+  let svc = '';
+  const svcPeek = () => { if (svc) return svc; try { svc = JSON.parse(readFileSync(svcFile, 'utf8')).room_id || ''; } catch { svc = ''; } return svc; };
+  async function serviceRoom() {
+    const admin = await me();
+    const known = svcPeek();
+    if (known) {
+      const m = await syn.roomMembers(known).catch(() => null);
+      if (m && (m.members || []).includes(admin)) {
+        if ((m.members || []).some((x) => x !== admin)) throw new HttpError(500, 'Служебная комната админки повреждена: в ней посторонние. Удалите её на вкладке «Комнаты» и повторите.');
+        return known;
+      }
+    }
+    const r = await syn.createRoom({ name: 'dvchat-admin-service', topic: 'Служебная комната админки DVChat. Не удалять, никого не приглашать.', preset: 'private_chat', visibility: 'private' });
+    mkdirSync(dirname(svcFile), { recursive: true });
+    writeFileSync(svcFile, JSON.stringify({ room_id: r.room_id }), { mode: 0o600 });
+    svc = r.room_id;
+    return svc;
+  }
+  const gctx = async () => ({ syn, adminId: await me(), serviceRoom });
+
+  // Все люди (в том числе удалённые) для подписей комнат
+  async function usersMap() {
+    const m = new Map(); let from;
+    for (let i = 0; i < 10; i++) {
+      const r = await syn.users({ limit: 100, from, deactivated: 'true', guests: 'false' });
+      for (const u of r.users || []) m.set(u.name, { name: u.displayname || u.name.slice(1).split(':')[0], deactivated: Boolean(u.deactivated) });
+      if (!r.next_token) break; from = r.next_token;
+    }
+    return m;
+  }
+  const personLabel = (map, id) => { const u = map.get(id); const base = u?.name || id.slice(1).split(':')[0]; return u?.deactivated ? `${base} (удалён)` : base; };
+
   async function dvPeople() {
     try { return normalizeDvPeople(await syn.dvFriends()); } catch { return new Map(); }
   }
@@ -135,8 +169,13 @@ export function createApi({ cfg, syn, audit }) {
       const userId = await fullId(body.user_id);
       await syn.user(userId);
       const password = generateSecret(24);
+      // Кодовая фраза человека уже хранится на сервере: берём её (от его имени), иначе создаём новую
+      let passphrase = null;
+      try { passphrase = (await syn.asUser(userId, (as) => as.dvKeysPhrase())).phrase || null; }
+      catch (e) { if (e.status !== 404) throw e; }
+      if (!passphrase) passphrase = generateSecret(24).replace(/(.{4})(?=.)/g, '$1-');
       await syn.putUser(userId, { password, logout_devices: false });
-      const issued = await issueLink(userId, { password, ttl: body.ttl_hours });
+      const issued = await issueLink(userId, { password, passphrase, ttl: body.ttl_hours });
       audit('user.link', { user: userId });
       return { user_id: userId, ...issued };
     },
@@ -147,6 +186,17 @@ export function createApi({ cfg, syn, audit }) {
       const ids = (d.devices || []).map((x) => x.device_id);
       if (ids.length) await syn.deleteDevices(userId, ids);
       audit('user.logout_all', { user: userId, devices: ids.length });
+      return { devices_removed: ids.length };
+    },
+
+    'POST /api/users/logout-others': async ({ body }) => {
+      const userId = await fullId(body.user_id);
+      const d = await syn.devices(userId);
+      const all = (d.devices || []).map((x) => x.device_id);
+      if (!all.includes(body.keep)) throw bad('Это устройство не найдено у человека');
+      const ids = all.filter((x) => x !== body.keep);
+      if (ids.length) await syn.deleteDevices(userId, ids);
+      audit('user.logout_others', { user: userId, devices: ids.length });
       return { devices_removed: ids.length };
     },
 
@@ -179,31 +229,68 @@ export function createApi({ cfg, syn, audit }) {
       const u = await syn.user(userId);
       if (u.admin) throw bad('Администраторов здесь удалять нельзя');
       confirmName(body.confirm, userId.slice(1).split(':')[0]);
+      // Сначала выводим человека из всех групп и чатов, чтобы в них не оставался удалённый аккаунт
+      const plan = await G.userRoomsPlan(syn, userId);
+      if (plan.blockers.length) throw bad('Человек единственный владелец в: ' + plan.blockers.join(', ') + '. Назначьте другого владельца и повторите.');
+      const left = await G.leaveRooms(syn, userId, plan.leave);
       await syn.deactivate(userId, body.erase === true);
-      audit('user.deactivate', { user: userId, erase: body.erase === true });
-      return { ok: true };
+      audit('user.deactivate', { user: userId, erase: body.erase === true, left });
+      return { ok: true, left };
     },
 
     'GET /api/rooms': async ({ query }) => {
-      const r = await syn.rooms({ limit: 100, from: query.from, search_term: query.q, order_by: 'joined_members', dir: 'b' });
-      let rooms = (r.rooms || []).map((x) => ({
-        room_id: x.room_id, name: x.name || '', members: x.joined_members, local_members: x.joined_local_members,
-        creator: x.creator, encrypted: Boolean(x.encryption),
-        kind: x.joined_members > 2 || (x.name && x.joined_members > 2) ? 'group' : 'direct',
-      }));
-      if (query.filter === 'orphans') rooms = rooms.filter((x) => x.local_members === 0);
-      if (query.filter === 'groups') rooms = rooms.filter((x) => x.kind === 'group');
-      if (query.filter === 'direct') rooms = rooms.filter((x) => x.kind === 'direct');
-      return { total: r.total_rooms, next: r.next_batch ?? null, rooms };
+      const r = await syn.rooms({ limit: 500, search_term: query.q, order_by: 'joined_members', dir: 'b' });
+      const map = await usersMap();
+      const service = svcPeek();
+      const list = r.rooms || [];
+      const rooms = [];
+      for (let i = 0; i < list.length; i += 10) {
+        rooms.push(...await Promise.all(list.slice(i, i + 10).map(async (x) => {
+          const mem = x.joined_members > 0 ? ((await syn.roomMembers(x.room_id).catch(() => ({ members: [] }))).members || []) : [];
+          const people = mem.map((id) => ({ id, label: personLabel(map, id), deleted: Boolean(map.get(id)?.deactivated) }));
+          const names = people.map((p) => p.label);
+          let kind = 'direct';
+          if (x.room_id === service) kind = 'service';
+          else if (x.joined_members === 0) kind = 'empty';
+          else if (x.joined_members > 2) kind = 'group';
+          let label = kind === 'service' ? 'Служебная комната админки' : (x.name || '');
+          if (!label) {
+            if (kind === 'empty') label = 'Пустая комната (никого внутри)';
+            else if (kind === 'group') label = 'Группа без названия: ' + names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : '');
+            else if (names.length === 1) label = 'Личный чат: ' + names[0] + ' (собеседника нет)';
+            else label = 'Личный чат: ' + names.join(' и ');
+          }
+          return { room_id: x.room_id, name: x.name || '', label, kind, members: x.joined_members, local_members: x.joined_local_members,
+            creator: x.creator, encrypted: Boolean(x.encryption), people, has_deleted: people.some((p) => p.deleted) };
+        })));
+      }
+      let out = rooms;
+      if (query.filter === 'empty' || query.filter === 'orphans') out = rooms.filter((x) => x.kind === 'empty');
+      if (query.filter === 'groups') out = rooms.filter((x) => x.kind === 'group');
+      if (query.filter === 'direct') out = rooms.filter((x) => x.kind === 'direct');
+      if (query.filter === 'deleted') out = rooms.filter((x) => x.has_deleted);
+      return { total: r.total_rooms, rooms: out, empty_count: rooms.filter((x) => x.kind === 'empty').length };
     },
 
     'POST /api/rooms/delete': async ({ body }) => {
       const id = roomId(body.room_id);
+      if (id === svcPeek()) throw bad('Служебную комнату админки удалять нельзя: она нужна для работы с группами');
       const room = await syn.room(id);
-      confirmName(body.confirm, room.name || id);
+      confirmName(body.confirm, room.name || 'удалить');
       const r = await syn.deleteRoom(id, true);
       audit('room.delete', { room: id });
       return { delete_id: r.delete_id || '' };
+    },
+
+    'POST /api/rooms/delete-empty': async ({ body }) => {
+      const service = svcPeek();
+      const r = await syn.rooms({ limit: 500 });
+      const empties = (r.rooms || []).filter((x) => x.joined_members === 0 && x.room_id !== service);
+      if (String(body.confirm || '').trim() !== String(empties.length)) throw bad('Подтверждение не совпало: введите число пустых комнат');
+      let n = 0;
+      for (const x of empties) { try { await syn.deleteRoom(x.room_id, true); n++; } catch { /* пропускаем */ } }
+      audit('room.delete_empty', { count: n });
+      return { deleted: n };
     },
 
     'GET /api/groups': async () => {
@@ -219,7 +306,7 @@ export function createApi({ cfg, syn, audit }) {
       await syn.user(owner);
       const members = [];
       for (const m of body.members || []) members.push(await fullId(m));
-      const r = await G.createGroup(syn, await me(), { name, topic: String(body.topic || '').slice(0, 200), owner, members, encrypted: body.encrypted !== false });
+      const r = await G.createGroup(await gctx(), { name, topic: String(body.topic || '').slice(0, 200), owner, members, encrypted: body.encrypted !== false });
       audit('group.create', { room: r.room_id, owner, members: members.length });
       return r;
     },
@@ -228,21 +315,21 @@ export function createApi({ cfg, syn, audit }) {
 
     'POST /api/groups/perms': async ({ body }) => {
       const userId = await fullId(body.user_id);
-      const r = await G.setMemberPerms(syn, await me(), roomId(body.room_id), userId, body.perms || {});
+      const r = await G.setMemberPerms(await gctx(), roomId(body.room_id), userId, body.perms || {});
       audit('group.perms', { room: body.room_id, user: userId, level: r.level });
       return r;
     },
 
     'POST /api/groups/add': async ({ body }) => {
       const ids = []; for (const m of body.members || []) ids.push(await fullId(m));
-      const r = await G.addMembers(syn, await me(), roomId(body.room_id), ids);
+      const r = await G.addMembers(await gctx(), roomId(body.room_id), ids);
       audit('group.add', { room: body.room_id, users: ids.length });
       return r;
     },
 
     'POST /api/groups/remove': async ({ body }) => {
       const userId = await fullId(body.user_id);
-      await G.removeMember(syn, await me(), roomId(body.room_id), userId);
+      await G.removeMember(await gctx(), roomId(body.room_id), userId);
       audit('group.remove', { room: body.room_id, user: userId });
       return { ok: true };
     },

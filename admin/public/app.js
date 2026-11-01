@@ -112,12 +112,12 @@
     modal(h('div', null, h('h2', null, u.displayname || short), h('p', { class: 'muted' }, u.user_id + (u.dv_id ? ' · ID ' + u.dv_id : '')),
       u.deactivated ? h('p', { class: 'err' }, 'Учётная запись удалена') : h('div', { class: 'row' },
         act('Новая ссылка для входа', function () { post('/api/users/link', { user_id: u.user_id, ttl_hours: 24 }).then(function (r) { showIssued(r, short); }).catch(fail); }),
-        act('Выйти на всех устройствах', function () { post('/api/users/logout-all', { user_id: u.user_id }).then(function (r) { toast('Устройств отключено: ' + r.devices_removed); }).catch(fail); }),
+        act('Выйти на устройствах…', function () { logoutDialog(u); }),
         act('Переименовать', function () { var n = prompt('Новое имя', u.displayname || short); if (n) post('/api/users/rename', { user_id: u.user_id, displayname: n }).then(function () { toast('Готово'); reload(); closeModal(); }).catch(fail); })),
       h('h3', null, 'Устройства'), info,
       u.deactivated || u.admin ? '' : h('div', { class: 'row mt18',  },
         act('Удалить человека…', function () {
-          confirmDanger('Удалить ' + short + '?', 'Учётная запись будет деактивирована, вход станет невозможен. Переписка в чужих чатах останется.', short,
+          confirmDanger('Удалить ' + short + '?', 'Человек будет выведен из всех групп и чатов, учётная запись деактивирована, вход станет невозможен. Переписка остальных останется.', short,
             function (c) { return post('/api/users/deactivate', { user_id: u.user_id, confirm: c }).then(function () { toast('Удалён'); reload(); }); });
         }, 'danger')),
       h('div', { class: 'mt12' }, h('button', { onclick: closeModal }, 'Закрыть'))));
@@ -127,19 +127,46 @@
     }).catch(function () {});
   }
 
+  // Выход на устройствах: на всех или на всех, кроме выбранного (потеряли или украли телефон)
+  function logoutDialog(u) {
+    var short = u.user_id.slice(1).split(':')[0];
+    var list = h('div', { class: 'mt10' });
+    post('/api/users/devices', { user_id: u.user_id }).then(function (r) {
+      if (!r.devices.length) list.appendChild(h('p', { class: 'muted' }, 'Нет активных устройств'));
+      r.devices.forEach(function (d) {
+        list.appendChild(h('div', { class: 'card memberbox' }, h('div', { class: 'row' }, h('div', { class: 'grow' }, h('b', null, d.name || d.id), h('div', { class: 'muted' }, 'был в сети: ' + date(d.last_seen) + (d.ip ? ' · ' + d.ip : ''))),
+          h('button', { onclick: function () { post('/api/users/logout-others', { user_id: u.user_id, keep: d.id }).then(function (x) { toast('Остальных устройств отключено: ' + x.devices_removed); closeModal(); }).catch(fail); } }, 'Оставить это, выйти на остальных'))));
+      });
+    }).catch(fail);
+    modal(h('div', null, h('h2', null, 'Выход на устройствах: ' + short),
+      h('p', { class: 'muted' }, 'Потеряли или украли телефон: человек входит по новой ссылке на новом устройстве, затем здесь вы оставляете новое устройство и отключаете остальные. Старая переписка вернётся с новым входом, если сервер хранит кодовую фразу шифрования.'),
+      list,
+      h('div', { class: 'row mt14',  }, h('button', { class: 'danger', onclick: function () { post('/api/users/logout-all', { user_id: u.user_id }).then(function (r) { toast('Устройств отключено: ' + r.devices_removed); closeModal(); }).catch(fail); } }, 'Выйти на всех устройствах'), h('button', { onclick: closeModal }, 'Закрыть')),
+      h('p', { class: 'muted' }, 'Внимание: «на всех» отключит и новое устройство. После этого нужна ещё одна ссылка входа.')));
+  }
+
   // ---------- Комнаты ----------
   function viewRooms(v) {
-    var filter = h('select', null, h('option', { value: '' }, 'Все'), h('option', { value: 'direct' }, 'Личные'), h('option', { value: 'groups' }, 'Группы'), h('option', { value: 'orphans' }, 'Осиротевшие (никого из наших)'));
+    var KIND = { group: 'группа', direct: 'личная', empty: 'пустая', service: 'служебная' };
+    var filter = h('select', null, h('option', { value: '' }, 'Все'), h('option', { value: 'direct' }, 'Личные'), h('option', { value: 'groups' }, 'Группы'),
+      h('option', { value: 'empty' }, 'Пустые (никого внутри)'), h('option', { value: 'deleted' }, 'С удалёнными аккаунтами'));
     var q = h('input', { placeholder: 'Поиск по названию' });
     var tbody = h('tbody');
+    var bar = h('div', { class: 'row mt12' });
     function load() {
       get('/api/rooms?q=' + encodeURIComponent(q.value) + '&filter=' + filter.value).then(function (r) {
-        tbody.textContent = '';
+        tbody.textContent = ''; bar.textContent = '';
+        if (r.empty_count) bar.appendChild(h('button', { class: 'danger', onclick: function () {
+          confirmDanger('Удалить пустые комнаты?', 'Будут удалены все комнаты, где никого нет: ' + r.empty_count + '. Служебная комната админки не затрагивается. Это нельзя отменить.', String(r.empty_count),
+            function (c) { return post('/api/rooms/delete-empty', { confirm: c }).then(function (x) { toast('Удалено комнат: ' + x.deleted); setTimeout(load, 1500); }); }, 'Удалить пустые');
+        } }, 'Удалить пустые комнаты (' + r.empty_count + ')'));
         r.rooms.forEach(function (x) {
-          var label = x.name || x.room_id;
-          tbody.appendChild(h('tr', null, h('td', null, label), h('td', null, x.kind === 'group' ? 'группа' : 'личная'), h('td', null, x.members + ' (наших ' + x.local_members + ')'),
-            h('td', null, x.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'открытая')),
-            h('td', null, h('button', { class: 'danger', onclick: function () { confirmDanger('Удалить комнату?', 'Комната будет удалена с сервера у всех участников. Это нельзя отменить.', label, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }, 'Удалить…'))));
+          var who = x.people.map(function (p) { return p.label; }).join(', ');
+          var expected = x.name || 'удалить';
+          tbody.appendChild(h('tr', null, h('td', null, x.label, x.has_deleted ? h('span', { class: 'tag bad' }, 'есть удалённый') : ''),
+            h('td', null, KIND[x.kind] || x.kind), h('td', { class: 'muted' }, who || '—'),
+            h('td', null, x.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'без шифр.')),
+            h('td', null, x.kind === 'service' ? '' : h('button', { class: 'danger', onclick: function () { confirmDanger('Удалить комнату?', 'Комната «' + x.label + '» будет удалена с сервера у всех участников. Это нельзя отменить.', expected, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }, 'Удалить…'))));
         });
         if (!r.rooms.length) tbody.appendChild(h('tr', null, h('td', { colspan: 5, class: 'muted' }, 'Ничего нет')));
       }).catch(fail);
@@ -147,7 +174,8 @@
     q.addEventListener('input', function () { clearTimeout(q.t); q.t = setTimeout(load, 300); }); filter.addEventListener('change', load);
     v.appendChild(h('h1', null, 'Комнаты'));
     v.appendChild(h('div', { class: 'row mt12',  }, h('div', { class: 'grow' }, q), filter));
-    v.appendChild(h('table', null, h('thead', null, h('tr', null, h('th', null, 'Название'), h('th', null, 'Тип'), h('th', null, 'Людей'), h('th', null, 'Защита'), h('th', null, ''))), tbody));
+    v.appendChild(bar);
+    v.appendChild(h('table', null, h('thead', null, h('tr', null, h('th', null, 'Комната'), h('th', null, 'Тип'), h('th', null, 'Внутри'), h('th', null, 'Шифрование'), h('th', null, ''))), tbody));
     load();
   }
 
@@ -159,7 +187,7 @@
       get('/api/groups').then(function (r) {
         LADDER = r.ladder; tbody.textContent = '';
         r.groups.forEach(function (g) {
-          tbody.appendChild(h('tr', { class: 'click', onclick: function () { groupCard(g, load); } }, h('td', null, g.name || g.room_id), h('td', null, g.members), h('td', null, g.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'открытая'))));
+          tbody.appendChild(h('tr', { class: 'click', onclick: function () { groupCard(g, load); } }, h('td', null, g.name || g.room_id), h('td', null, g.members), h('td', null, g.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'без шифр.'))));
         });
         if (!r.groups.length) tbody.appendChild(h('tr', null, h('td', { colspan: 3, class: 'muted' }, 'Групп пока нет')));
       }).catch(fail);
@@ -176,22 +204,41 @@
 
   function createGroup(done) {
     var name = h('input', { placeholder: 'Название группы' }), topic = h('input', { placeholder: 'Тема (необязательно)' });
-    var owner = h('select'), enc = h('input', { type: 'checkbox', checked: true }), boxes = h('div', { class: 'checks' });
+    var owner = h('select'), boxes = h('div', { class: 'checks' });
+    var enc = h('input', { type: 'checkbox', checked: true });
+    var hint = h('p', { class: 'muted' });
     var people = [];
+    function chosen() { return people.filter(function (p) { return p.cb.checked; }); }
+    // Владельца выбирают из тех, кого отметили; пока никого нет, список пуст
+    function refresh() {
+      var sel = chosen(), prev = owner.value;
+      owner.textContent = '';
+      if (!sel.length) owner.appendChild(h('option', { value: '' }, 'Сначала выберите участников'));
+      sel.forEach(function (p) { owner.appendChild(h('option', { value: p.id }, p.label)); });
+      if (sel.some(function (p) { return p.id === prev; })) owner.value = prev;
+      owner.disabled = !sel.length;
+      var ok = sel.length >= 2 && name.value.trim().length > 0;
+      btn.disabled = !ok;
+      hint.textContent = sel.length < 2 ? 'Группа — это два человека и больше. Отметьте участников: ' + sel.length + ' из 2.' : (name.value.trim() ? '' : 'Введите название группы.');
+    }
+    var btn = h('button', { class: 'primary', disabled: true, onclick: function () {
+      btn.disabled = true;
+      post('/api/groups', { name: name.value, topic: topic.value, owner: owner.value, encrypted: enc.checked, members: chosen().map(function (p) { return p.id; }) })
+        .then(function (r) { toast(r.failed.length ? 'Создана, но не все добавлены: ' + r.failed.length : 'Группа создана'); done(); closeModal(); }).catch(function (e) { fail(e); refresh(); });
+    } }, 'Создать');
     userList(function (u) {
       var id = u.user_id, label = u.displayname || id;
-      owner.appendChild(h('option', { value: id }, label));
-      var cb = h('input', { type: 'checkbox' }); people.push({ id: id, cb: cb });
+      var cb = h('input', { type: 'checkbox' }); cb.addEventListener('change', refresh); people.push({ id: id, label: label, cb: cb });
       boxes.appendChild(h('label', null, cb, label));
-    }).catch(fail);
-    var btn = h('button', { class: 'primary', onclick: function () {
-      btn.disabled = true;
-      post('/api/groups', { name: name.value, topic: topic.value, owner: owner.value, encrypted: enc.checked, members: people.filter(function (p) { return p.cb.checked; }).map(function (p) { return p.id; }) })
-        .then(function (r) { toast(r.failed.length ? 'Создана, но не все добавлены: ' + r.failed.length : 'Группа создана'); done(); closeModal(); }).catch(function (e) { fail(e); btn.disabled = false; });
-    } }, 'Создать');
-    modal(h('div', null, h('h2', null, 'Новая группа'), name, h('div', { class: 'sp8' }), topic, h('h3', null, 'Владелец (получает все права)'), owner,
-      h('h3', null, 'Участники'), boxes, h('label', { class: 'row mt10',  }, enc, 'Сквозное шифрование'),
+    }).then(refresh).catch(fail);
+    name.addEventListener('input', refresh);
+    modal(h('div', null, h('h2', null, 'Новая группа'), name, h('div', { class: 'sp8' }), topic,
+      h('h3', null, 'Участники (минимум двое)'), boxes,
+      h('h3', null, 'Владелец (получает все права)'), owner,
+      h('h3', null, 'Параметры'), h('div', { class: 'card memberbox' }, h('label', { class: 'permrow' }, enc, 'Шифровать группу (сквозное шифрование)'), h('p', { class: 'muted' }, 'Рекомендуется: сообщения читают только участники группы.')),
+      hint,
       h('div', { class: 'row mt14',  }, btn, h('button', { onclick: closeModal }, 'Отмена'))));
+    refresh();
   }
 
   function groupCard(g, reload) {
@@ -213,7 +260,7 @@
             return h('label', { class: 'muted permrow',  }, cb, p.label);
           });
           body.appendChild(h('div', { class: 'card memberbox',  },
-            h('div', { class: 'row' }, h('b', { class: 'grow' }, m.user_id),
+            h('div', { class: 'row' }, h('b', { class: 'grow' }, (m.displayname || m.user_id.slice(1).split(':')[0]) + (m.deactivated ? ' (удалён)' : ''), h('span', { class: 'muted' }, '  ' + m.user_id)),
               h('button', { class: 'danger', onclick: function () { confirmDanger('Убрать из группы?', m.user_id, m.user_id.slice(1).split(':')[0], function () { return post('/api/groups/remove', { room_id: g.room_id, user_id: m.user_id }).then(function () { toast('Убран'); draw(); }); }, 'Убрать'); } }, 'Убрать')),
             (function () { var w = h('div', { class: 'mt6' }); boxes.forEach(function (b) { w.appendChild(b); }); return w; })()));
         });
