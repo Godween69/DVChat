@@ -3,12 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Сведения о платформе (Android/web), версии приложения и ссылки на «О приложении».
+
 import 'dart:io';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -17,33 +18,24 @@ import '../config/app_config.dart';
 
 abstract class PlatformInfos {
   static bool get isWeb => kIsWeb;
-  static bool get isLinux => !kIsWeb && Platform.isLinux;
-  static bool get isWindows => !kIsWeb && Platform.isWindows;
-  static bool get isMacOS => !kIsWeb && Platform.isMacOS;
-  static bool get isIOS => !kIsWeb && Platform.isIOS;
   static bool get isAndroid => !kIsWeb && Platform.isAndroid;
 
-  static bool get isCupertinoStyle => isIOS || isMacOS;
+  /// iPhone/iPad: веб-версия (во вкладке Safari или с иконки «Домой»)
+  static bool get isIosWeb =>
+      kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-  static bool get isMobile => isAndroid || isIOS;
-
-  /// For desktops which don't support ChachedNetworkImage yet
-  static bool get isBetaDesktop => isWindows || isLinux;
-
-  static bool get isDesktop => isLinux || isWindows || isMacOS;
+  /// Приложение для телефона — только Android (iPhone работает через web-версию)
+  static bool get isMobile => isAndroid;
 
   static bool get usesTouchscreen => !isMobile;
-
-  static bool get supportsVideoPlayer =>
-      !PlatformInfos.isWindows && !PlatformInfos.isLinux;
 
   static bool get supportsCustomImageResizer =>
       PlatformInfos.isWeb || PlatformInfos.isMobile;
 
   /// Web could also record in theory but currently creates broken opus
-  static bool get platformCanRecord => (isMobile || isMacOS);
+  static bool get platformCanRecord => isMobile;
 
-  static bool get supportsAppLock => (isMobile || isMacOS);
+  static bool get supportsAppLock => isMobile;
 
   static String get appDisplayName =>
       '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
@@ -68,30 +60,6 @@ abstract class PlatformInfos {
           onPressed: () => launchUrlString(AppConfig.sourceCodeUrl),
           icon: const Icon(Icons.source_outlined),
           label: Text(l10n.sourceCode),
-        ),
-        Builder(
-          builder: (innerContext) {
-            return TextButton.icon(
-              onPressed: () {
-                context.go('/logs');
-                Navigator.of(innerContext).pop();
-              },
-              icon: const Icon(Icons.list_outlined),
-              label: Text(l10n.logs),
-            );
-          },
-        ),
-        Builder(
-          builder: (innerContext) {
-            return TextButton.icon(
-              onPressed: () {
-                context.go('/configs');
-                Navigator.of(innerContext).pop();
-              },
-              icon: const Icon(Icons.settings_applications_outlined),
-              label: Text(l10n.advancedConfigs),
-            );
-          },
         ),
       ],
       applicationIcon: ClipRRect(

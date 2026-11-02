@@ -3,12 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/image_viewer/pointers_listener.dart';
-import 'package:fluffychat/pages/image_viewer/video_player.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/hover_builder.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
+// DVChat: Экран «Просмотр медиа» (внешний вид): картинки и видео на весь экран.
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/image_viewer/pointers_listener.dart';
+import 'package:dvchat/pages/image_viewer/video_player.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/hover_builder.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -22,7 +25,7 @@ class ImageViewerView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconButtonStyle = IconButton.styleFrom(
-      backgroundColor: Colors.black.withAlpha(200),
+      backgroundColor: Colors.black.withAlpha(120),
       foregroundColor: Colors.white,
     );
     return GestureDetector(
@@ -40,38 +43,87 @@ class ImageViewerView extends StatelessWidget {
             tooltip: L10n.of(context).close,
           ),
           backgroundColor: Colors.transparent,
-          actions: [
-            IconButton(
-              style: iconButtonStyle,
-              icon: const Icon(Icons.reply_outlined),
-              onPressed: controller.forwardAction,
-              color: Colors.white,
-              tooltip: L10n.of(context).share,
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              style: iconButtonStyle,
-              icon: const Icon(Icons.download_outlined),
-              onPressed: () => controller.saveFileAction(context),
-              color: Colors.white,
-              tooltip: L10n.of(context).downloadFile,
-            ),
-            const SizedBox(width: 8),
-            if (PlatformInfos.isMobile)
-              // Use builder context to correctly position the share dialog on iPad
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Builder(
-                  builder: (context) => IconButton(
+          actions: controller.widget.event.room.isHistoryOnly
+              ? const []
+              : [
+                  IconButton(
                     style: iconButtonStyle,
-                    onPressed: () => controller.shareFileAction(context),
-                    tooltip: L10n.of(context).share,
+                    icon: const Icon(Icons.reply_outlined),
+                    onPressed: controller.forwardAction,
                     color: Colors.white,
-                    icon: Icon(Icons.adaptive.share_outlined),
+                    tooltip: L10n.of(context).share,
                   ),
-                ),
-              ),
-          ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    style: iconButtonStyle,
+                    icon: const Icon(Icons.download_outlined),
+                    onPressed: () => controller.saveFileAction(context),
+                    color: Colors.white,
+                    tooltip: L10n.of(context).downloadFile,
+                  ),
+                  const SizedBox(width: 8),
+                  // DVChat: у фото из альбома рядом есть «Сохранить все» (с числом фото)
+                  AnimatedBuilder(
+                    animation: controller.pageIndex,
+                    builder: (context, _) {
+                      final members = controller.albumMembers;
+                      if (members.length < 2) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Tooltip(
+                          message:
+                              'Сохранить все фото альбома (${members.length})',
+                          child: Material(
+                            color: Colors.black54,
+                            shape: const StadiumBorder(),
+                            child: InkWell(
+                              customBorder: const StadiumBorder(),
+                              onTap: () => controller.saveAlbumAction(context),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.download_for_offline_outlined,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Все ${members.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  if (PlatformInfos.isMobile)
+                    // Use builder context to correctly position the share dialog on iPad
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Builder(
+                        builder: (context) => IconButton(
+                          style: iconButtonStyle,
+                          onPressed: () => controller.shareFileAction(context),
+                          tooltip: L10n.of(context).share,
+                          color: Colors.white,
+                          icon: Icon(Icons.adaptive.share_outlined),
+                        ),
+                      ),
+                    ),
+                ],
         ),
         body: HoverBuilder(
           builder: (context, hovered) => Stack(
@@ -80,12 +132,18 @@ class ImageViewerView extends StatelessWidget {
                 focusNode: controller.focusNode,
                 onKeyEvent: controller.onKeyEvent,
                 child: PointersListener(
-                  builder: (context, moreThanOnePointer) => PageView.builder(
-                    physics: !moreThanOnePointer
+                  builder: (context, moreThanOnePointer) => ValueListenableBuilder<bool>(
+                    valueListenable: controller.zoomed,
+                    builder: (context, zoomed, _) => PageView.builder(
+                    // DVChat: пока картинка приближена, сдвиг пальцем двигает её, а не листает
+                    physics: !moreThanOnePointer && !zoomed
                         ? BouncingScrollPhysics()
                         : NeverScrollableScrollPhysics(),
                     scrollDirection: Axis.horizontal,
                     controller: controller.pageController,
+                    onPageChanged: controller.onPageChanged,
+                    // DVChat: соседний кадр готовится заранее, листание без «провалов»
+                    allowImplicitScrolling: true,
                     itemCount: controller.allEvents.length,
                     itemBuilder: (context, i) {
                       final event = controller.allEvents[i];
@@ -105,6 +163,7 @@ class ImageViewerView extends StatelessWidget {
                         case MessageTypes.Sticker:
                         default:
                           return InteractiveViewer(
+                            transformationController: controller.zoomOf(i),
                             minScale: 1.0,
                             maxScale: 10.0,
                             onInteractionEnd: controller.onInteractionEnds,
@@ -120,6 +179,11 @@ class ImageViewerView extends StatelessWidget {
                                     fit: BoxFit.contain,
                                     isThumbnail: false,
                                     animated: true,
+                                    // DVChat: не раскрываем 12 Мп в полный размер (тормоза)
+                                    decodeMaxWidth: (MediaQuery.sizeOf(context).width *
+                                            MediaQuery.devicePixelRatioOf(context) *
+                                            2)
+                                        .round(),
                                   ),
                                 ),
                               ),
@@ -128,9 +192,14 @@ class ImageViewerView extends StatelessWidget {
                       }
                     },
                   ),
+                  ),
                 ),
               ),
               if (hovered) ...[
+                // стрелки обновляются при смене страницы
+                ValueListenableBuilder<int>(
+                  valueListenable: controller.pageIndex,
+                  builder: (context, _, _) => Stack(children: [
                 if (controller.canGoBack)
                   Align(
                     alignment: .centerLeft,
@@ -157,6 +226,8 @@ class ImageViewerView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ]),
+                ),
               ],
             ],
           ),

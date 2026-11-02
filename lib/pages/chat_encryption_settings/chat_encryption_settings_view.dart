@@ -3,15 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_encryption_settings/chat_encryption_settings.dart';
-import 'package:fluffychat/utils/beautify_string_extension.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+// DVChat: Шифрование чата (внешний вид).
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_encryption_settings/chat_encryption_settings.dart';
+import 'package:dvchat/utils/beautify_string_extension.dart';
+import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
 class ChatEncryptionSettingsView extends StatelessWidget {
   final ChatEncryptionSettingsController controller;
@@ -27,19 +28,13 @@ class ChatEncryptionSettingsView extends StatelessWidget {
       stream: room.client.onSync.stream.where(
         (s) => s.rooms?.join?[room.id] != null || s.deviceLists != null,
       ),
-      builder: (context, _) => Scaffold(
-        appBar: AppBar(
+      builder: (context, _) => Scaffold(extendBodyBehindAppBar: true, 
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
           leading: IconButton(
             icon: const Icon(Icons.close_outlined),
             onPressed: () => context.go('/rooms/${controller.roomId!}'),
           ),
           title: Text(L10n.of(context).encryption),
-          actions: [
-            TextButton(
-              onPressed: () => launchUrlString(AppConfig.encryptionTutorial),
-              child: Text(L10n.of(context).help),
-            ),
-          ],
         ),
         body: MaxWidthBody(
           child: Column(

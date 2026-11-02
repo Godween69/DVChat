@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/device_settings/device_settings.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+// DVChat: Экран «Устройства» (внешний вид): список входов в аккаунт, переименование, удаление.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/device_settings/device_settings.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'user_device_list_item.dart';
@@ -18,10 +21,10 @@ class DevicesSettingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: !FluffyThemes.isColumnMode(context),
-        centerTitle: FluffyThemes.isColumnMode(context),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
+        automaticallyImplyLeading: !DvThemes.isColumnMode(context),
+        centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).devices),
       ),
       body: MaxWidthBody(

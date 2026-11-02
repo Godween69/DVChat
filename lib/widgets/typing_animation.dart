@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Анимация «печатает…» из трёх точек.
+
 import 'dart:async';
 
-import 'package:fluffychat/config/themes.dart';
+import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TypingAnimation extends StatefulWidget {
@@ -53,7 +55,7 @@ class _TypingAnimationState extends State<TypingAnimation> {
         for (var i = 1; i <= 3; i++)
           AnimatedContainer(
             duration: animationDuration * 1.5,
-            curve: FluffyThemes.animationCurve,
+            curve: DvThemes.animationCurve,
             width: size,
             height: _tick == i ? size * 2 : size,
             margin: EdgeInsets.symmetric(

@@ -3,14 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:convert';
-import 'dart:ui';
+// DVChat: Сохранение и восстановление входа: копия сессии (токен, устройство) хранится в защищённом
+// хранилище, чтобы после сбоя базы не пришлось входить заново.
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'dart:convert';
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:matrix/matrix.dart';
 
@@ -58,7 +61,7 @@ class SessionBackup {
 
 extension InitWithRestoreExtension on Client {
   static Future<void> deleteSessionBackup(String clientName) async {
-    final storage = PlatformInfos.isMobile || PlatformInfos.isLinux
+    final storage = PlatformInfos.isMobile
         ? const FlutterSecureStorage()
         : null;
     await storage?.delete(
@@ -69,7 +72,7 @@ extension InitWithRestoreExtension on Client {
   Future<void> initWithRestore({void Function()? onMigration}) async {
     final storageKey =
         '${AppSettings.applicationName.value}_session_backup_$clientName';
-    final storage = PlatformInfos.isMobile || PlatformInfos.isLinux
+    final storage = PlatformInfos.isMobile
         ? const FlutterSecureStorage()
         : null;
 
@@ -109,7 +112,7 @@ extension InitWithRestoreExtension on Client {
       }
     } catch (e, s) {
       Logs().wtf('Client init failed!', e, s);
-      final l10n = await lookupL10n(PlatformDispatcher.instance.locale);
+      final l10n = await lookupL10n(appLocale);
       final sessionBackupString = await storage?.read(key: storageKey);
       if (sessionBackupString == null) {
         ClientManager.sendInitNotification(

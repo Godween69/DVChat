@@ -3,25 +3,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Разбор пуша в фоне, когда приложение закрыто: по event_id запрашивает событие,
+// расшифровывает и показывает локальное уведомление.
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/call_kit_params.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/notification_avatar_extension.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/start_push_foreground_service.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/games/dv_game_net.dart';
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_album.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_shopping_keys.dart';
+import 'package:dvchat/utils/dv_stories.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/notification_avatar_extension.dart';
+import 'package:dvchat/utils/notification_background_handler.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/start_push_foreground_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_new_badger/flutter_new_badger.dart';
 import 'package:flutter_shortcuts_new/flutter_shortcuts_new.dart';
@@ -39,7 +46,7 @@ Future<void> pushHelper(
   String? activeRoomId,
   required FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
 }) async {
-  l10n ??= await lookupL10n(PlatformDispatcher.instance.locale);
+  l10n ??= await lookupL10n(appLocale);
 
   try {
     await _tryPushHelper(
@@ -65,13 +72,9 @@ Future<void> pushHelper(
     if (notification.roomId != null) {
       await flutterLocalNotificationsPlugin.show(
         id: notification.notificationId,
-        title: l10n.newMessageInFluffyChat,
+        title: 'Новое сообщение',
         body: l10n.openAppToReadMessages,
         notificationDetails: NotificationDetails(
-          iOS: DarwinNotificationDetails(
-            threadIdentifier:
-                '${notification.clientName}_${notification.roomId}',
-          ),
           android: AndroidNotificationDetails(
             AppConfig.pushNotificationsChannelId,
             l10n.incomingMessages,
@@ -124,7 +127,7 @@ Future<void> _tryPushHelper(
 
   lastReceivedPushNotification[client.clientName] = DateTime.now();
 
-  l10n ??= await L10n.delegate.load(PlatformDispatcher.instance.locale);
+  l10n ??= await L10n.delegate.load(appLocale);
 
   Logs().v('Load event...');
   final event = await client.getEventByPushNotification(
@@ -176,16 +179,91 @@ Future<void> _tryPushHelper(
 
   Logs().v('Push helper got notification event of type ${event.type}.');
 
-  if (!client.pushruleEvaluator.match(event).notify) {
+  // DVChat: расшифрованная реакция не подходит ни под одно правило (правила знают только
+  // сообщения и «зашифрованное событие»), поэтому для реакций правила не применяются,
+  // решение принимается ниже
+  if (event.type != EventTypes.Reaction &&
+      event.type != dvReadEventType &&
+      event.type != DvGameNet.eventType &&
+      event.type != DvStories.eventType &&
+      !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
   }
 
-  if (event.type == RtcNotificationContent.eventType &&
-      event.tryParseRtcNotificationContent()?.notificationType == .ring &&
-      PlatformInfos.isMobile) {
-    _showIncomingCall(event, l10n);
-    return;
+  // DVChat: уведомления о реакциях отключаются в настройках (в зашифрованных чатах
+  // сервер не отличает реакцию от сообщения, поэтому решаем здесь, после расшифровки)
+  if (event.type == EventTypes.Reaction) {
+    // DVChat: пункты списка покупок это служебные реакции: уведомления «реакция» о них не нужны
+    if (event.relationshipType == dvShopItemRel) return;
+    if (!AppSettings.notifyAboutReactions.value) {
+      Logs().i('Push helper: reaction notifications are turned off.');
+      return;
+    }
+    // Уведомляем только о реакциях других людей на МОИ сообщения
+    if (event.senderId == client.userID) return;
+    final targetId = event.relationshipEventId;
+    final target = targetId == null
+        ? null
+        : await event.room.getEventById(targetId);
+    if (target == null || target.senderId != client.userID) {
+      Logs().i('Push helper: reaction is not on my message.');
+      return;
+    }
+  }
+
+  var customBody = '';
+
+  // DVChat: альбом фото: уведомление только о первом фото, остальные молча
+  final albumPush = dvAlbumOf(event);
+  if (albumPush != null) {
+    if (albumPush.index > 0) return;
+    customBody = '📷 Альбом: ${albumPush.count} фото';
+  }
+
+  // DVChat: ход в игре с другом (скрытое событие dv.game): «ваш ход»
+  if (event.type == DvGameNet.eventType) {
+    if (!AppSettings.notifyAboutGames.value) {
+      Logs().i('Push helper: game notifications are turned off.');
+      return;
+    }
+    if (event.senderId == client.userID) return;
+    final gameId = '${event.content['id']}';
+    if (DvGameNet.isMuted(gameId)) {
+      Logs().i('Push helper: this game is muted.');
+      return;
+    }
+    if (DvGameNet.activeGameId == gameId &&
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    final text = DvGameNet.notificationText(event);
+    if (text == null) return;
+    customBody = text;
+  }
+
+  // DVChat: друг опубликовал историю (скрытое событие dv.story): имя в заголовке, текст ниже
+  if (event.type == DvStories.eventType) {
+    if (event.senderId == client.userID) return;
+    customBody = 'Опубликовал(а) новую историю';
+  }
+
+  // DVChat: «собеседник прочитал ваше сообщение» (скрытое событие dv.read)
+  if (event.type == dvReadEventType) {
+    if (!AppSettings.notifyAboutReadReceipts.value) {
+      Logs().i('Push helper: read notifications are turned off.');
+      return;
+    }
+    if (event.senderId == client.userID) return;
+    final readId = event.content['event_id'];
+    final readTarget = readId is String
+        ? await event.room.getEventById(readId)
+        : null;
+    if (readTarget == null || readTarget.senderId != client.userID) {
+      Logs().i('Push helper: read notice is not about my message.');
+      return;
+    }
+    customBody = 'Прочитал(а) ваше сообщение';
   }
 
   if (notification.roomId != null &&
@@ -198,8 +276,12 @@ Future<void> _tryPushHelper(
   final matrixLocals = MatrixLocals(l10n);
 
   // Calculate the body
-  final body = event.type == EventTypes.Encrypted
-      ? l10n.newMessageInFluffyChat
+  final body = customBody.isNotEmpty
+      ? customBody
+      : event.type == dvReadEventType
+      ? 'Прочитал(а) ваше сообщение'
+      : event.type == EventTypes.Encrypted
+      ? 'Новое сообщение'
       : await event.calcLocalizedBody(
           matrixLocals,
           plaintextBody: true,
@@ -227,7 +309,13 @@ Future<void> _tryPushHelper(
 
   final id = '${client.clientName}_${notification.roomId}'.hashCode;
 
-  final senderName = event.senderFromMemoryOrFallback.calcDisplayname();
+  // DVChat: служебное приветствие («X теперь в DVChat») приходит без имени администратора
+  final isServiceNotice = event.content.containsKey(
+    'online.dvbstudio.dvchat.newcomer',
+  );
+  final senderName = isServiceNotice
+      ? 'DVChat'
+      : event.senderFromMemoryOrFallback.dvName();
   // Show notification
 
   final newMessage = Message(
@@ -287,7 +375,7 @@ Future<void> _tryPushHelper(
         messagingStyleInformation ??
         MessagingStyleInformation(
           Person(
-            name: ownUser.calcDisplayname(),
+            name: ownUser.dvName(),
             icon: userAvatarFile == null
                 ? null
                 : ByteArrayAndroidIcon(userAvatarFile),
@@ -313,50 +401,28 @@ Future<void> _tryPushHelper(
       EventTypes.Encrypted ||
       EventTypes.Sticker => <AndroidNotificationAction>[
         AndroidNotificationAction(
-          FluffyChatNotificationActions.reply.name,
+          DvChatNotificationActions.reply.name,
           l10n.reply,
           inputs: [AndroidNotificationActionInput(label: l10n.writeAMessage)],
           allowGeneratedReplies: true,
           semanticAction: SemanticAction.reply,
         ),
         AndroidNotificationAction(
-          FluffyChatNotificationActions.markAsRead.name,
+          DvChatNotificationActions.markAsRead.name,
           l10n.markAsRead,
           semanticAction: SemanticAction.markAsRead,
         ),
         AndroidNotificationAction(
-          FluffyChatNotificationActions.mute.name,
+          DvChatNotificationActions.mute.name,
           l10n.mute,
           semanticAction: SemanticAction.mute,
-        ),
-      ],
-      RtcNotificationContent.eventType => [
-        AndroidNotificationAction(
-          FluffyChatNotificationActions.enterCall.name,
-          l10n.enterCall,
-          semanticAction: SemanticAction.call,
         ),
       ],
       _ => null,
     },
   );
-  final iOSAttachmentPath = PlatformInfos.isIOS
-      ? await client.getIosNotificationAvatar(event.room.avatar)
-      : null;
-  final iOSPlatformChannelSpecifics = DarwinNotificationDetails(
-    threadIdentifier: '${notification.clientName}_${notification.roomId}',
-    attachments: iOSAttachmentPath == null
-        ? null
-        : [
-            DarwinNotificationAttachment(
-              iOSAttachmentPath,
-              identifier: 'image',
-            ),
-          ],
-  );
   final platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
-    iOS: iOSPlatformChannelSpecifics,
   );
 
   final title = event.room.getLocalizedDisplayname(MatrixLocals(l10n));
@@ -372,7 +438,7 @@ Future<void> _tryPushHelper(
     title: needsTitleAndBody ? title : null,
     body: needsTitleAndBody ? body : null,
     notificationDetails: platformChannelSpecifics,
-    payload: FluffyChatPushPayload(
+    payload: DvChatPushPayload(
       client.clientName,
       event.room.id,
       event.eventId,
@@ -391,7 +457,7 @@ Future<void> _tryPushHelper(
 }
 
 void updateAppBadge(int unreadCount) {
-  if (PlatformInfos.isAndroid || PlatformInfos.isMacOS || PlatformInfos.isIOS) {
+  if (PlatformInfos.isAndroid) {
     if (unreadCount == 0) {
       FlutterNewBadger.removeBadge();
     } else {
@@ -441,17 +507,17 @@ Future<void> updateSummaryNotification({
   );
 }
 
-class FluffyChatPushPayload {
+class DvChatPushPayload {
   final String? clientName, roomId, eventId;
 
-  FluffyChatPushPayload(this.clientName, this.roomId, this.eventId);
+  DvChatPushPayload(this.clientName, this.roomId, this.eventId);
 
-  factory FluffyChatPushPayload.fromString(String payload) {
+  factory DvChatPushPayload.fromString(String payload) {
     final parts = payload.split('|');
     if (parts.length != 3) {
-      return FluffyChatPushPayload(null, null, null);
+      return DvChatPushPayload(null, null, null);
     }
-    return FluffyChatPushPayload(parts.first, parts[1], parts[2]);
+    return DvChatPushPayload(parts.first, parts[1], parts[2]);
   }
 
   @override
@@ -493,56 +559,5 @@ extension on PushNotification {
     final clientName = this.clientName;
     if (clientName == null) return roomId.hashCode;
     return '${clientName}_$roomId'.hashCode;
-  }
-}
-
-Future<void> _showIncomingCall(Event event, L10n l10n) async {
-  final callId = '${event.room.id}|${event.room.client.clientName}';
-  final activeCalls = await FlutterCallkitIncoming.activeCalls();
-  if (activeCalls.any((call) => call.id == callId)) {
-    Logs().d(
-      'Call with this ID is already active. Ignoring this Push Notification...',
-      callId,
-    );
-    return;
-  }
-  final intentStr = event.content.tryGet<String>('m.call.intent');
-  final intent =
-      MatrixRtcCallIntent.values.singleWhereOrNull(
-        (i) => i.name == intentStr,
-      ) ??
-      .video;
-  final timeout =
-      event.tryParseRtcNotificationContent()?.lifetime ??
-      RtcNotificationContent.defaultLifetime;
-  final params = await buildFluffyChatCallKitParams(
-    event.room,
-    l10n: l10n,
-    intent: intent,
-    timeout: timeout,
-  );
-  final timeoutDateTime = DateTime.now().add(timeout);
-  await FlutterCallkitIncoming.showCallkitIncoming(params);
-
-  while (DateTime.now().isBefore(timeoutDateTime)) {
-    await event.room.client.oneShotSync();
-    if (!event.room.hasActiveMatrixRtcCall) {
-      Logs().i('The other party has ended the call');
-      await FlutterCallkitIncoming.endCall(params.id);
-      break;
-    }
-    if (event.room.ownMatrixRtcMembership != null) {
-      Logs().d('User has joined the call.');
-      break;
-    }
-    if (event.room.getActiveMatrixRtcMembers().any(
-      (member) =>
-          member.senderId == event.room.client.userID! &&
-          member.deviceId != event.room.client.deviceID!,
-    )) {
-      Logs().i('User has accepted the call on a different device');
-      await FlutterCallkitIncoming.endCall(params.id);
-      break;
-    }
   }
 }

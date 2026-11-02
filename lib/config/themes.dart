@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
+// DVChat: Темы оформления DVChat (светлая/тёмная, скругления, цвета пузырей сообщений).
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
-abstract class FluffyThemes {
+abstract class DvThemes {
   static const double columnWidth = 380.0;
 
   static const double maxTimelineWidth = columnWidth * 2;
@@ -22,7 +24,7 @@ abstract class FluffyThemes {
       isColumnModeByWidth(MediaQuery.sizeOf(context).width);
 
   static bool isThreeColumnMode(BuildContext context) =>
-      MediaQuery.sizeOf(context).width > FluffyThemes.columnWidth * 3.5;
+      MediaQuery.sizeOf(context).width > DvThemes.columnWidth * 3.5;
 
   static LinearGradient backgroundGradient(BuildContext context, int alpha) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -50,7 +52,7 @@ abstract class FluffyThemes {
       seedColor: seed ?? Color(AppSettings.colorSchemeSeedInt.value),
       dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
     );
-    final isColumnMode = FluffyThemes.isColumnMode(context);
+    final isColumnMode = DvThemes.isColumnMode(context);
     final dividerColor = brightness == Brightness.dark
         ? colorScheme.surfaceContainerHighest
         : colorScheme.surfaceContainer;
@@ -86,8 +88,11 @@ abstract class FluffyThemes {
       ),
       appBarTheme: AppBarTheme(
         toolbarHeight: isColumnMode ? 72 : 56,
-        surfaceTintColor: isColumnMode ? colorScheme.surface : null,
-        backgroundColor: isColumnMode ? colorScheme.surface : null,
+        // Шапка прозрачная: фон ей рисует DvBlurBar (размытие того, что под ней)
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actionsPadding: isColumnMode
             ? const EdgeInsets.symmetric(horizontal: 16.0)
             : null,
@@ -117,7 +122,7 @@ abstract class FluffyThemes {
           ? const SnackBarThemeData(
               showCloseIcon: true,
               behavior: SnackBarBehavior.floating,
-              width: FluffyThemes.columnWidth * 1.5,
+              width: DvThemes.columnWidth * 1.5,
             )
           : const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       elevatedButtonTheme: ElevatedButtonThemeData(

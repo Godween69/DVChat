@@ -3,25 +3,34 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Пузырь сообщения: внешний вид, ответы, реакции, жесты. Содержимое — message_content.dart.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/events/bubble_meta.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
+import 'package:dvchat/utils/date_time_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/file_description.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/utils/show_scaffold_dialog.dart';
+import 'package:dvchat/utils/single_reaction_extension.dart';
+import 'package:dvchat/utils/string_color.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_reply_swipe.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/utils/file_description.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/string_color.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/member_actions_popup_menu_button.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:swipe_to_action/swipe_to_action.dart';
 
 import '../../../config/app_config.dart';
 import '../sticker_picker_dialog.dart';
@@ -108,10 +117,6 @@ class Message extends StatelessWidget {
     final alignment = ownMessage ? Alignment.topRight : Alignment.topLeft;
 
     var color = theme.colorScheme.surfaceContainerHigh;
-    final displayTime =
-        event.type == EventTypes.RoomCreate ||
-        previousEvent == null ||
-        !event.originServerTs.sameEnvironment(previousEvent!.originServerTs);
 
     final nextEventSameSender =
         nextEvent != null &&
@@ -128,7 +133,9 @@ class Message extends StatelessWidget {
         previousEvent!.senderId == event.senderId &&
         previousEvent!.originServerTs.sameEnvironment(event.originServerTs);
 
-    final textColor = ownMessage
+    final textColor = event.redacted
+        ? theme.colorScheme.onSurface
+        : ownMessage
         ? theme.onBubbleColor
         : theme.colorScheme.onSurface;
 
@@ -143,16 +150,7 @@ class Message extends StatelessWidget {
         : MainAxisAlignment.start;
 
     final displayEvent = event.getDisplayEvent(timeline);
-    const hardCorner = Radius.circular(3);
-    const roundedCorner = Radius.circular(AppConfig.borderRadius);
-    final borderRadius = BorderRadius.only(
-      topLeft: !ownMessage ? hardCorner : roundedCorner,
-      topRight: ownMessage && nextEventSameSender ? hardCorner : roundedCorner,
-      bottomLeft: !ownMessage && previousEventSameSender
-          ? hardCorner
-          : roundedCorner,
-      bottomRight: ownMessage ? hardCorner : roundedCorner,
-    );
+    const roundedCorner = Radius.circular(_bubbleRadius);
     const avatarSize = Avatar.defaultSize;
     final noBubble =
         ({
@@ -162,11 +160,38 @@ class Message extends StatelessWidget {
         }.contains(event.messageType) &&
         event.fileDescription == null &&
         !event.redacted);
+    // DVChat: одинокий смайлик (без текста, ответа и правки) уходит крупно и без пузыря,
+    // как стикер. Время и галочки остаются рядом, цветом страницы
+    final bareEmoji =
+        event.type == EventTypes.Message &&
+        event.messageType == MessageTypes.Text &&
+        !event.isRichMessage &&
+        !event.redacted &&
+        bigEmojis.contains(event.body) &&
+        event.inReplyToEventId(includingFallback: false) == null;
+    final noFill = noBubble || bareEmoji;
+    // DVChat: форма пузыря как в WhatsApp: ровные скругления; «носик» вверху у первого
+    // сообщения серии с внешней стороны, у остальных сообщений серии носика нет
+    final hasTail = !noFill && !nextEventSameSender;
+    final borderRadius = BorderRadius.only(
+      topLeft: !ownMessage && hasTail ? Radius.zero : roundedCorner,
+      topRight: ownMessage && hasTail ? Radius.zero : roundedCorner,
+      bottomLeft: roundedCorner,
+      bottomRight: roundedCorner,
+    );
 
     if (ownMessage) {
       color = displayEvent.status.isError
           ? Colors.redAccent
           : theme.bubbleColor;
+    }
+
+    // DVChat: удалённое сообщение: серый пузырь вместо цветного
+    if (event.redacted) {
+      color = Color.alphaBlend(
+        theme.colorScheme.onSurface.withAlpha(26),
+        theme.colorScheme.surface,
+      );
     }
 
     final sentReactions = <String>{};
@@ -217,45 +242,55 @@ class Message extends StatelessWidget {
               color: theme.colorScheme.surface,
             ),
           ];
-    final eventStateTextColor = theme.colorScheme.onSurface;
+
+    // DVChat: время и галочки внутри пузыря, справа внизу
+    final bubbleMeta = BubbleMeta(
+      event: event,
+      timeline: timeline,
+      ownMessage: ownMessage,
+      edited: isEdited,
+      color: noBubble
+          ? Colors.white
+          : bareEmoji
+          ? theme.colorScheme.onSurface.withAlpha(150)
+          : textColor.withAlpha(170),
+      onMedia: noBubble,
+    );
+    final metaWidth =
+        16.0 +
+        (event.status == EventStatus.sending
+            ? 90
+            : event.status == EventStatus.error
+            ? 170
+            : 30) +
+        (isEdited ? 60 : 0) +
+        (ownMessage ? 18 : 0);
+
+    // DVChat: как в WhatsApp, пузырь не шире ~80% экрана (примерно до начала пузыря собеседника)
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final bubbleMaxWidth = screenWidth * 0.8 < DvThemes.columnWidth * 1.5
+        ? screenWidth * 0.8
+        : DvThemes.columnWidth * 1.5;
 
     return Center(
-      child: Swipeable(
+      child: DvReplySwipe(
         key: ValueKey(event.transactionId ?? event.eventId),
-        background: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Align(
-            alignment: AppSettings.swipeRightToLeftToReply.value
-                ? .centerRight
-                : .centerLeft,
-            child: Material(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(64),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Icon(
-                  Icons.reply_outlined,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-            ),
-          ),
-        ),
-        direction: AppSettings.swipeRightToLeftToReply.value
-            ? SwipeDirection.endToStart
-            : SwipeDirection.startToEnd,
-        onSwipe: (_) => onSwipe(),
+        // Закрытый чат: жест не работает вовсе
+        enabled: !event.room.isHistoryOnly,
+        // Тянем к свободному месту: свои сообщения влево, чужие вправо
+        leftwards: ownMessage,
+        onReply: onSwipe,
         child: Container(
           constraints: const BoxConstraints(
-            maxWidth: FluffyThemes.maxTimelineWidth,
+            maxWidth: DvThemes.maxTimelineWidth,
           ),
           padding: EdgeInsets.only(
             left: 8.0,
             right: 8.0,
-            top: nextEventSameSender ? 1.0 : 8.0,
+            top: nextEventSameSender ? 2.5 : 9.0,
             bottom: previousEventSameSender || previousEvent == null
-                ? 1.0
-                : 8.0,
+                ? 2.5
+                : 9.0,
           ),
           child: Column(
             mainAxisSize: .min,
@@ -280,7 +315,7 @@ class Message extends StatelessWidget {
                         borderRadius: BorderRadius.circular(
                           AppConfig.borderRadius / 2,
                         ),
-                        color: selected || highlightMarker
+                        color: selected
                             ? theme.colorScheme.secondaryContainer.withAlpha(
                                 128,
                               )
@@ -316,13 +351,10 @@ class Message extends StatelessWidget {
                             final user = snapshot.data ?? sender;
                             return Avatar(
                               mxContent: user.avatarUrl,
-                              name: user.calcDisplayname(),
-                              onTap: () => showMemberActionsPopupMenu(
-                                context: context,
-                                user: user,
-                                onMention: onMention,
-                              ),
+                              name: user.dvName(),
+
                               size: avatarSize,
+                              onTap: () => DvProfilePage.open(context, user.id),
                               presenceUserId: user.stateKey,
                               presenceBackgroundColor: wallpaperMode
                                   ? Colors.transparent
@@ -365,8 +397,8 @@ class Message extends StatelessWidget {
                                       future: event.fetchSenderUser(),
                                       builder: (context, snapshot) {
                                         final displayname =
-                                            snapshot.data?.calcDisplayname() ??
-                                            sender.calcDisplayname();
+                                            snapshot.data?.dvName() ??
+                                            sender.dvName();
                                         return ConstrainedBox(
                                           constraints: BoxConstraints(
                                             maxWidth: 200,
@@ -406,6 +438,7 @@ class Message extends StatelessWidget {
                               child: GestureDetector(
                                 onDoubleTap:
                                     AppSettings.doubleTapToReact.value &&
+                                        !event.room.isHistoryOnly &&
                                         event.room.canSendDefaultMessages
                                     ? () {
                                         HapticFeedback.lightImpact();
@@ -436,8 +469,9 @@ class Message extends StatelessWidget {
                                         if (existingReaction != null) {
                                           existingReaction.redactEvent();
                                         } else {
-                                          event.room.sendReaction(
-                                            event.eventId,
+                                          event.room.setMyReaction(
+                                            event,
+                                            timeline,
                                             emoji,
                                           );
                                         }
@@ -454,111 +488,152 @@ class Message extends StatelessWidget {
                                     event.transactionId ?? event.eventId,
                                   ),
                                   animateIn: animateIn,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: noBubble
-                                          ? Colors.transparent
-                                          : color,
-                                      borderRadius: borderRadius,
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: BubbleBackground(
-                                      colors: colors,
-                                      ignore:
-                                          noBubble ||
-                                          !ownMessage ||
-                                          MediaQuery.highContrastOf(context),
-                                      scrollController: scrollController,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.borderRadius,
-                                          ),
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          maxWidth:
-                                              FluffyThemes.columnWidth * 1.5,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: .min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            if (event.inReplyToEventId(
-                                                  includingFallback: false,
-                                                ) !=
-                                                null)
-                                              FutureBuilder<Event?>(
-                                                future: event.getReplyEvent(
-                                                  timeline,
-                                                ),
-                                                builder: (BuildContext context, snapshot) {
-                                                  final replyEvent =
-                                                      snapshot.hasData
-                                                      ? snapshot.data!
-                                                      : Event(
-                                                          eventId:
-                                                              event
-                                                                  .inReplyToEventId() ??
-                                                              '\$fake_event_id',
-                                                          content: {
-                                                            'msgtype': 'm.text',
-                                                            'body': '...',
-                                                          },
-                                                          senderId:
-                                                              event.senderId,
-                                                          type:
-                                                              'm.room.message',
-                                                          room: event.room,
-                                                          status:
-                                                              EventStatus.sent,
-                                                          originServerTs:
-                                                              DateTime.now(),
-                                                        );
-                                                  return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          left: 16,
-                                                          right: 16,
-                                                          top: 8,
-                                                        ),
-                                                    child: Material(
-                                                      color: Colors.transparent,
-                                                      borderRadius: ReplyContent
-                                                          .borderRadius,
-                                                      child: InkWell(
-                                                        borderRadius:
-                                                            ReplyContent
-                                                                .borderRadius,
-                                                        onTap: () =>
-                                                            scrollToEventId(
-                                                              replyEvent
-                                                                  .eventId,
-                                                            ),
-                                                        child: AbsorbPointer(
-                                                          child: ReplyContent(
-                                                            replyEvent,
-                                                            ownMessage:
-                                                                ownMessage,
-                                                            timeline: timeline,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            MessageContent(
-                                              displayEvent,
-                                              textColor: textColor,
-                                              linkColor: linkColor,
-                                              onInfoTab: onInfoTab,
+                                  child: _BubbleTail(
+                                    show: hasTail,
+                                    own: ownMessage,
+                                    color: _haze(color),
+                                    onForward:
+                                        ({
+                                              MessageTypes.Image,
+                                              MessageTypes.Video,
+                                            }.contains(event.messageType) &&
+                                            !event.redacted &&
+                                            event.status.isSent &&
+                                            !event.room.isHistoryOnly &&
+                                            !longPressSelect)
+                                        ? () =>
+                                              _forwardOne(context, displayEvent)
+                                        : null,
+                                    child: Container(
+                                      decoration: noFill
+                                          ? BoxDecoration(
                                               borderRadius: borderRadius,
-                                              timeline: timeline,
-                                              selected: selected,
-                                              bigEmojis: bigEmojis,
+                                            )
+                                          : BoxDecoration(
+                                              // DVChat: матовый сплошной цвет, без блеска и тени
+                                              color: _haze(color),
+                                              borderRadius: borderRadius,
                                             ),
-                                          ],
+                                      clipBehavior: Clip.antiAlias,
+                                      child: BubbleBackground(
+                                        colors: colors,
+                                        // DVChat: сплошной цвет, чтобы носик совпадал
+                                        ignore: true,
+                                        scrollController: scrollController,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: borderRadius,
+                                          ),
+                                          constraints: BoxConstraints(
+                                            maxWidth: bubbleMaxWidth,
+                                          ),
+                                          child: _MetaStack(
+                                            meta: bubbleMeta,
+                                            onMedia: noBubble,
+                                            flash: highlightMarker
+                                                ? (noBubble
+                                                      ? Colors.white.withAlpha(
+                                                          70,
+                                                        )
+                                                      : textColor.withAlpha(46))
+                                                : null,
+                                            radius: borderRadius,
+                                            child: Column(
+                                              mainAxisSize: .min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                if (event.inReplyToEventId(
+                                                      includingFallback: false,
+                                                    ) !=
+                                                    null)
+                                                  FutureBuilder<Event?>(
+                                                    future: event.getReplyEvent(
+                                                      timeline,
+                                                    ),
+                                                    builder:
+                                                        (
+                                                          BuildContext context,
+                                                          snapshot,
+                                                        ) {
+                                                          final replyEvent =
+                                                              snapshot.hasData
+                                                              ? snapshot.data!
+                                                              : Event(
+                                                                  eventId:
+                                                                      event
+                                                                          .inReplyToEventId() ??
+                                                                      '\$fake_event_id',
+                                                                  content: {
+                                                                    'msgtype':
+                                                                        'm.text',
+                                                                    'body':
+                                                                        '...',
+                                                                  },
+                                                                  senderId: event
+                                                                      .senderId,
+                                                                  type:
+                                                                      'm.room.message',
+                                                                  room: event
+                                                                      .room,
+                                                                  status:
+                                                                      EventStatus
+                                                                          .sent,
+                                                                  originServerTs:
+                                                                      DateTime.now(),
+                                                                );
+                                                          return Padding(
+                                                            padding:
+                                                                const EdgeInsets.only(
+                                                                  left: 16,
+                                                                  right: 16,
+                                                                  top: 8,
+                                                                ),
+                                                            child: Material(
+                                                              color: Colors
+                                                                  .transparent,
+                                                              borderRadius:
+                                                                  ReplyContent
+                                                                      .borderRadius,
+                                                              child: InkWell(
+                                                                borderRadius:
+                                                                    ReplyContent
+                                                                        .borderRadius,
+                                                                onTap: () =>
+                                                                    scrollToEventId(
+                                                                      replyEvent
+                                                                          .eventId,
+                                                                    ),
+                                                                child: AbsorbPointer(
+                                                                  child: ReplyContent(
+                                                                    replyEvent,
+                                                                    ownMessage:
+                                                                        ownMessage,
+                                                                    timeline:
+                                                                        timeline,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                  ),
+                                                MessageContent(
+                                                  displayEvent,
+                                                  textColor: textColor,
+                                                  linkColor: linkColor,
+                                                  onInfoTab: onInfoTab,
+                                                  borderRadius: borderRadius,
+                                                  timeline: timeline,
+                                                  selected: selected,
+                                                  bigEmojis: bigEmojis,
+                                                  metaWidth: noBubble
+                                                      ? 0
+                                                      : metaWidth,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -568,8 +643,8 @@ class Message extends StatelessWidget {
                             ),
 
                             AnimatedSize(
-                              duration: FluffyThemes.animationDuration,
-                              curve: FluffyThemes.animationCurve,
+                              duration: DvThemes.animationDuration,
+                              curve: DvThemes.animationCurve,
                               alignment: Alignment.bottomCenter,
                               child: !hasReactions
                                   ? const SizedBox.shrink()
@@ -585,87 +660,13 @@ class Message extends StatelessWidget {
                                       child: MessageReactions(event, timeline),
                                     ),
                             ),
-                            Row(
-                              mainAxisAlignment: ownMessage ? .end : .start,
-                              children: [
-                                const SizedBox(width: 8),
-                                if (event.status.isSent &&
-                                    (displayTime ||
-                                        !previousEventSameSender ||
-                                        selected))
-                                  Text(
-                                    ' ${selected ? event.originServerTs.localizedDetailedTime(context) : event.originServerTs.localizedTimeOfDay(context)}',
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                if (isEdited) ...[
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Text(
-                                    L10n.of(context).edited,
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                ],
-                                if (event.status == EventStatus.error) ...[
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Text(
-                                    L10n.of(context).couldNotBeSent,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: theme.colorScheme.error,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  Icon(
-                                    Icons.error_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.error,
-                                    shadows: wallpaperTextShadow,
-                                  ),
-                                ],
-                                if (event.status == EventStatus.sending) ...[
-                                  Text(
-                                    switch (event.fileSendingStatus) {
-                                      null => L10n.of(context).sending,
-                                      FileSendingStatus.generatingThumbnail =>
-                                        L10n.of(context).generatingThumbnail,
-                                      FileSendingStatus.encrypting => L10n.of(
-                                        context,
-                                      ).encrypting,
-                                      FileSendingStatus.uploading => L10n.of(
-                                        context,
-                                      ).uploading,
-                                    },
-                                    style: TextStyle(
-                                      color: eventStateTextColor,
-                                      fontSize: 11,
-                                      shadows: wallpaperTextShadow,
-                                    ),
-                                  ),
-                                  Text(' ', style: TextStyle(fontSize: 11)),
-                                  SizedBox.square(
-                                    dimension: 11,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
                             Align(
                               alignment: ownMessage
                                   ? Alignment.bottomRight
                                   : Alignment.bottomLeft,
                               child: AnimatedSize(
-                                duration: FluffyThemes.animationDuration,
-                                curve: FluffyThemes.animationCurve,
+                                duration: DvThemes.animationDuration,
+                                curve: DvThemes.animationCurve,
                                 child: showReactionPicker
                                     ? Padding(
                                         padding: const EdgeInsets.all(4.0),
@@ -710,8 +711,9 @@ class Message extends StatelessWidget {
                                                         : () {
                                                             onSelect(event);
                                                             event.room
-                                                                .sendReaction(
-                                                                  event.eventId,
+                                                                .setMyReaction(
+                                                                  event,
+                                                                  timeline,
                                                                   emoji,
                                                                 );
                                                           },
@@ -728,7 +730,7 @@ class Message extends StatelessWidget {
                                                     final emoji = await showAdaptiveBottomSheet<String>(
                                                       context: context,
                                                       builder: (context) => Scaffold(
-                                                        appBar: AppBar(
+                                                        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
                                                           title: Text(
                                                             L10n.of(
                                                               context,
@@ -849,8 +851,9 @@ class Message extends StatelessWidget {
                                                     onSelect(event);
 
                                                     await event.room
-                                                        .sendReaction(
-                                                          event.eventId,
+                                                        .setMyReaction(
+                                                          event,
+                                                          timeline,
                                                           emoji,
                                                         );
                                                   },
@@ -872,8 +875,8 @@ class Message extends StatelessWidget {
               ),
               if (enterThread != null)
                 AnimatedSize(
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   alignment: Alignment.bottomCenter,
                   child: threadChildren.isEmpty
                       ? const SizedBox.shrink()
@@ -885,7 +888,7 @@ class Message extends StatelessWidget {
                           ),
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(
-                              maxWidth: FluffyThemes.columnWidth * 1.5,
+                              maxWidth: DvThemes.columnWidth * 1.5,
                             ),
                             child: TextButton.icon(
                               style: TextButton.styleFrom(
@@ -1046,9 +1049,210 @@ class __AnimateInState extends State<_AnimateIn> {
     }
 
     return AnimatedSize(
-      duration: FluffyThemes.animationDuration,
-      curve: FluffyThemes.animationCurve,
+      duration: DvThemes.animationDuration,
+      curve: DvThemes.animationCurve,
       child: _animationFinished ? widget.child : const SizedBox.shrink(),
     );
   }
+}
+
+/// DVChat: радиус скругления пузыря сообщения (как в WhatsApp)
+const double _bubbleRadius = 11;
+
+/// DVChat: матовая «дымка»: цвет пузыря слегка приглушён, как в Telegram
+Color _haze(Color c) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withSaturation((hsl.saturation * 0.82).clamp(0.0, 1.0)).toColor();
+}
+
+/// DVChat: метка (время, галочки) лежит поверх пузыря справа внизу
+class _MetaStack extends StatelessWidget {
+  const _MetaStack({
+    required this.meta,
+    required this.onMedia,
+    required this.child,
+    this.flash,
+    this.radius = BorderRadius.zero,
+  });
+
+  final Widget meta;
+  final bool onMedia;
+  final Widget child;
+
+  /// Цвет мягкой вспышки поверх пузыря после перехода к сообщению (null — без вспышки)
+  final Color? flash;
+  final BorderRadius radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final flashColor = flash;
+    return Stack(
+      children: [
+        child,
+        if (flashColor != null)
+          Positioned.fill(
+            child: _Flash(color: flashColor, radius: radius),
+          ),
+        Positioned(
+          right: onMedia ? 6 : 10,
+          bottom: onMedia ? 6 : 5,
+          child: meta,
+        ),
+      ],
+    );
+  }
+}
+
+/// DVChat: затемнение/высветление пузыря, которое плавно гаснет
+class _Flash extends StatefulWidget {
+  const _Flash({required this.color, required this.radius});
+
+  final Color color;
+  final BorderRadius radius;
+
+  @override
+  State<_Flash> createState() => _FlashState();
+}
+
+class _FlashState extends State<_Flash> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+      value: 1,
+    );
+    _controller.reverse().ignore();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: FadeTransition(
+      opacity: _controller.drive(CurveTween(curve: Curves.easeOut)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: widget.radius,
+        ),
+      ),
+    ),
+  );
+}
+
+/// DVChat: «носик» пузыря сообщения (как в WhatsApp): вверху, у первого сообщения серии.
+class _BubbleTail extends StatelessWidget {
+  const _BubbleTail({
+    required this.show,
+    required this.own,
+    required this.color,
+    required this.child,
+    this.onForward,
+  });
+
+  final bool show;
+  final bool own;
+  final Color color;
+  final Widget child;
+
+  /// DVChat: если задано — рядом с пузырём рисуется круглая кнопка «переслать».
+  final VoidCallback? onForward;
+
+  static const double _w = 9;
+  static const double _h = 11;
+
+  @override
+  Widget build(BuildContext context) {
+    final bubble = !show
+        ? child
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child,
+              Positioned(
+                top: 0,
+                right: own ? -(_w - 1) : null,
+                left: own ? null : -(_w - 1),
+                child: CustomPaint(
+                  size: const Size(_w, _h),
+                  painter: _TailPainter(color: color, own: own),
+                ),
+              ),
+            ],
+          );
+    final forward = onForward;
+    if (forward == null) return bubble;
+
+    final theme = Theme.of(context);
+    final button = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest.withAlpha(220),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: forward,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(
+              Icons.shortcut_rounded,
+              size: 20,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: own
+          ? [button, Flexible(child: bubble)]
+          : [Flexible(child: bubble), button],
+    );
+  }
+}
+
+class _TailPainter extends CustomPainter {
+  _TailPainter({required this.color, required this.own});
+
+  final Color color;
+  final bool own;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    // для чужих сообщений рисуем зеркально
+    double x(double v) => own ? v : w - v;
+    // верхняя кромка продолжает верх пузыря наружу, затем плавный спуск к его боку
+    final path = Path()
+      ..moveTo(x(0), 0)
+      ..lineTo(x(w), 0)
+      ..quadraticBezierTo(x(w * 0.45), h * 0.12, x(0), h)
+      ..close();
+    canvas.drawShadow(path, Colors.black.withAlpha(110), 1.5, false);
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_TailPainter old) => old.color != color || old.own != own;
+}
+
+/// DVChat: переслать одно сообщение (кнопка рядом с фото/видео).
+Future<void> _forwardOne(BuildContext context, Event event) async {
+  await showScaffoldDialog(
+    context: context,
+    builder: (context) =>
+        ShareScaffoldDialog(items: [ContentShareItem(event.content.copy())]),
+  );
 }

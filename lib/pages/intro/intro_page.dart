@@ -3,195 +3,130 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/intro/flows/restore_backup_flow.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:go_router/go_router.dart';
+// DVChat: экран приветствия для не вошедшего пользователя.
+//
+// Вход в DVChat только по приглашению от администратора: либо сканированием
+// QR-кода, либо вставкой ссылки из буфера обмена. Логики входа здесь нет,
+// она в utils/sign_in_flows/link_login.dart.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/sign_in_flows/link_login.dart';
+import 'package:dvchat/widgets/dv_install_hint.dart';
+import 'package:dvchat/widgets/dv_logo.dart';
+import 'package:dvchat/widgets/layouts/login_scaffold.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
-class IntroPage extends StatelessWidget {
-  final bool isLoading, hasPresetHomeserver;
-  final String? loggingInToHomeserver, welcomeText;
-  final VoidCallback login;
+class IntroPage extends StatefulWidget {
+  const IntroPage({super.key});
 
-  const IntroPage({
-    required this.isLoading,
-    required this.loggingInToHomeserver,
-    super.key,
-    required this.hasPresetHomeserver,
-    required this.welcomeText,
-    required this.login,
-  });
+  @override
+  State<IntroPage> createState() => _IntroPageState();
+}
+
+class _IntroPageState extends State<IntroPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showLoggedOutNotice());
+  }
+
+  /// После выхода из аккаунта объясняем, как вернуться (окно закрывается только кнопкой)
+  Future<void> _showLoggedOutNotice() async {
+    if (!mounted || !AppSettings.loggedOutNoticePending.value) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Вы вышли из аккаунта'),
+          content: const Text(
+            'Чтобы снова войти, обратитесь к администратору: он выдаст новую ссылку или QR-код. '
+            'Другим способом войти в свой аккаунт не получится.\n\n'
+            'Администратору понадобится ваш уникальный ID аккаунта (10 цифр), '
+            'без него вход не выполнить.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await AppSettings.loggedOutNoticePending.setItem(false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final addMultiAccount = Matrix.of(
-      context,
-    ).widget.clients.any((client) => client.isLogged());
-    final loggingInToHomeserver = this.loggingInToHomeserver;
-
     return LoginScaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         centerTitle: true,
-        title: addMultiAccount
-            ? Text(L10n.of(context).addAccount)
-            : Text(AppSettings.applicationName.value),
-        actions: [
-          PopupMenuButton(
-            useRootNavigator: true,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                onTap: isLoading ? null : () => restoreBackupFlow(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  spacing: 12,
+        title: Text(AppSettings.applicationName.value),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
                   children: [
-                    const Icon(Icons.import_export_outlined),
-                    Expanded(
+                    Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(32.0),
+                      child: const DvLogo(size: 128),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32),
                       child: Text(
-                        L10n.of(context).hydrate,
-                        maxLines: 1,
-                        overflow: .ellipsis,
+                        'Приветствую вас в семейном мессенджере',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 22),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                onTap: () => launchUrlString(AppSettings.privacyPolicy.value),
-                child: Row(
-                  mainAxisSize: .min,
-                  spacing: 12,
-                  children: [
-                    const Icon(Icons.privacy_tip_outlined),
-                    Text(L10n.of(context).privacy),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                onTap: () => PlatformInfos.showDialog(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  spacing: 12,
-                  children: [
-                    const Icon(Icons.info_outlined),
-                    Text(L10n.of(context).about),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: .center,
-                children: [
-                  CircularProgressIndicator.adaptive(),
-                  if (loggingInToHomeserver != null)
-                    Text(L10n.of(context).logInTo(loggingInToHomeserver)),
-                ],
-              ),
-            )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
+                    const Spacer(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.all(32.0),
-                            child: Hero(
-                              tag: 'info-logo',
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(128),
-                                child: Image.asset(
-                                  './assets/logo/mini/logo_mini.png',
-                                  width: 128,
-                                  height: 128,
-                                ),
-                              ),
+                          if (DvInstallHint.needed) const DvInstallHint(),
+                          // Вход по QR-коду от администратора (нужна камера, в вебе её нет)
+                          if (!PlatformInfos.isWeb)
+                            TextButton.icon(
+                              onPressed: () => scanAndLogin(context),
+                              icon: const Icon(Icons.qr_code_scanner),
+                              label: const Text('Сканировать QR'),
                             ),
+                          // Вход по ссылке из буфера обмена
+                          TextButton.icon(
+                            onPressed: () => pasteAndLogin(context),
+                            icon: const Icon(Icons.content_paste_outlined),
+                            label: const Text('Вставить ссылку'),
                           ),
-                          Text(
-                            L10n.of(context).appSubtitle,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 20),
-                          ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              welcomeText ?? L10n.of(context).appDescription,
-                              textAlign: TextAlign.center,
+                          // Веб-версия: ссылку можно вставить в поле вручную
+                          if (PlatformInfos.isWeb)
+                            TextButton.icon(
+                              onPressed: () => typeLinkAndLogin(context),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Ввести ссылку вручную'),
                             ),
-                          ),
-                          const Spacer(),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Column(
-                              mainAxisSize: .min,
-                              crossAxisAlignment: .stretch,
-                              children: [
-                                if (!hasPresetHomeserver)
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          theme.colorScheme.secondary,
-                                      foregroundColor:
-                                          theme.colorScheme.onSecondary,
-                                    ),
-                                    onPressed: () => context.go(
-                                      '${GoRouterState.of(context).uri.path}/sign_up',
-                                    ),
-                                    child: Text(
-                                      L10n.of(context).createNewAccount,
-                                    ),
-                                  ),
-                                SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: login,
-                                  child: Text(L10n.of(context).signIn),
-                                ),
-
-                                if (!hasPresetHomeserver)
-                                  TextButton(
-                                    onPressed: () async {
-                                      final client = await Matrix.of(
-                                        context,
-                                      ).getLoginClient();
-                                      if (!context.mounted) return;
-                                      context.go(
-                                        '${GoRouterState.of(context).uri.path}/login',
-                                        extra: client,
-                                      );
-                                    },
-                                    child: Text(
-                                      L10n.of(context).loginWithMatrixId,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 36),
                         ],
                       ),
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 36),
+                  ],
+                ),
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }

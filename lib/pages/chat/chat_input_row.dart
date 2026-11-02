@@ -3,16 +3,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Нижняя строка ввода: поле, кнопки вложений, отправки и записи голоса.
+
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/recording_input_row.dart';
+import 'package:dvchat/pages/chat/recording_view_model.dart';
+import 'package:dvchat/utils/other_party_can_receive.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
+import 'package:dvchat/widgets/hover_builder.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:emoji_picker_flutter/locales/default_emoji_set_locale.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/recording_input_row.dart';
-import 'package:fluffychat/pages/chat/recording_view_model.dart';
-import 'package:fluffychat/utils/other_party_can_receive.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/hover_builder.dart';
-import 'package:fluffychat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -134,123 +137,83 @@ class ChatInputRow extends StatelessWidget {
               : <Widget>[
                   const SizedBox(width: 8),
                   AnimatedContainer(
-                    duration: FluffyThemes.animationDuration,
-                    curve: FluffyThemes.animationCurve,
+                    duration: DvThemes.animationDuration,
+                    curve: DvThemes.animationCurve,
                     width: textMessageOnly ? 0 : 48,
                     height: height,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(),
                     clipBehavior: Clip.hardEdge,
-                    child: PopupMenuButton<AddPopupMenuActions>(
-                      useRootNavigator: true,
-                      icon: const Icon(Icons.add_circle_outline),
-                      iconColor: theme.colorScheme.onPrimaryContainer,
-                      onSelected: controller.onAddPopupMenuButtonSelected,
-                      itemBuilder: (BuildContext context) => [
-                        if (PlatformInfos.isMobile)
-                          PopupMenuItem(
-                            value: AddPopupMenuActions.location,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    theme.colorScheme.onPrimaryContainer,
-                                foregroundColor:
-                                    theme.colorScheme.primaryContainer,
-                                child: const Icon(Icons.gps_fixed_outlined),
-                              ),
-                              title: Text(L10n.of(context).shareLocation),
-                              contentPadding: const EdgeInsets.all(0),
-                            ),
-                          ),
-                        PopupMenuItem(
-                          value: AddPopupMenuActions.poll,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.onPrimaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              child: const Icon(Icons.poll_outlined),
-                            ),
-                            title: Text(L10n.of(context).startPoll),
-                            contentPadding: const EdgeInsets.all(0),
-                          ),
-                        ),
-                        PopupMenuDivider(),
-                        if (PlatformInfos.isMobile) ...[
-                          PopupMenuItem(
-                            value: AddPopupMenuActions.videoCamera,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    theme.colorScheme.onPrimaryContainer,
-                                foregroundColor:
-                                    theme.colorScheme.primaryContainer,
-                                child: const Icon(Icons.videocam_outlined),
-                              ),
-                              title: Text(L10n.of(context).recordAVideo),
-                              contentPadding: const EdgeInsets.all(0),
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: AddPopupMenuActions.photoCamera,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    theme.colorScheme.onPrimaryContainer,
-                                foregroundColor:
-                                    theme.colorScheme.primaryContainer,
-                                child: const Icon(Icons.camera_alt_outlined),
-                              ),
-                              title: Text(L10n.of(context).takeAPhoto),
-                              contentPadding: const EdgeInsets.all(0),
-                            ),
-                          ),
-                          PopupMenuDivider(),
-                        ],
-                        PopupMenuItem(
-                          value: AddPopupMenuActions.video,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.onPrimaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              child: const Icon(Icons.movie_outlined),
-                            ),
-                            title: Text(L10n.of(context).sendVideo),
-                            contentPadding: const EdgeInsets.all(0),
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: AddPopupMenuActions.image,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.onPrimaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              child: const Icon(Icons.image_outlined),
-                            ),
-                            title: Text(L10n.of(context).sendImage),
-                            contentPadding: const EdgeInsets.all(0),
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: AddPopupMenuActions.file,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.onPrimaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              child: const Icon(Icons.attachment_outlined),
-                            ),
-                            title: Text(L10n.of(context).sendFile),
-                            contentPadding: const EdgeInsets.all(0),
-                          ),
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (anchor) => IconButton(
+                        tooltip: 'Добавить',
+                        icon: const Icon(Icons.add_circle_outline),
+                        color: theme.colorScheme.onPrimaryContainer,
+                        onPressed: () async {
+                          final choice =
+                              await showDvGlassMenu<AddPopupMenuActions>(
+                                anchor,
+                                place: DvGlassMenuPlace.aboveStart,
+                                items: [
+                                  if (PlatformInfos.isMobile)
+                                    const DvGlassMenuItem(
+                                      value: AddPopupMenuActions.location,
+                                      icon: Icons.location_on_rounded,
+                                      title: 'Геопозиция',
+                                      color: DvMenuColors.red,
+                                    ),
+                                  const DvGlassMenuItem(
+                                    value: AddPopupMenuActions.poll,
+                                    icon: Icons.poll_rounded,
+                                    title: 'Опрос',
+                                    color: DvMenuColors.purple,
+                                  ),
+                                  const DvGlassMenuItem(
+                                    value: AddPopupMenuActions.shopping,
+                                    icon: Icons.shopping_cart_rounded,
+                                    title: 'Список покупок',
+                                    color: DvMenuColors.green,
+                                  ),
+                                  if (PlatformInfos.isMobile) ...[
+                                    const DvGlassMenuItem(
+                                      value: AddPopupMenuActions.videoCamera,
+                                      icon: Icons.videocam_rounded,
+                                      title: 'Записать видео',
+                                      color: DvMenuColors.pink,
+                                      dividerBefore: true,
+                                    ),
+                                    const DvGlassMenuItem(
+                                      value: AddPopupMenuActions.photoCamera,
+                                      icon: Icons.photo_camera_rounded,
+                                      title: 'Сделать фото',
+                                      color: DvMenuColors.orange,
+                                    ),
+                                  ],
+                                  DvGlassMenuItem(
+                                    value: AddPopupMenuActions.video,
+                                    icon: Icons.movie_rounded,
+                                    title: 'Видео',
+                                    color: DvMenuColors.teal,
+                                    dividerBefore: !PlatformInfos.isMobile,
+                                  ),
+                                  const DvGlassMenuItem(
+                                    value: AddPopupMenuActions.image,
+                                    icon: Icons.image_rounded,
+                                    title: 'Фото',
+                                    color: DvMenuColors.blue,
+                                  ),
+                                  const DvGlassMenuItem(
+                                    value: AddPopupMenuActions.file,
+                                    icon: Icons.attach_file_rounded,
+                                    title: 'Файл',
+                                    color: DvMenuColors.amber,
+                                  ),
+                                ],
+                              );
+                          if (choice == null || !anchor.mounted) return;
+                          controller.onAddPopupMenuButtonSelected(choice);
+                        },
+                      ),
                     ),
                   ),
                   Container(

@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
+// DVChat: Русские тексты для Matrix SDK («…вошёл в чат», «…сменил название» и т.п.).
+
+import 'package:dvchat/l10n/l10n.dart';
 import 'package:matrix/matrix.dart';
 
 /// This is a temporary helper class until there is a proper solution to this with the new system
@@ -185,11 +187,7 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String redactedAnEvent(Event redactedEvent) {
-    return l10n.redactedAnEvent(
-      redactedEvent.redactedBecause?.senderFromMemoryOrFallback
-              .calcDisplayname() ??
-          l10n.user,
-    );
+    return 'Сообщение удалено';
   }
 
   @override
@@ -199,9 +197,7 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String removedBy(Event redactedEvent) {
-    return l10n.redactedBy(
-      redactedEvent.senderFromMemoryOrFallback.calcDisplayname(),
-    );
+    return 'Сообщение удалено';
   }
 
   @override
@@ -209,27 +205,27 @@ class MatrixLocals extends MatrixLocalizations {
 
   @override
   String sentAFile(String senderName) {
-    return l10n.sentAFile(senderName);
+    return '📎 Файл';
   }
 
   @override
   String sentAPicture(String senderName) {
-    return l10n.sentAPicture(senderName);
+    return '📷 Фото';
   }
 
   @override
   String sentASticker(String senderName) {
-    return l10n.sentASticker(senderName);
+    return 'Стикер';
   }
 
   @override
   String sentAVideo(String senderName) {
-    return l10n.sentAVideo(senderName);
+    return '🎥 Видео';
   }
 
   @override
   String sentAnAudio(String senderName) {
-    return l10n.sentAnAudio(senderName);
+    return '🎵 Аудио';
   }
 
   @override
@@ -354,15 +350,9 @@ class MatrixLocals extends MatrixLocalizations {
   String get cancelledSend => l10n.sendCanceled;
 
   @override
-  String voiceMessage(
-    String senderName,
-    Duration? duration,
-  ) => l10n.sentVoiceMessage(
-    senderName,
-    duration == null
-        ? ''
-        : '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
-  );
+  String voiceMessage(String senderName, Duration? duration) => duration == null
+      ? '🎤 Голосовое сообщение'
+      : '🎤 ${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
   String get refreshingLastEvent => l10n.loadingPleaseWait;

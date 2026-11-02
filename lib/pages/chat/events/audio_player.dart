@@ -3,26 +3,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Проигрыватель голосовых сообщений и аудиофайлов внутри чата.
+
 import 'dart:async';
 import 'dart:io';
 
-import 'package:async/async.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/file_description.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/url_launcher.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/utils/dv_voice_chain.dart';
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/file_description.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/url_launcher.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:ogg_caf_converter/ogg_caf_converter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../utils/matrix_sdk_extensions/event_extension.dart';
-import '../../../widgets/fluffy_chat_app.dart';
+import '../../../widgets/dvchat_app.dart';
 import '../../../widgets/matrix.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
@@ -31,6 +34,9 @@ class AudioPlayerWidget extends StatefulWidget {
   final double fontSize;
   final Event event;
 
+  /// Лента чата: по ней находим следующее голосовое для автовоспроизведения
+  final Timeline? timeline;
+
   static const int wavesCount = 40;
 
   const AudioPlayerWidget(
@@ -38,8 +44,12 @@ class AudioPlayerWidget extends StatefulWidget {
     required this.color,
     required this.linkColor,
     required this.fontSize,
+    this.timeline,
     super.key,
   });
+
+  /// Есть подпись под голосовым: тогда метка времени получает свою строку
+  bool get hasCaption => event.fileDescription != null;
 
   @override
   AudioPlayerState createState() => AudioPlayerState();
@@ -47,8 +57,9 @@ class AudioPlayerWidget extends StatefulWidget {
 
 enum AudioPlayerStatus { notDownloaded, downloading, downloaded }
 
-class AudioPlayerState extends State<AudioPlayerWidget> {
-  static const double buttonSize = 36;
+class AudioPlayerState extends State<AudioPlayerWidget>
+    with SingleTickerProviderStateMixin {
+  static const double buttonSize = 44;
 
   AudioPlayerStatus status = AudioPlayerStatus.notDownloaded;
   double? _downloadProgress;
@@ -57,74 +68,163 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
   List<int>? _waveform;
   String? _durationString;
 
+  // DVChat: плавная шкала. Положение читается каждый кадр (just_audio сам досчитывает его
+  // между обновлениями), поэтому закраска идёт без рывков и без перестройки виджетов.
+  late final Ticker _ticker = createTicker(_onTick);
+  final ValueNotifier<double> _progress = ValueNotifier(0);
+  final ValueNotifier<int> _seconds = ValueNotifier(0);
+  final ValueNotifier<double?> _drag = ValueNotifier(null);
+
+  AudioPlayer? get _player =>
+      matrix.voiceMessageEventId.value == widget.event.eventId
+      ? matrix.audioPlayer
+      : null;
+
+  void _publish(AudioPlayer p) {
+    final d = p.duration?.inMilliseconds ?? 0;
+    final pos = p.position.inMilliseconds;
+    _progress.value = d <= 0 ? 0.0 : (pos / d).clamp(0.0, 1.0);
+    final s = pos ~/ 1000;
+    if (_seconds.value != s) _seconds.value = s;
+  }
+
+  void _onTick(Duration _) {
+    final p = _player;
+    if (p == null) {
+      _ticker.stop();
+      return;
+    }
+    _publish(p);
+    if (!p.playing || p.processingState == ProcessingState.completed) {
+      _ticker.stop();
+    }
+  }
+
+  void _kick(AudioPlayer p) {
+    _publish(p);
+    if (p.playing &&
+        p.processingState != ProcessingState.completed &&
+        !_ticker.isActive) {
+      _ticker.start();
+    }
+  }
+
+  Future<void> _seekTo(AudioPlayer? p, double fraction) async {
+    if (p == null) {
+      await _onButtonTap();
+      return;
+    }
+    final d = p.duration?.inMilliseconds ?? 0;
+    if (d <= 0) return;
+    _progress.value = fraction;
+    await p.seek(Duration(milliseconds: (fraction * d).round()));
+  }
+
+  String _clock(int seconds) =>
+      '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
+
   @override
   void dispose() {
+    _ticker.dispose();
+    _progress.dispose();
+    _seconds.dispose();
+    _drag.dispose();
     super.dispose();
     final audioPlayer = matrix.voiceMessageEventId.value != widget.event.eventId
         ? null
         : matrix.audioPlayer;
-    if (audioPlayer != null) {
-      if (audioPlayer.playing && !audioPlayer.isAtEndPosition) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(matrix.context).showMaterialBanner(
-            MaterialBanner(
-              padding: EdgeInsets.zero,
-              leading: StreamBuilder(
-                stream: audioPlayer.playerStateStream.asBroadcastStream(),
-                builder: (context, _) => IconButton(
-                  onPressed: () {
-                    if (audioPlayer.isAtEndPosition) {
-                      audioPlayer.seek(Duration.zero);
-                    } else if (audioPlayer.playing) {
-                      audioPlayer.pause();
-                    } else {
-                      audioPlayer.play();
-                    }
-                  },
-                  icon: audioPlayer.playing && !audioPlayer.isAtEndPosition
-                      ? const Icon(Icons.pause_outlined)
-                      : const Icon(Icons.play_arrow_outlined),
-                ),
-              ),
-              content: StreamBuilder(
-                stream: audioPlayer.positionStream.asBroadcastStream(),
-                builder: (context, _) => GestureDetector(
-                  onTap: () => FluffyChatApp.router.go(
-                    '/rooms/${widget.event.room.id}?event=${widget.event.eventId}',
-                  ),
-                  child: Text(
-                    '🎙️ ${audioPlayer.position.minuteSecondString} / ${audioPlayer.duration?.minuteSecondString} - ${widget.event.senderFromMemoryOrFallback.calcDisplayname()}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () {
-                    audioPlayer.pause();
-                    audioPlayer.dispose();
-                    matrix.voiceMessageEventId.value = matrix.audioPlayer =
-                        null;
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      ScaffoldMessenger.of(
-                        matrix.context,
-                      ).clearMaterialBanners();
-                    });
-                  },
-                  icon: const Icon(Icons.close_outlined),
-                ),
-              ],
-            ),
-          );
-        });
-        return;
-      }
-      audioPlayer.pause();
-      audioPlayer.dispose();
-      matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+    if (audioPlayer == null) return;
+    if (audioPlayer.playing && !audioPlayer.isAtEndPosition) {
+      final fallback = widget.event;
+      final timeline = widget.timeline;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showBanner(matrix, fallback, timeline),
+      );
+      return;
     }
+    audioPlayer.pause();
+    audioPlayer.dispose();
+    matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+  }
+
+  /// DVChat: плашка «играет голосовое» вверху экрана. Плеер берётся каждый раз заново:
+  /// когда включается следующее голосовое из цепочки, плашка управляет уже им.
+  static void _showBanner(
+    MatrixState matrix,
+    Event fallback,
+    Timeline? timeline,
+  ) {
+    Event current() {
+      final id = matrix.voiceMessageEventId.value;
+      if (id == null) return fallback;
+      return timeline?.events.where((e) => e.eventId == id).firstOrNull ??
+          fallback;
+    }
+
+    ScaffoldMessenger.of(matrix.context).showMaterialBanner(
+      MaterialBanner(
+        padding: EdgeInsets.zero,
+        leading: ValueListenableBuilder<String?>(
+          valueListenable: matrix.voiceMessageEventId,
+          builder: (context, _, _) {
+            final player = matrix.audioPlayer;
+            if (player == null) return const SizedBox.shrink();
+            return StreamBuilder<PlayerState>(
+              stream: player.playerStateStream,
+              builder: (context, _) => IconButton(
+                onPressed: () {
+                  if (player.isAtEndPosition) {
+                    player.seek(Duration.zero);
+                  } else if (player.playing) {
+                    player.pause();
+                  } else {
+                    player.play();
+                  }
+                },
+                icon: player.playing && !player.isAtEndPosition
+                    ? const Icon(Icons.pause_outlined)
+                    : const Icon(Icons.play_arrow_outlined),
+              ),
+            );
+          },
+        ),
+        content: ValueListenableBuilder<String?>(
+          valueListenable: matrix.voiceMessageEventId,
+          builder: (context, _, _) {
+            final player = matrix.audioPlayer;
+            if (player == null) return const SizedBox.shrink();
+            final event = current();
+            return StreamBuilder<Duration>(
+              stream: player.positionStream,
+              builder: (context, _) => GestureDetector(
+                onTap: () => DvChatApp.router.go(
+                  '/rooms/${event.room.id}?event=${event.eventId}',
+                ),
+                child: Text(
+                  '🎙️ ${player.position.minuteSecondString} / ${player.duration?.minuteSecondString} - ${event.senderFromMemoryOrFallback.calcDisplayname()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            );
+          },
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              final player = matrix.audioPlayer;
+              player?.pause();
+              player?.dispose();
+              matrix.voiceMessageEventId.value = matrix.audioPlayer = null;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ScaffoldMessenger.of(matrix.context).clearMaterialBanners();
+              });
+            },
+            icon: const Icon(Icons.close_outlined),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _onButtonTap() async {
@@ -177,19 +277,6 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
         file = File('${tempDir.path}/${fileName}_${matrixFile.name}');
 
         await file.writeAsBytes(matrixFile.bytes);
-
-        if (Platform.isIOS &&
-            matrixFile.mimeType.toLowerCase() == 'audio/ogg') {
-          Logs().v('Convert ogg audio file for iOS...');
-          final convertedFile = File('${file.path}.caf');
-          if (await convertedFile.exists() == false) {
-            await OggCafConverter().convertOggToCaf(
-              input: file.path,
-              output: convertedFile.path,
-            );
-          }
-          file = convertedFile;
-        }
       }
 
       setState(() {
@@ -219,6 +306,18 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
     }
     if (!mounted) return;
 
+    // DVChat: скорость воспроизведения запоминается между сообщениями
+    await audioPlayer.setSpeed(
+      AppSettings.voiceMessageSpeedPercent.value / 100,
+    );
+    if (!mounted) return;
+
+    // DVChat: после этого сообщения само включится следующее голосовое
+    final chainTimeline = widget.timeline;
+    if (chainTimeline != null) {
+      DvVoiceChain.attach(matrix, audioPlayer, widget.event, chainTimeline);
+    }
+
     audioPlayer.play().onError(
       ErrorReporter(context, 'Unable to play audio message').onErrorCallback,
     );
@@ -245,6 +344,10 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
         await audioPlayer.setSpeed(1.0);
         break;
     }
+    // DVChat: выбранную скорость сохраняем для всех следующих сообщений
+    await AppSettings.voiceMessageSpeedPercent.setItem(
+      (audioPlayer.speed * 100).round(),
+    );
     setState(() {});
   }
 
@@ -305,8 +408,12 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final waveform = _waveform;
+    // Высоты палочек 0..1; без готовой формы звука рисуем ровную шкалу
+    final bars = <double>[
+      for (var i = 0; i < AudioPlayerWidget.wavesCount; i++)
+        waveform == null ? 0.3 : (waveform[i] / _maxWaveForm).clamp(0.12, 1.0),
+    ];
 
     return ValueListenableBuilder(
       valueListenable: matrix.voiceMessageEventId,
@@ -314,39 +421,24 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
         final audioPlayer = eventId != widget.event.eventId
             ? null
             : matrix.audioPlayer;
-
         final fileDescription = widget.event.fileDescription;
 
-        return StreamBuilder<Object>(
-          stream: audioPlayer == null
-              ? null
-              : StreamGroup.merge([
-                  audioPlayer.positionStream.asBroadcastStream(),
-                  audioPlayer.playerStateStream.asBroadcastStream(),
-                ]),
+        return StreamBuilder<PlayerState>(
+          stream: audioPlayer?.playerStateStream,
           builder: (context, _) {
-            final maxPosition =
-                audioPlayer?.duration?.inMilliseconds.toDouble() ?? 1.0;
-            var currentPosition =
-                audioPlayer?.position.inMilliseconds.toDouble() ?? 0.0;
-            if (currentPosition > maxPosition) currentPosition = maxPosition;
-
-            final wavePosition =
-                (currentPosition / maxPosition) * AudioPlayerWidget.wavesCount;
-
-            final statusText = audioPlayer == null
-                ? _durationString ?? '00:00'
-                : audioPlayer.position.minuteSecondString;
+            if (audioPlayer != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _kick(audioPlayer);
+              });
+            }
             return Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 mainAxisSize: .min,
                 crossAxisAlignment: .start,
                 children: [
                   ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: FluffyThemes.columnWidth,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 270),
                     child: Row(
                       mainAxisSize: .min,
                       children: <Widget>[
@@ -364,138 +456,127 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
                                   onLongPress: () =>
                                       widget.event.saveFile(context),
                                   onTap: _onButtonTap,
-                                  child: Material(
-                                    color: widget.color.withAlpha(64),
-                                    borderRadius: BorderRadius.circular(64),
-                                    child: Icon(
-                                      audioPlayer?.playing == true &&
-                                              audioPlayer?.isAtEndPosition ==
-                                                  false
-                                          ? Icons.pause_outlined
-                                          : Icons.play_arrow_outlined,
-                                      color: widget.color,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: widget.color.withAlpha(64),
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        audioPlayer?.playing == true &&
+                                                audioPlayer?.isAtEndPosition ==
+                                                    false
+                                            ? Icons.pause_outlined
+                                            : Icons.play_arrow_outlined,
+                                        color: widget.color,
+                                        size: 28,
+                                      ),
                                     ),
                                   ),
                                 ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Stack(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (waveform != null)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      for (
-                                        var i = 0;
-                                        i < AudioPlayerWidget.wavesCount;
-                                        i++
-                                      )
-                                        Expanded(
-                                          child: Container(
-                                            height: 32,
-                                            alignment: Alignment.center,
-                                            child: Container(
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 1,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: i < wavePosition
-                                                    ? widget.color
-                                                    : widget.color.withAlpha(
-                                                        128,
-                                                      ),
-                                                borderRadius:
-                                                    BorderRadius.circular(64),
-                                              ),
-                                              height:
-                                                  32 *
-                                                  (waveform[i] / _maxWaveForm),
-                                            ),
-                                          ),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width = constraints.maxWidth;
+                                  double fraction(double dx) =>
+                                      (dx / width).clamp(0.0, 1.0);
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTapUp: (d) => _seekTo(
+                                      audioPlayer,
+                                      fraction(d.localPosition.dx),
+                                    ),
+                                    onHorizontalDragStart: (d) => _drag.value =
+                                        fraction(d.localPosition.dx),
+                                    onHorizontalDragUpdate: (d) => _drag.value =
+                                        fraction(d.localPosition.dx),
+                                    onHorizontalDragCancel: () =>
+                                        _drag.value = null,
+                                    onHorizontalDragEnd: (_) {
+                                      final f = _drag.value;
+                                      _drag.value = null;
+                                      if (f != null) _seekTo(audioPlayer, f);
+                                    },
+                                    child: SizedBox(
+                                      width: width,
+                                      height: 32,
+                                      child: CustomPaint(
+                                        painter: _WavePainter(
+                                          bars: bars,
+                                          progress: _progress,
+                                          drag: _drag,
+                                          color: widget.color,
+                                          zero: audioPlayer == null,
                                         ),
-                                    ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              // DVChat: время под шкалой, у левого края
+                              ValueListenableBuilder<int>(
+                                valueListenable: _seconds,
+                                builder: (context, seconds, _) => Text(
+                                  audioPlayer == null
+                                      ? _durationString ?? '00:00'
+                                      : _clock(seconds),
+                                  style: TextStyle(
+                                    color: widget.color,
+                                    fontSize: 12,
                                   ),
-                                ),
-                              SizedBox(
-                                height: 32,
-                                child: Slider(
-                                  thumbColor:
-                                      widget.event.senderId ==
-                                          widget.event.room.client.userID
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.colorScheme.primary,
-                                  activeColor: waveform == null
-                                      ? widget.color
-                                      : Colors.transparent,
-                                  inactiveColor: waveform == null
-                                      ? widget.color.withAlpha(128)
-                                      : Colors.transparent,
-                                  max: maxPosition,
-                                  value: currentPosition,
-                                  onChanged: (position) => audioPlayer == null
-                                      ? _onButtonTap()
-                                      : audioPlayer.seek(
-                                          Duration(
-                                            milliseconds: position.round(),
-                                          ),
-                                        ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        SizedBox(
-                          width: 36,
-                          child: Text(
-                            statusText,
-                            style: TextStyle(color: widget.color, fontSize: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        AnimatedCrossFade(
-                          firstChild: Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: Icon(
-                              Icons.mic_none_outlined,
-                              color: widget.color,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: AnimatedCrossFade(
+                            firstChild: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Icon(
+                                Icons.mic_none_outlined,
+                                color: widget.color,
+                              ),
                             ),
-                          ),
-                          secondChild: Material(
-                            color: widget.color.withAlpha(64),
-                            borderRadius: BorderRadius.circular(
-                              AppConfig.borderRadius,
-                            ),
-                            child: InkWell(
+                            secondChild: Material(
+                              color: widget.color.withAlpha(64),
                               borderRadius: BorderRadius.circular(
                                 AppConfig.borderRadius,
                               ),
-                              onTap: _toggleSpeed,
-                              child: SizedBox(
-                                width: 32,
-                                height: 20,
-                                child: Center(
-                                  child: Text(
-                                    '${audioPlayer?.speed}x',
-                                    style: TextStyle(
-                                      color: widget.color,
-                                      fontSize: 9,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(
+                                  AppConfig.borderRadius,
+                                ),
+                                onTap: _toggleSpeed,
+                                child: SizedBox(
+                                  width: 44,
+                                  height: 28,
+                                  child: Center(
+                                    child: Text(
+                                      '${audioPlayer?.speed}x',
+                                      style: TextStyle(
+                                        color: widget.color,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
+                            alignment: Alignment.center,
+                            crossFadeState: audioPlayer == null
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            duration: DvThemes.animationDuration,
                           ),
-                          alignment: Alignment.center,
-                          crossFadeState: audioPlayer == null
-                              ? CrossFadeState.showFirst
-                              : CrossFadeState.showSecond,
-                          duration: FluffyThemes.animationDuration,
                         ),
                       ],
                     ),
@@ -536,6 +617,78 @@ class AudioPlayerState extends State<AudioPlayerWidget> {
       },
     );
   }
+}
+
+/// Шкала голосового: толстые скруглённые палочки, как при записи. Их число зависит от
+/// ширины; пройденная часть закрашивается плавно, без скачков по одной палочке.
+class _WavePainter extends CustomPainter {
+  _WavePainter({
+    required this.bars,
+    required this.progress,
+    required this.drag,
+    required this.color,
+    required this.zero,
+  }) : super(repaint: Listenable.merge([progress, drag]));
+
+  final List<double> bars;
+  final ValueListenable<double> progress;
+  final ValueListenable<double?> drag;
+  final Color color;
+  final bool zero;
+
+  static const double _barWidth = 5;
+  static const double _minStep = 9;
+
+  /// Высота палочки i из n: самое громкое из исходных значений, попавших в неё
+  double _peak(int i, int n) {
+    final src = bars.length;
+    final from = i * src ~/ n;
+    var to = (i + 1) * src ~/ n;
+    if (to <= from) to = from + 1;
+    var peak = 0.0;
+    for (var k = from; k < to && k < src; k++) {
+      if (bars[k] > peak) peak = bars[k];
+    }
+    return peak;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (bars.isEmpty) return;
+    final n = size.width ~/ _minStep;
+    if (n < 1) return;
+    final step = size.width / n;
+    final p = zero ? 0.0 : (drag.value ?? progress.value);
+    final idle = Paint()..color = color.withAlpha(100);
+    final done = Paint()..color = color;
+
+    void draw(Paint paint) {
+      for (var i = 0; i < n; i++) {
+        final h = (size.height * _peak(i, n)).clamp(5.0, size.height);
+        final x = i * step + (step - _barWidth) / 2;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, (size.height - h) / 2, _barWidth, h),
+            const Radius.circular(_barWidth / 2),
+          ),
+          paint,
+        );
+      }
+    }
+
+    draw(idle);
+    if (p > 0) {
+      canvas
+        ..save()
+        ..clipRect(Rect.fromLTWH(0, 0, size.width * p, size.height));
+      draw(done);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter old) =>
+      old.color != color || old.zero != zero || !listEquals(old.bars, bars);
 }
 
 extension on AudioPlayer {

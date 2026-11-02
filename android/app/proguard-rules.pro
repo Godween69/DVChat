@@ -1,1 +1,1 @@
--keep class com.hiennv.flutter_callkit_incoming.** { *; }
+# DVChat: дополнительных правил R8 сейчас нет

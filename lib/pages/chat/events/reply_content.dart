@@ -3,8 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
+// DVChat: Цитата сообщения, на которое отвечают.
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -67,7 +70,7 @@ class ReplyContent extends StatelessWidget {
                   future: displayEvent.fetchSenderUser(),
                   builder: (context, snapshot) {
                     return Text(
-                      '${snapshot.data?.calcDisplayname() ?? displayEvent.senderFromMemoryOrFallback.calcDisplayname()}:',
+                      '${snapshot.data?.dvName() ?? displayEvent.senderFromMemoryOrFallback.dvName()}:',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

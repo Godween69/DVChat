@@ -3,19 +3,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/new_private_chat/new_private_chat.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+// DVChat: Экран «Новый личный чат» (внешний вид): поиск пользователя по ID или QR.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/new_private_chat/new_private_chat.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_qr.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../widgets/qr_code_viewer.dart';
 
@@ -30,8 +33,8 @@ class NewPrivateChatView extends StatelessWidget {
 
     final searchResponse = controller.searchResponse;
     final userId = Matrix.of(context).client.userID!;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         scrolledUnderElevation: 0,
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).newChat),
@@ -96,7 +99,7 @@ class NewPrivateChatView extends StatelessWidget {
             ),
             Expanded(
               child: AnimatedSwitcher(
-                duration: FluffyThemes.animationDuration,
+                duration: DvThemes.animationDuration,
                 child: searchResponse == null
                     ? ListView(
                         children: [
@@ -125,17 +128,6 @@ class NewPrivateChatView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  theme.colorScheme.secondaryContainer,
-                              foregroundColor:
-                                  theme.colorScheme.onSecondaryContainer,
-                              child: Icon(Icons.adaptive.share_outlined),
-                            ),
-                            title: Text(L10n.of(context).shareInviteLink),
-                            onTap: controller.inviteAction,
-                          ),
                           ListTile(
                             leading: CircleAvatar(
                               backgroundColor:
@@ -191,14 +183,9 @@ class NewPrivateChatView extends StatelessWidget {
                                       constraints: const BoxConstraints(
                                         maxWidth: 200,
                                       ),
-                                      child: PrettyQrView.data(
+                                      child: DvQr(
                                         data: 'https://matrix.to/#/$userId',
-                                        decoration: PrettyQrDecoration(
-                                          shape: PrettyQrSmoothSymbol(
-                                            roundFactor: 1,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                        ),
+                                        color: theme.colorScheme.primary,
                                       ),
                                     ),
                                   ),

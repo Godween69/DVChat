@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение String: убирает невидимые и служебные символы Unicode из текста перед показом.
+
 extension BeautifyStringExtension on String {
   String get beautifiedOneLine {
     var beautifiedStr = '';

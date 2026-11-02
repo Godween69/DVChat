@@ -3,16 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Создание и восстановление клиентов Matrix при запуске: база данных, настройки SDK,
+// список сохранённых аккаунтов.
+
 import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/custom_http_client.dart';
-import 'package:fluffychat/utils/custom_image_resizer.dart';
-import 'package:fluffychat/utils/init_with_restore.dart';
-import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call_member.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/custom_http_client.dart';
+import 'package:dvchat/utils/custom_image_resizer.dart';
+import 'package:dvchat/utils/init_with_restore.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
@@ -24,7 +26,7 @@ import 'package:universal_html/html.dart' as html;
 import 'matrix_sdk_extensions/flutter_matrix_dart_sdk_database/builder.dart';
 
 abstract class ClientManager {
-  static const String clientNamespace = 'im.fluffychat.store.clients';
+  static const String clientNamespace = 'dvchat.store.clients';
 
   static Future<List<Client>> getClients({
     bool initialize = true,
@@ -51,9 +53,7 @@ abstract class ClientManager {
           (client) => client
               .initWithRestore(
                 onMigration: () async {
-                  final l10n = await lookupL10n(
-                    PlatformDispatcher.instance.locale,
-                  );
+                  final l10n = await lookupL10n(appLocale);
                   sendInitNotification(
                     l10n.databaseMigrationTitle,
                     l10n.databaseMigrationBody,
@@ -123,14 +123,11 @@ abstract class ClientManager {
       httpClient: CustomHttpClient.createHTTPClient(),
       verificationMethods: {
         KeyVerificationMethod.numbers,
-        if (kIsWeb || PlatformInfos.isMobile || PlatformInfos.isLinux)
-          KeyVerificationMethod.emoji,
+        if (kIsWeb || PlatformInfos.isMobile) KeyVerificationMethod.emoji,
       },
       importantStateEvents: <String>{
         // To make room emotes work
         'im.ponies.room_emotes',
-        // To display call state in chat list
-        MatrixRtcCallMember.eventType,
       },
       customImageResizer: PlatformInfos.supportsCustomImageResizer
           ? customImageResizer
@@ -156,13 +153,6 @@ abstract class ClientManager {
     );
   }
 
-  static WindowsInitializationSettings get windowsNotificationSettings =>
-      WindowsInitializationSettings(
-        appName: AppSettings.applicationName.value,
-        appUserModelId: AppConfig.appId,
-        guid: AppConfig.windowsNotificationGuid,
-      );
-
   static Future<void> sendInitNotification(String title, String body) async {
     if (kIsWeb) {
       html.Notification(title, body: body);
@@ -172,14 +162,8 @@ abstract class ClientManager {
     final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
     await flutterLocalNotificationsPlugin.initialize(
-      settings: InitializationSettings(
-        android: const AndroidInitializationSettings('notifications_icon'),
-        iOS: const DarwinInitializationSettings(),
-        linux: LinuxInitializationSettings(
-          defaultActionName: FluffyChatNotificationActions.open.name,
-        ),
-        windows: windowsNotificationSettings,
-        macOS: const DarwinInitializationSettings(),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('notifications_icon'),
       ),
     );
 
@@ -194,7 +178,6 @@ abstract class ClientManager {
           importance: Importance.high,
           priority: Priority.max,
         ),
-        iOS: DarwinNotificationDetails(sound: 'notification.caf'),
       ),
     );
   }

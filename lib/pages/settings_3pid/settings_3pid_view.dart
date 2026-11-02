@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/settings_3pid/settings_3pid.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+// DVChat: Экран «Почта и телефон» (внешний вид): привязанные к аккаунту адреса.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/settings_3pid/settings_3pid.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -20,8 +23,8 @@ class Settings3PidView extends StatelessWidget {
     final theme = Theme.of(context);
 
     controller.request ??= Matrix.of(context).client.getAccount3PIDs();
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).passwordRecovery),
         actions: [

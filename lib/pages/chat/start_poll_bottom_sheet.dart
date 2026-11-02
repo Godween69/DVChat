@@ -3,9 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/trust_user_key_dialog.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
+// DVChat: Создание опроса.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -87,7 +90,7 @@ class _StartPollBottomSheetState extends State<StartPollBottomSheet> {
   Widget build(BuildContext context) {
     const maxAnswers = 10;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: Text(L10n.of(context).startPoll),
       ),

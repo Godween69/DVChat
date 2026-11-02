@@ -3,7 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/utils/platform_infos.dart';
+// DVChat: Запуск постоянного уведомления службы (foreground service) для работы приёма сообщений в фоне.
+
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
@@ -40,12 +43,10 @@ abstract class ForegroundServices {
         return;
       }
       if (PlatformInfos.isMobile) {
-        final l10n = await L10n.delegate.load(
-          PlatformDispatcher.instance.locale,
-        );
+        final l10n = await L10n.delegate.load(appLocale);
         FlutterForegroundTask.init(
           androidNotificationOptions: AndroidNotificationOptions(
-            channelId: 'fluffychat_sync',
+            channelId: 'dvchat_sync',
             channelName: l10n.loadingMessages,
             channelDescription: l10n.loadingMessages,
             onlyAlertOnce: true,
@@ -68,7 +69,7 @@ abstract class ForegroundServices {
         }
         final result = await FlutterForegroundTask.startService(
           serviceTypes: [ForegroundServiceTypes.shortService],
-          notificationTitle: 'FluffyChat',
+          notificationTitle: 'DVChat',
           notificationText: l10n.loadingMessages,
           notificationIcon: NotificationIcon(metaDataName: 'ic_launcher'),
         );

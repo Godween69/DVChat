@@ -20,6 +20,7 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- To make app compatible with tablets -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -27,8 +28,14 @@
 
     <uses-sdk
             tools:overrideLibrary="io.wazo.callkeep, net.touchcapture.qr.flutterqr, com.cloudwebrtc.webrtc, org.webrtc, com.it_nomads.fluttersecurestorage, com.pichillilorenzo.flutter_inappwebview, com.example.video_compress, com.otaliastudios.transcoder, com.otaliastudios.opengl, com.kineapps.flutter_file_dialog, com.llfbandit.record, com.pravera.flutter_foreground_task"/>
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
-        android:label="FluffyChat"
+        android:label="DVChat"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
@@ -74,12 +81,20 @@
                <data android:scheme="matrix" />
             </intent-filter>
 
-            <!-- App can open im.fluffychat:// uris -->
+            <!-- DVChat: вход по ссылке dvchat://login#... -->
             <intent-filter>
                <action android:name="android.intent.action.VIEW" />
                <category android:name="android.intent.category.DEFAULT" />
                <category android:name="android.intent.category.BROWSABLE" />
-               <data android:scheme="im.fluffychat" android:host="chat" />
+               <data android:scheme="dvchat" android:host="login" />
+            </intent-filter>
+
+            <!-- DVChat: открытие чата по ссылке dvchat://chat/... -->
+            <intent-filter>
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="dvchat" android:host="chat" />
             </intent-filter>
 
             <!-- App can receive shared text -->
@@ -102,33 +117,11 @@
             </intent-filter>
         </activity>
 
-        <activity
-          android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
-          android:exported="true">
-            <intent-filter android:label="flutter_web_auth">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="im.fluffychat.auth" android:path="/login"/>
-            </intent-filter>
-        </activity>
 
         <service android:name=".FcmPushService"
           android:exported="false">
           <intent-filter>
             <action android:name="com.google.firebase.MESSAGING_EVENT"/>
-          </intent-filter>
-        </service>
-
-        <!-- Workaround so UP reuses the same isolate.
-        https://codeberg.org/UnifiedPush/flutter-connector/src/branch/main/unifiedpush_android/android/src/main/kotlin/org/unifiedpush/flutter/connector/UnifiedPushService.kt#L17-L32
-        -->
-        <service android:name="org.unifiedpush.flutter.connector.UnifiedPushService"
-          tools:node="remove" />
-        <service android:name=".UnifiedPushService"
-          android:exported="false">
-          <intent-filter>
-            <action android:name="org.unifiedpush.android.connector.PUSH_EVENT"/>
           </intent-filter>
         </service>
 
@@ -150,10 +143,6 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
-        <!-- Enables configuration via MDM -->
-        <meta-data android:name="android.content.APP_RESTRICTIONS"
-            android:resource="@xml/app_restrictions" />
 
     </application>
 </manifest>

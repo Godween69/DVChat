@@ -3,12 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/url_launcher.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
-import 'package:fluffychat/widgets/mxc_image_viewer.dart';
+// DVChat: Экран «Эмодзи и стикеры» (внешний вид): свои наборы эмодзи.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/url_launcher.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
+import 'package:dvchat/widgets/mxc_image_viewer.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -27,7 +30,7 @@ class EmotesSettingsView extends StatelessWidget {
   Widget build(BuildContext context) {
     if (controller.widget.roomId != null && controller.room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Text(L10n.of(context).youAreNoLongerParticipatingInThisChat),
         ),
@@ -45,8 +48,8 @@ class EmotesSettingsView extends StatelessWidget {
       controller.packAttributionController.text,
     );
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: controller.showSave
             ? TextButton(
                 onPressed: controller.resetAction,
@@ -239,8 +242,7 @@ class EmotesSettingsView extends StatelessWidget {
                       // TODO: Dispose this
                       final textEditingController = TextEditingController();
                       textEditingController.text = imageCode;
-                      final useShortCuts =
-                          (PlatformInfos.isWeb || PlatformInfos.isDesktop);
+                      final useShortCuts = PlatformInfos.isWeb;
                       return ListTile(
                         title: Row(
                           children: [

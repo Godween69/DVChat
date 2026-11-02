@@ -3,14 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_access_settings/chat_access_settings_page.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+// DVChat: Доступ к чату (логика): режим входа, видимость истории, адрес.
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_access_settings/chat_access_settings_page.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart' hide Visibility;
 import 'package:matrix/matrix.dart';
@@ -29,16 +31,6 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
   bool historyVisibilityLoading = false;
   bool guestAccessLoading = false;
   Room get room => Matrix.of(context).client.getRoomById(widget.roomId)!;
-  Set<Room> get knownSpaceParents => {
-    ...room.client.rooms.where(
-      (space) =>
-          space.isSpace &&
-          space.spaceChildren.any((child) => child.roomId == room.id),
-    ),
-    ...room.spaceParents
-        .map((parent) => room.client.getRoomById(parent.roomId ?? ''))
-        .whereType<Room>(),
-  };
 
   String get roomVersion =>
       room
@@ -69,10 +61,9 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
       joinRules.remove(JoinRules.knockRestricted);
     }
 
-    if (knownSpaceParents.isEmpty) {
-      joinRules.remove(JoinRules.restricted);
-      joinRules.remove(JoinRules.knockRestricted);
-    }
+    // Ограниченный доступ (restricted) привязан к спейсам, в DVChat их нет
+    joinRules.remove(JoinRules.restricted);
+    joinRules.remove(JoinRules.knockRestricted);
 
     // If an unsupported join rule is the current join rule, display it:
     final currentJoinRule = room.joinRules;
@@ -88,16 +79,7 @@ class ChatAccessSettingsController extends State<ChatAccessSettings> {
     });
 
     try {
-      await room.setJoinRules(
-        newJoinRules,
-        allowConditionRoomIds:
-            {
-              JoinRules.restricted,
-              JoinRules.knockRestricted,
-            }.contains(newJoinRules)
-            ? knownSpaceParents.map((parent) => parent.id).toList()
-            : null,
-      );
+      await room.setJoinRules(newJoinRules);
     } catch (e, s) {
       Logs().w('Unable to change join rules', e, s);
       if (mounted) {

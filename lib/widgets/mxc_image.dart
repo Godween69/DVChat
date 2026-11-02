@@ -3,16 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Картинка с сервера Matrix (mxc://): загрузка, кеш, заглушка и обработка ошибок.
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/utils/client_download_content_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/utils/client_download_content_extension.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -35,8 +37,36 @@ class MxcImage extends StatefulWidget {
   final Client? client;
   final BorderRadius borderRadius;
 
+  /// DVChat: потолок ширины раскрытия полной картинки в пикселях (null: без потолка).
+  /// Нужен просмотру фото: 12-мегапиксельный кадр в полном размере занимает ~48 МБ.
+  final int? decodeMaxWidth;
+
   static void clearCache(String cacheName) =>
       _MxcImageState._imageDataCaches.remove(cacheName);
+
+  /// Заранее кладёт миниатюру в кеш, чтобы аватар не мигал буквой при первом показе
+  static Future<void> prefetch(
+    Client client,
+    Uri uri,
+    double size,
+    double devicePixelRatio,
+  ) async {
+    final cache = _MxcImageState._imageDataCaches[''] ??= {};
+    final key = '${uri}_$size';
+    if (cache.containsKey(key)) return;
+    try {
+      cache[key] = await client.downloadMxcCached(
+        uri,
+        width: size * devicePixelRatio,
+        height: size * devicePixelRatio,
+        thumbnailMethod: ThumbnailMethod.scale,
+        isThumbnail: true,
+        animated: false,
+      );
+    } catch (_) {
+      // не вышло заранее: аватар загрузится обычным путём
+    }
+  }
 
   const MxcImage({
     this.uri,
@@ -47,13 +77,14 @@ class MxcImage extends StatefulWidget {
     this.placeholder,
     this.isThumbnail = true,
     this.animated = false,
-    this.animationDuration = FluffyThemes.animationDuration,
+    this.animationDuration = DvThemes.animationDuration,
     this.retryDuration = const Duration(seconds: 2),
-    this.animationCurve = FluffyThemes.animationCurve,
+    this.animationCurve = DvThemes.animationCurve,
     this.thumbnailMethod = ThumbnailMethod.scale,
     this.cacheKey,
     this.client,
     this.borderRadius = BorderRadius.zero,
+    this.decodeMaxWidth,
     this.cacheName,
     super.key,
   });
@@ -152,6 +183,19 @@ class _MxcImageState extends State<MxcImage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryLoad());
   }
 
+  /// DVChat: ширина раскрытия картинки в пикселях. Миниатюры раскрываются сразу в малом
+  /// размере (с запасом в полтора раза), а не в полном: иначе чат с десятками фото тормозит.
+  int? _decodeWidth(BuildContext context) {
+    final w = widget.width;
+    if (!widget.isThumbnail && widget.decodeMaxWidth != null) {
+      return widget.decodeMaxWidth;
+    }
+    if (!widget.isThumbnail || widget.animated || w == null || !w.isFinite || w <= 0) {
+      return null;
+    }
+    return (w * MediaQuery.devicePixelRatioOf(context) * 1.5).round();
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _imageData;
@@ -194,6 +238,7 @@ class _MxcImageState extends State<MxcImage> {
                 )
               : Image.memory(
                   data,
+                  cacheWidth: _decodeWidth(context),
                   width: widget.width,
                   height: widget.height,
                   fit: widget.fit,
@@ -203,20 +248,28 @@ class _MxcImageState extends State<MxcImage> {
                   errorBuilder: errorFallback,
                 ));
 
-    return AnimatedCrossFade(
-      duration: FluffyThemes.animationDuration,
-      firstChild: ClipRRect(
-        borderRadius: widget.borderRadius,
-        child: imageChild,
-      ),
-      secondChild: _MxcImagePlaceholder(
-        width: widget.width,
-        height: widget.height,
-        placeholder: widget.placeholder,
-      ),
-      crossFadeState: hasData
-          ? CrossFadeState.showFirst
-          : CrossFadeState.showSecond,
+    // DVChat: картинка проявляется на месте. AnimatedCrossFade ещё и менял размер от верхнего
+    // края, и большое фото (аватарка на весь экран) «падало» сверху.
+    return AnimatedSwitcher(
+      duration: DvThemes.animationDuration,
+      layoutBuilder: (current, previous) =>
+          Stack(alignment: Alignment.center, children: [...previous, ?current]),
+      child: hasData
+          ? KeyedSubtree(
+              key: const ValueKey('image'),
+              child: ClipRRect(
+                borderRadius: widget.borderRadius,
+                child: imageChild,
+              ),
+            )
+          : KeyedSubtree(
+              key: const ValueKey('placeholder'),
+              child: _MxcImagePlaceholder(
+                width: widget.width,
+                height: widget.height,
+                placeholder: widget.placeholder,
+              ),
+            ),
     );
   }
 }

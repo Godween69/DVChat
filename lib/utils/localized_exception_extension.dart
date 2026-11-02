@@ -3,11 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Перевод ошибок (сеть, сервер, Matrix) в понятный русский текст для пользователя.
+
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/other_party_can_receive.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/other_party_can_receive.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:material_ui/material_ui.dart';
@@ -88,11 +91,15 @@ extension LocalizedExceptionExtension on Object {
         context,
       ).badServerLoginTypesException(serverVersions, supportedVersions);
     }
+    // DVChat: понятные тексты вместо «Неожиданная ошибка: ...», когда сервер или сеть недоступны
     if (this is IOException ||
         this is SocketException ||
         this is SyncConnectionException ||
         this is ClientException) {
-      return L10n.of(context).noConnectionToTheServer;
+      return 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
+    }
+    if (this is TimeoutException || this is HandshakeException) {
+      return 'Сервер не отвечает. Проверьте интернет и попробуйте через минуту.';
     }
     if (this is FormatException &&
         exceptionContext == ExceptionContext.checkHomeserver) {
@@ -104,6 +111,10 @@ extension LocalizedExceptionExtension on Object {
     }
     if (this is String) return toString();
     if (this is UiaException) return toString();
+    // Страница ошибки вместо ответа сервера (например, пока он перезапускается)
+    if (this is FormatException && exceptionContext == null) {
+      return 'Сервер сейчас недоступен или перезапускается. Попробуйте через минуту.';
+    }
 
     if (exceptionContext == ExceptionContext.joinRoom) {
       return L10n.of(context).unableToJoinChat;

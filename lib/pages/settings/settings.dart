@@ -3,17 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Настройки» (логика): главная страница настроек.
+
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/avatar_crop_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
@@ -34,10 +37,19 @@ class SettingsController extends State<Settings> {
   Future<Profile>? profileFuture;
   bool profileUpdated = false;
 
-  void updateProfile() => setState(() {
-    profileUpdated = true;
-    profileFuture = null;
-  });
+  // DVChat: профиль в базе SDK считается свежим сутки и помечается устаревшим
+  // только событием из комнаты. У новичка комнат нет, поэтому сами помечаем
+  // его устаревшим и запрашиваем заново.
+  void updateProfile() {
+    final client = Matrix.of(context).client;
+    final userId = client.userID!;
+    setState(() {
+      profileUpdated = true;
+      profileFuture = client.database
+          .markUserProfileAsOutdated(userId)
+          .then((_) => client.getProfileFromUserId(userId));
+    });
+  }
 
   Future<void> setDisplaynameAction() async {
     final l10n = L10n.of(context);
@@ -68,16 +80,16 @@ class SettingsController extends State<Settings> {
   }
 
   Future<void> logoutAction() async {
-    final l10n = L10n.of(context);
     final matrix = Matrix.of(context);
     final consent = await showOkCancelAlertDialog(
       useRootNavigator: false,
       context: context,
-      title: l10n.areYouSureYouWantToLogout,
-      message: l10n.noBackupWarning,
-      isDestructive: cryptoIdentityConnected == false,
-      okLabel: l10n.logout,
-      cancelLabel: l10n.cancel,
+      title: 'Выйти из аккаунта?',
+      message:
+          'Чтобы войти снова, понадобятся ваш уникальный ID и новая ссылка или QR-код от администратора.',
+      isDestructive: true,
+      okLabel: 'ОК',
+      cancelLabel: 'Отмена',
     );
     if (consent != OkCancelResult.ok) return;
     if (!mounted) return;
@@ -155,6 +167,12 @@ class SettingsController extends State<Settings> {
         name: pickedFile.name,
       );
     }
+    if (!mounted) return;
+    // DVChat: обрезка аватара перед загрузкой
+    if (!mounted) return;
+    final croppedAvatar = await cropAvatar(context, file.bytes);
+    if (croppedAvatar == null) return;
+    file = MatrixFile(bytes: croppedAvatar, name: 'avatar.png');
     if (!mounted) return;
     final success = await showFutureLoadingDialog(
       context: context,

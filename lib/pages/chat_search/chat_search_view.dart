@@ -3,14 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_search/chat_search_files_tab.dart';
-import 'package:fluffychat/pages/chat_search/chat_search_images_tab.dart';
-import 'package:fluffychat/pages/chat_search/chat_search_message_tab.dart';
-import 'package:fluffychat/pages/chat_search/chat_search_page.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+// DVChat: Поиск по чату (внешний вид): вкладки.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_search/chat_search_files_tab.dart';
+import 'package:dvchat/pages/chat_search/chat_search_images_tab.dart';
+import 'package:dvchat/pages/chat_search/chat_search_message_tab.dart';
+import 'package:dvchat/pages/chat_search/chat_search_page.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
 
 class ChatSearchView extends StatelessWidget {
@@ -23,7 +27,7 @@ class ChatSearchView extends StatelessWidget {
     final room = controller.room;
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -35,22 +39,21 @@ class ChatSearchView extends StatelessWidget {
 
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         titleSpacing: 0,
         title: Text(
-          L10n.of(context).searchIn(
-            room.getLocalizedDisplayname(MatrixLocals(L10n.of(context))),
-          ),
+          L10n.of(
+            context,
+          ).searchIn(room.dvDisplayname(MatrixLocals(L10n.of(context)))),
         ),
       ),
       body: MaxWidthBody(
         withScrolling: false,
         child: Column(
           children: [
-            if (FluffyThemes.isThreeColumnMode(context))
-              const SizedBox(height: 16),
+            if (DvThemes.isThreeColumnMode(context)) const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(

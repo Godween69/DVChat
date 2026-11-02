@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Загрузка вложений и миниатюр через Client (mxc:// → байты) с учётом авторизованных медиа-запросов.
+
 import 'dart:math' show min;
 import 'dart:typed_data';
 import 'dart:ui';

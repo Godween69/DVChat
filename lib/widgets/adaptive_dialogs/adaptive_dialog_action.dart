@@ -3,8 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Кнопки диалогов: действие, строка с ripple и кнопка «значок + текст».
+
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:fluffychat/config/app_config.dart';
+import 'package:dvchat/config/app_config.dart';
 import 'package:material_ui/material_ui.dart';
 
 class AdaptiveDialogAction extends StatelessWidget {

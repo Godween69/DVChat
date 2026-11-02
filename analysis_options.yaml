@@ -46,9 +46,8 @@ analyzer:
     - lib/l10n/*.dart
     - build/**
     - android/**
-    - ios/**
     - web/**
-    - windows/**
+    - ios/**
     - macos/**
     - linux/**
 

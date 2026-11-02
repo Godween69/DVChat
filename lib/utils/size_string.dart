@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение num: размер файла словами (КБ, МБ).
+
 extension SizeString on num {
   String get sizeString {
     var size = toDouble();

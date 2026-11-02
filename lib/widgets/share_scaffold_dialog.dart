@@ -3,14 +3,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно «Поделиться»: выбор чата, куда переслать текст, файл или сообщение.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:cross_file/cross_file.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -85,16 +90,22 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final rooms = Matrix.of(context).client.rooms
+        .where((room) => !room.isNewcomerPlaceholder)
         .where(
           (room) =>
-              room.canSendDefaultMessages &&
-              !room.isSpace &&
-              room.membership == Membership.join,
+              room.canSendDefaultMessages && room.membership == Membership.join,
+        )
+        // DVChat: чаты из Архива, скрытые мной и закрытые собеседником в пересылке не показываем
+        .where(
+          (room) =>
+              !room.isInArchive &&
+              !room.isHiddenByUser &&
+              !room.isClosedChat,
         )
         .toList();
     final filter = _filterController.text.trim().toLowerCase();
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: Center(child: CloseButton(onPressed: context.pop)),
         title: Text(L10n.of(context).share),
       ),
@@ -138,7 +149,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
             itemCount: rooms.length,
             itemBuilder: (context, i) {
               final room = rooms[i];
-              final displayname = room.getLocalizedDisplayname(
+              final displayname = room.dvDisplayname(
                 MatrixLocals(L10n.of(context)),
               );
               final value = selectedRoomId == room.id;
@@ -172,15 +183,17 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        room.directChatMatrixID ??
-                            L10n.of(context).countParticipants(
-                              (room.summary.mJoinedMemberCount ?? 0) +
-                                  (room.summary.mInvitedMemberCount ?? 0),
+                      // DVChat: адрес собеседника не показываем, только число участников группы
+                      subtitle: room.directChatMatrixID != null
+                          ? null
+                          : Text(
+                              L10n.of(context).countParticipants(
+                                (room.summary.mJoinedMemberCount ?? 0) +
+                                    (room.summary.mInvitedMemberCount ?? 0),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                       value: selectedRoomId == room.id,
                       onChanged: (_) => _toggleRoom(room.id),
                     ),
@@ -192,8 +205,8 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
         ],
       ),
       bottomNavigationBar: AnimatedSize(
-        duration: FluffyThemes.animationDuration,
-        curve: FluffyThemes.animationCurve,
+        duration: DvThemes.animationDuration,
+        curve: DvThemes.animationCurve,
         child: selectedRoomId == null
             ? const SizedBox.shrink()
             : Material(

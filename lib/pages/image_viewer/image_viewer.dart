@@ -3,11 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/image_viewer/image_viewer_view.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/show_scaffold_dialog.dart';
-import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
+// DVChat: Экран «Просмотр медиа» (логика): картинки и видео на весь экран.
+
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat/events/album_save.dart';
+import 'package:dvchat/pages/image_viewer/image_viewer_view.dart';
+import 'package:dvchat/utils/dv_album.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/show_scaffold_dialog.dart';
+import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -42,7 +46,7 @@ class ImageViewerController extends State<ImageViewer> {
               (event) => {
                 MessageTypes.Image,
                 MessageTypes.Sticker,
-                if (PlatformInfos.supportsVideoPlayer) MessageTypes.Video,
+                MessageTypes.Video,
               }.contains(event.messageType),
             )
             .toList()
@@ -54,9 +58,38 @@ class ImageViewerController extends State<ImageViewer> {
     );
     if (index < 0) index = 0;
     pageController = PageController(initialPage: index);
+    pageIndex = ValueNotifier<int>(index);
   }
 
+  /// Номер открытой страницы. Раньше брали pageController.page, но до первой отрисовки
+  /// ленты оно недоступно: в «боевой» сборке шапка падала и рисовала белый квадрат,
+  /// пока человек не листнёт. Теперь номер известен с самого начала.
+  late final ValueNotifier<int> pageIndex;
+
+  void onPageChanged(int i) {
+    if (i == pageIndex.value) return;
+    pageIndex.value = i;
+  }
+
+  final Map<String, List<Event>> _albumCache = {};
+
   late final PageController pageController;
+
+  /// Приближена ли сейчас картинка. Пока приближена, лента не листается:
+  /// сдвиг пальцем двигает саму картинку, а не переключает на соседнюю.
+  final ValueNotifier<bool> zoomed = ValueNotifier<bool>(false);
+  final Map<int, TransformationController> _zoomControllers = {};
+
+  TransformationController zoomOf(int i) {
+    return _zoomControllers.putIfAbsent(i, () {
+      final c = TransformationController();
+      c.addListener(() {
+        final z = c.value.getMaxScaleOnAxis() > 1.01;
+        if (z != zoomed.value) zoomed.value = z;
+      });
+      return c;
+    });
+  }
 
   late final List<Event> allEvents;
 
@@ -73,25 +106,48 @@ class ImageViewerController extends State<ImageViewer> {
 
   Future<void> prevImage() async {
     await pageController.previousPage(
-      duration: FluffyThemes.animationDuration,
-      curve: FluffyThemes.animationCurve,
+      duration: DvThemes.animationDuration,
+      curve: DvThemes.animationCurve,
     );
-    if (!mounted) return;
-    setState(() {});
   }
 
   Future<void> nextImage() async {
     await pageController.nextPage(
-      duration: FluffyThemes.animationDuration,
-      curve: FluffyThemes.animationCurve,
+      duration: DvThemes.animationDuration,
+      curve: DvThemes.animationCurve,
     );
-    if (!mounted) return;
-    setState(() {});
   }
 
-  int get _index => pageController.page?.toInt() ?? 0;
+  int get _index => pageIndex.value.clamp(0, allEvents.length - 1);
 
   Event get currentEvent => allEvents[_index];
+
+  /// Фото альбома, к которому относится открытая картинка (пусто, если она не из альбома)
+  List<Event> get albumMembers {
+    if (allEvents.isEmpty) return const [];
+    final current = currentEvent;
+    final id = dvAlbumOf(current)?.id;
+    if (id == null) return const [];
+    final key = '${current.senderId}|$id';
+    final cached = _albumCache[key];
+    if (cached != null) return cached;
+    final list = allEvents
+        .where(
+          (e) =>
+              !e.redacted &&
+              e.senderId == current.senderId &&
+              dvAlbumOf(e)?.id == id,
+        )
+        .toList();
+    list.sort(
+      (a, b) => dvAlbumOf(a)!.index.compareTo(dvAlbumOf(b)!.index),
+    );
+    return _albumCache[key] = list;
+  }
+
+  /// Сохранить все фото этого альбома
+  void saveAlbumAction(BuildContext context) =>
+      dvSaveAlbum(context, albumMembers);
 
   bool get canGoNext => _index < allEvents.length - 1;
 
@@ -126,6 +182,11 @@ class ImageViewerController extends State<ImageViewer> {
   void dispose() {
     focusNode.dispose();
     pageController.dispose();
+    pageIndex.dispose();
+    for (final c in _zoomControllers.values) {
+      c.dispose();
+    }
+    zoomed.dispose();
     super.dispose();
   }
 

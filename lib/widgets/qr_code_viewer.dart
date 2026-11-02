@@ -3,18 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:flutter/foundation.dart';
-import 'package:image/image.dart';
+// DVChat: Окно с QR-кодом (мой код, ссылка-приглашение).
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_share.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
+import 'package:dvchat/widgets/dv_qr.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:particles_network/particles_network.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
-import 'package:qr_image/qr_image.dart';
 
 import '../config/themes.dart';
 
@@ -32,11 +31,7 @@ class QrCodeViewer extends StatelessWidget {
   Future<void> _save(BuildContext context) async {
     final imageResult = await showFutureLoadingDialog(
       context: context,
-      future: () {
-        final inviteLink = 'https://matrix.to/#/$content';
-        final image = QRImage(inviteLink, size: 256, radius: 1).generate();
-        return compute(encodePng, image);
-      },
+      future: () => DvQr.toPng('https://matrix.to/#/$content'),
     );
     final bytes = imageResult.result;
     if (bytes == null) return;
@@ -74,7 +69,7 @@ class QrCodeViewer extends StatelessWidget {
               backgroundColor: Colors.black.withAlpha(128),
             ),
             icon: Icon(Icons.adaptive.share_outlined),
-            onPressed: () => FluffyShare.share(inviteLink, context),
+            onPressed: () => DvShare.share(inviteLink, context),
             color: Colors.white,
             tooltip: L10n.of(context).share,
           ),
@@ -112,16 +107,11 @@ class QrCodeViewer extends StatelessWidget {
                 children: [
                   ConstrainedBox(
                     constraints: const BoxConstraints(
-                      maxWidth: FluffyThemes.columnWidth,
+                      maxWidth: DvThemes.columnWidth,
                     ),
-                    child: PrettyQrView.data(
+                    child: DvQr(
                       data: inviteLink,
-                      decoration: PrettyQrDecoration(
-                        shape: PrettyQrSmoothSymbol(
-                          roundFactor: 1,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8.0),

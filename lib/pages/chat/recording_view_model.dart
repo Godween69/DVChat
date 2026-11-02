@@ -3,14 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Логика записи голоса: старт, пауза, форма волны, отправка.
+
 import 'dart:async';
 
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_recording_signal.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -42,6 +45,7 @@ class RecordingViewModelState extends State<RecordingViewModel> {
   String? fileName;
 
   bool isPaused = false;
+  Room? _signalRoom;
 
   Future<void> startRecording(Room room) async {
     room.client.getConfig(); // Preload server file configuration.
@@ -102,6 +106,9 @@ class RecordingViewModelState extends State<RecordingViewModel> {
       if (!mounted) return;
       setState(() => duration = Duration.zero);
       _subscribe();
+      // собеседникам показывается «записывает голосовое…»
+      _signalRoom = room;
+      DvRecordingSignal.start(room);
     } catch (e, s) {
       Logs().w('Unable to start voice message recording', e, s);
       if (!mounted) return;
@@ -136,6 +143,7 @@ class RecordingViewModelState extends State<RecordingViewModel> {
   }
 
   void _reset() {
+    DvRecordingSignal.stop();
     WakelockPlus.disable();
     _recorderSubscription?.cancel();
     _audioRecorder?.stop();
@@ -153,6 +161,7 @@ class RecordingViewModelState extends State<RecordingViewModel> {
 
   void pause() {
     _audioRecorder?.pause();
+    DvRecordingSignal.stop();
     _recorderSubscription?.cancel();
     setState(() {
       isPaused = true;
@@ -162,6 +171,8 @@ class RecordingViewModelState extends State<RecordingViewModel> {
   void resume() {
     _audioRecorder?.resume();
     _subscribe();
+    final signalRoom = _signalRoom;
+    if (signalRoom != null) DvRecordingSignal.start(signalRoom);
     setState(() {
       isPaused = false;
     });

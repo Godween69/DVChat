@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Диалог с крутилкой на время долгой операции; закрывается сам и показывает ошибку, если она случилась.
+
 import 'dart:async';
 
 import 'package:async/async.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
 

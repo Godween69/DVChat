@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Уменьшение картинок перед отправкой в чат (размер и качество), чтобы не слать оригиналы.
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -34,11 +36,46 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
   String? mimeType;
 
   try {
-    // for the other platforms
-    final dartCodec = await instantiateImageCodec(arguments.bytes);
-    final frameCount = dartCodec.frameCount;
-    final dartFrame = await dartCodec.getNextFrame();
-    final rgbaData = await dartFrame.image.toByteData();
+    // DVChat: размер узнаём, не раскрывая картинку, и раскрываем сразу в нужном размере.
+    // Раньше оригинал (12 Мп) раскрывался целиком: около 48 МБ памяти и секунды работы
+    // главного потока на каждое фото, из-за чего окно отправки висело, а приложение вылетало.
+    //
+    // ВАЖНО (причина вылета сборки 36 в libflutter.so, поток io.worker): буфер и описание
+    // картинки нельзя освобождать, пока кадр ещё не получен. Раньше они освобождались сразу
+    // после instantiateCodec, а движок раскрывает картинку лениво, уже на getNextFrame, и
+    // обращался к освобождённой памяти. Теперь всё освобождается только после получения кадра.
+    final buffer = await ImmutableBuffer.fromUint8List(arguments.bytes);
+    ImageDescriptor? descriptor;
+    Codec? dartCodec;
+    FrameInfo? dartFrame;
+    late final int srcW0;
+    late final int srcH0;
+    late final int frameCount;
+    late final ByteData? rgbaData;
+    try {
+      descriptor = await ImageDescriptor.encoded(buffer);
+      srcW0 = descriptor.width;
+      srcH0 = descriptor.height;
+      final longSide = srcW0 > srcH0 ? srcW0 : srcH0;
+      final limit = arguments.maxDimension;
+      final scale = longSide > limit ? limit / longSide : 1.0;
+      dartCodec = await descriptor.instantiateCodec(
+        targetWidth: (srcW0 * scale).round(),
+        targetHeight: (srcH0 * scale).round(),
+      );
+      frameCount = dartCodec.frameCount;
+      dartFrame = await dartCodec.getNextFrame();
+      rgbaData = await dartFrame.image.toByteData();
+      width = dartFrame.image.width;
+      height = dartFrame.image.height;
+    } finally {
+      dartFrame?.image.dispose();
+      dartCodec?.dispose();
+      descriptor?.dispose();
+      buffer.dispose();
+    }
+    var srcW = srcW0;
+    var srcH = srcH0;
     if (rgbaData == null) {
       return null;
     }
@@ -48,13 +85,16 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
       rgbaData.lengthInBytes,
     );
 
-    width = originalWidth = dartFrame.image.width;
-    height = originalHeight = dartFrame.image.height;
+    // если сторона повернулась при раскрытии, размеры оригинала меняем местами
+    if (srcW != srcH && (srcW > srcH) != (width > height)) {
+      final t = srcW;
+      srcW = srcH;
+      srcH = t;
+    }
+    originalWidth = srcW;
+    originalHeight = srcH;
 
     var nativeImg = native.Image.fromRGBA(width, height, rgba);
-
-    dartFrame.image.dispose();
-    dartCodec.dispose();
 
     if (arguments.calcBlurhash) {
       // scale down image for blurhashing to speed it up
@@ -73,6 +113,8 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
 
     if (frameCount > 1) {
       // Don't scale down animated images, since those would lose frames.
+      width = originalWidth;
+      height = originalHeight;
       nativeImg.free();
     } else {
       final max = arguments.maxDimension;
@@ -88,7 +130,7 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
         nativeImg = scaledImg;
       }
 
-      imageBytes = await nativeImg.toJpeg(75);
+      imageBytes = await nativeImg.toJpeg(80);
       mimeType = 'image/jpeg';
       nativeImg.free();
     }

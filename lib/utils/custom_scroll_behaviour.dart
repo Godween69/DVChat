@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Поведение прокрутки: перетаскивание списков мышью и пальцем одинаково (нужно вебу).
+
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 

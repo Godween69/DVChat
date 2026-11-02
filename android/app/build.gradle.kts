@@ -17,7 +17,7 @@ dependencies {
 }
 
 
-// Workaround for https://pub.dev/packages/unifiedpush#the-build-fails-because-of-duplicate-classes
+// DVChat: единая версия библиотеки tink, чтобы в сборку не попадали дублирующиеся классы
 configurations.all {
     // Use the latest version published: https://central.sonatype.com/artifact/com.google.crypto.tink/tink-android
     val tink = "com.google.crypto.tink:tink-android:1.23.0"
@@ -33,7 +33,7 @@ configurations.all {
 
 
 android {
-    namespace = "chat.fluffy.fluffychat"
+    namespace = "online.dvbstudio.dvchat"
     // Workaround for https://github.com/juliansteenbakker/flutter_secure_storage/issues/1224
     compileSdk = 37 //flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -49,7 +49,7 @@ android {
             keyAlias = "dummyAlias"
             keyPassword = "dummyPassword"
             storeFile = file("dummy.keystore")
-            storePassword = "dummyStorePassword"
+            storePassword = "dummyPassword"
         }
     }
 
@@ -66,7 +66,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "chat.fluffy.fluffychat"
+        applicationId = "online.dvbstudio.dvchat"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

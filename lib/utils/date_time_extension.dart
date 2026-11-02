@@ -3,8 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+// DVChat: Расширение DateTime: подписи времени и даты в списке чатов и в переписке («сегодня», «вчера»).
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -180,11 +182,6 @@ extension DateTimeExtension on DateTime {
       'lt',
     };
     final l10n24h = languages24Hour.contains(locale);
-
-    // https://github.com/krille-chan/fluffychat/pull/1457#discussion_r1836817914
-    if (PlatformInfos.isIOS) {
-      return mediaQuery24h || l10n24h;
-    }
 
     return l10n24h;
   }

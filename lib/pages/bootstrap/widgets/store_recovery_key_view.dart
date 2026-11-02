@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/bootstrap/view_model/bootstrap_view_model.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+// DVChat: Шаг мастера: сохранить ключ восстановления.
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/bootstrap/view_model/bootstrap_view_model.dart';
+import 'package:dvchat/utils/dv_share.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:material_ui/material_ui.dart';
 
 class StoreRecoveryKeyView extends StatelessWidget {
@@ -30,7 +32,7 @@ class StoreRecoveryKeyView extends StatelessWidget {
             suffixIcon: IconButton(
               icon: Icon(Icons.copy_outlined),
               onPressed: () =>
-                  FluffyShare.share(viewModel.value.recoveryKey!, context),
+                  DvShare.share(viewModel.value.recoveryKey!, context),
             ),
           ),
         ),
@@ -54,9 +56,6 @@ class StoreRecoveryKeyView extends StatelessWidget {
   String _getSecureStorageLocalizedName(BuildContext context) {
     if (PlatformInfos.isAndroid) {
       return L10n.of(context).storeInAndroidKeystore;
-    }
-    if (PlatformInfos.isIOS || PlatformInfos.isMacOS) {
-      return L10n.of(context).storeInAppleKeyChain;
     }
     return L10n.of(context).storeSecurlyOnThisDevice;
   }

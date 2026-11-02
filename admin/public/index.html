@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админка DVChat</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="login" class="login hidden">
+  <form id="loginForm" class="card narrow">
+    <h1>Админка DVChat</h1>
+    <p class="muted">Вход только для администратора</p>
+    <input id="pw" type="password" placeholder="Пароль" autocomplete="current-password" autofocus>
+    <button class="primary" type="submit">Войти</button>
+    <p id="loginErr" class="err"></p>
+  </form>
+</div>
+<div id="app" class="app hidden">
+  <nav class="side">
+    <div class="brand">DVChat<small id="srv"></small></div>
+    <a href="#overview" data-tab="overview">Обзор</a>
+    <a href="#people" data-tab="people">Люди</a>
+    <a href="#groups" data-tab="groups">Группы</a>
+    <a href="#rooms" data-tab="rooms">Комнаты</a>
+    <a href="#lisa" data-tab="lisa">Лиза</a>
+    <a href="#games" data-tab="games">Игры</a>
+    <a href="#notify" data-tab="notify">Уведомления</a>
+    <a href="#setup" data-tab="setup">Настройка</a>
+    <button id="logout" class="ghost">Выйти</button>
+  </nav>
+  <main id="view"></main>
+</div>
+<div id="modal" class="modal hidden"><div class="card" id="modalBody"></div></div>
+<div id="toast" class="toast hidden"></div>
+<script src="/qr.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

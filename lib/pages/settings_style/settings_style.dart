@@ -3,13 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Оформление» (логика): тема, цвета, шрифт, фон чата.
+
+import 'dart:math';
+
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/account_config.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_wallpaper.dart';
+import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/theme_builder.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/utils/account_config.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/theme_builder.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
 
 import '../../widgets/matrix.dart';
 import 'settings_style_view.dart';
@@ -29,6 +36,34 @@ class SettingsStyleController extends State<SettingsStyle> {
     ThemeController.of(context).setPrimaryColor(color);
   }
 
+  Future<void> setListStyle(String style) async {
+    await AppSettings.listStyle.setItem(style);
+    DvListStyle.changed();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    DvListStyle.previewContrast = null;
+    super.dispose();
+  }
+
+  // Ползунок контраста: пока тянем, показываем сразу, сохраняем в конце
+  void previewListContrast(double value) {
+    DvListStyle.previewContrast = value;
+    DvListStyle.changed();
+    setState(() {});
+  }
+
+  Future<void> saveListContrast(double value) async {
+    await AppSettings.listContrast.setItem(value);
+    DvListStyle.previewContrast = null;
+    DvListStyle.changed();
+    if (!mounted) return;
+    setState(() {});
+  }
+
   Future<void> setWallpaper() async {
     final client = Matrix.of(context).client;
     final picked = await selectFiles(context, type: FileType.image);
@@ -36,12 +71,45 @@ class SettingsStyleController extends State<SettingsStyle> {
     if (pickedFile == null) return;
     if (!mounted) return;
 
+    // DVChat: подгоняем фото под экран (масштаб + обрезка по центру, JPEG): такие обои
+    // почти ничего не стоят при отрисовке ленты и быстро грузятся
+    final screen =
+        MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    final longSide = max(screen.width, screen.height).round();
+    final shortSide = min(screen.width, screen.height).round();
     await showFutureLoadingDialog(
       context: context,
+      title: 'Оптимизация обоев под экран…',
       future: () async {
+        final original = await pickedFile.readAsBytes();
+        var bytes = original;
+        var name = pickedFile.name;
+        String? mimeType;
+        final fitted = await DvWallpaper.fitToScreen(
+          original,
+          width: shortSide,
+          height: longSide,
+        );
+        if (fitted != null) {
+          bytes = fitted;
+          name = 'wallpaper.jpg';
+          mimeType = 'image/jpeg';
+        } else {
+          // Фото меньше экрана или не вышло: обычное сжатие (длинная сторона до 2000 точек)
+          final image = await MatrixImageFile.shrink(
+            bytes: original,
+            name: pickedFile.name,
+            maxDimension: 2000,
+            customImageResizer: client.customImageResizer,
+          );
+          bytes = image.bytes;
+          name = image.name;
+          mimeType = image.mimeType;
+        }
         final url = await client.uploadContent(
-          await pickedFile.readAsBytes(),
-          filename: pickedFile.name,
+          bytes,
+          filename: name,
+          contentType: mimeType,
         );
         await client.updateApplicationAccountConfig(
           ApplicationAccountConfig(wallpaperUrl: url),
@@ -78,33 +146,6 @@ class SettingsStyleController extends State<SettingsStyle> {
     });
   }
 
-  double get wallpaperBlur =>
-      _wallpaperBlur ??
-      Matrix.of(context).client.applicationAccountConfig.wallpaperBlur ??
-      0.5;
-  double? _wallpaperBlur;
-
-  Future<void> saveWallpaperBlur(double blur) async {
-    final client = Matrix.of(context).client;
-    final result = await showFutureLoadingDialog(
-      context: context,
-      future: () => client.updateApplicationAccountConfig(
-        ApplicationAccountConfig(wallpaperBlur: blur),
-      ),
-    );
-    if (result.isValue) return;
-
-    setState(() {
-      _wallpaperBlur = client.applicationAccountConfig.wallpaperBlur;
-    });
-  }
-
-  void updateWallpaperBlur(double blur) {
-    setState(() {
-      _wallpaperBlur = blur;
-    });
-  }
-
   void deleteChatWallpaper() => showFutureLoadingDialog(
     context: context,
     future: () => Matrix.of(context).client.setApplicationAccountConfig(
@@ -112,22 +153,22 @@ class SettingsStyleController extends State<SettingsStyle> {
     ),
   );
 
+  // DVChat: готовые обои (пустая строка = убрать)
+  Future<void> setWallpaperPreset(String id) async {
+    await AppSettings.chatWallpaperPreset.setItem(id);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   ThemeMode get currentTheme => ThemeController.of(context).themeMode;
   Color? get currentColor => ThemeController.of(context).primaryColor;
 
-  void switchTheme(ThemeMode? newTheme) {
+  // DVChat: перерисовываем окно только ПОСЛЕ того, как тема записана. Раньше перерисовка шла
+  // сразу, значок оставался старым, и приходилось нажимать второй раз
+  Future<void> switchTheme(ThemeMode? newTheme) async {
     if (newTheme == null) return;
-    switch (newTheme) {
-      case ThemeMode.light:
-        ThemeController.of(context).setThemeMode(ThemeMode.light);
-        break;
-      case ThemeMode.dark:
-        ThemeController.of(context).setThemeMode(ThemeMode.dark);
-        break;
-      case ThemeMode.system:
-        ThemeController.of(context).setThemeMode(ThemeMode.system);
-        break;
-    }
+    await ThemeController.of(context).setThemeMode(newTheme);
+    if (!mounted) return;
     setState(() {});
   }
 

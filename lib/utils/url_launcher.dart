@@ -3,13 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Открытие ссылок: внутри приложения (matrix.to, ссылки на комнаты и пользователей) или во внешнем приложении.
+
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/user_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/user_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -76,13 +78,7 @@ class UrlLauncher {
         if (latlong.length == 2 &&
             latlong.first != null &&
             latlong.last != null) {
-          if (PlatformInfos.isIOS) {
-            // iOS is great at not following standards, so we need to transmute the geo URI
-            // to an apple maps thingy
-            // https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/MapLinks/MapLinks.html
-            final ll = '${latlong.first},${latlong.last}';
-            launchUrlString('https://maps.apple.com/?q=$ll&sll=$ll');
-          } else if (PlatformInfos.isAndroid) {
+          if (PlatformInfos.isAndroid) {
             // Google Maps ignores the coordinates in the path of geo URIs and
             // only shows a pin for the q parameter. The label prevents it from
             // snapping to the nearest place.
@@ -176,12 +172,6 @@ class UrlLauncher {
       servers.addAll(identityParts.via);
       if (!context.mounted) return;
       if (room != null) {
-        if (room.isSpace) {
-          // TODO: Implement navigate to space
-          context.go('/rooms/${room.id}');
-
-          return;
-        }
         // we have the room, so....just open it
         if (event != null) {
           context.go(

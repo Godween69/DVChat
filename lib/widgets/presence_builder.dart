@@ -3,9 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Виджет, следящий за присутствием пользователя («в сети», «был недавно»).
+
 import 'dart:async';
 
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 

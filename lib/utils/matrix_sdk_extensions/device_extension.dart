@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширения над устройствами пользователя: понятное название и значок устройства в списке входов.
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:matrix/matrix.dart';

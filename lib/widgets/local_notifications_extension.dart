@@ -3,17 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/client_download_content_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/push_helper.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
-import 'package:fluffychat/widgets/incoming_call_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+// DVChat: Показ локальных уведомлений, пока приложение открыто или работает в фоне.
+
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/client_download_content_extension.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:universal_html/html.dart' as html;
@@ -24,23 +22,6 @@ extension LocalNotificationsExtension on MatrixState {
     ..load();
 
   Future<void> showLocalNotification(Event event) async {
-    if (event.type == RtcNotificationContent.eventType &&
-        event.tryParseRtcNotificationContent()?.notificationType == .ring) {
-      final context =
-          FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
-          this.context;
-      showDialog<bool>(
-        context: context,
-        builder: (_) => IncomingCallDialog(event: event),
-      ).then((joinCall) {
-        if (joinCall != true) return;
-        if (!context.mounted) return;
-        setActiveClient(event.room.client);
-        FluffyChatApp.router.go('/rooms/${event.room.id}?action=call');
-      });
-    }
-
-    final l10n = L10n.of(context);
     final roomId = event.room.id;
     if (activeRoomId == roomId) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
@@ -48,9 +29,7 @@ extension LocalNotificationsExtension on MatrixState {
       }
     }
 
-    final title = event.room.getLocalizedDisplayname(
-      MatrixLocals(L10n.of(context)),
-    );
+    final title = event.room.dvDisplayname(MatrixLocals(L10n.of(context)));
     final body = await event.calcLocalizedBody(
       MatrixLocals(L10n.of(context)),
       withSenderNamePrefix:
@@ -100,46 +79,5 @@ extension LocalNotificationsExtension on MatrixState {
       );
       return;
     }
-
-    FlutterLocalNotificationsPlugin().show(
-      id: event.room.id.hashCode,
-      title: title,
-      body: body,
-      notificationDetails: NotificationDetails(
-        linux: LinuxNotificationDetails(
-          sound: ThemeLinuxSound('message-new-instant'),
-          actions: switch (event.type) {
-            EventTypes.Message ||
-            EventTypes.Encrypted ||
-            EventTypes.Sticker => [
-              LinuxNotificationAction(
-                key: FluffyChatNotificationActions.markAsRead.name,
-                label: l10n.markAsRead,
-              ),
-              LinuxNotificationAction(
-                key: FluffyChatNotificationActions.mute.name,
-                label: l10n.mute,
-              ),
-            ],
-            RtcNotificationContent.eventType => [
-              LinuxNotificationAction(
-                key: FluffyChatNotificationActions.enterCall.name,
-                label: l10n.enterCall,
-              ),
-            ],
-            _ => [],
-          },
-        ),
-        windows: WindowsNotificationDetails(timestamp: event.originServerTs),
-        macOS: DarwinNotificationDetails(
-          threadIdentifier: '${client.clientName}_${event.room.id}',
-        ),
-      ),
-      payload: FluffyChatPushPayload(
-        client.clientName,
-        event.room.id,
-        event.eventId,
-      ).toString(),
-    );
   }
 }

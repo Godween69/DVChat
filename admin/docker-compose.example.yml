@@ -1,0 +1,24 @@
+# Пример запуска админки рядом с Synapse. Скопируйте в docker-compose.yml и поправьте под себя.
+services:
+  dvchat-admin:
+    build: .
+    image: dvchat-admin:latest
+    container_name: dvchat-admin
+    restart: unless-stopped
+    # Только на этом компьютере. Наружу не открывайте: заходите через SSH-туннель или свой обратный прокси с авторизацией.
+    ports:
+      - "127.0.0.1:3101:3101"
+    environment:
+      # Адрес Synapse внутри той же сети Docker (имя вашего контейнера)
+      DVADMIN_SYNAPSE_URL: http://synapse:8008
+      # Адреса, с которых разрешено открывать админку
+      DVADMIN_ALLOWED_HOSTS: localhost,127.0.0.1
+        # Сдвиг от UTC в часах для подсчёта суток в панели (например 3 для UTC+3)
+        DVADMIN_TZ_HOURS: "0"
+    volumes:
+      - ./data:/data   # каталог должен быть доступен на запись пользователю с номером 1000
+    networks: [matrix]
+networks:
+  matrix:
+    external: true
+    name: matrix-net   # имя сети вашего Synapse

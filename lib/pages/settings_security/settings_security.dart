@@ -3,13 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+// DVChat: Экран «Безопасность» (логика): блокировка PIN, ключи, сессии.
+
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/app_lock.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -24,6 +27,34 @@ class SettingsSecurity extends StatefulWidget {
 }
 
 class SettingsSecurityController extends State<SettingsSecurity> {
+  // DVChat: список устройств (загружается один раз, обновляется после выхода на других)
+  Future<List<Device>?>? _devicesFuture;
+  Future<List<Device>?> get devicesFuture =>
+      _devicesFuture ??= Matrix.of(context).client.getDevices();
+
+  /// Выйти на всех устройствах, кроме этого (пароль не нужен, сервер закрывает остальные сессии)
+  Future<void> logoutOthersAction() async {
+    final consent = await showOkCancelAlertDialog(
+      context: context,
+      title: 'Выйти на всех устройствах?',
+      message:
+          'Все устройства, кроме этого, будут отключены. Чтобы войти на них снова, '
+          'понадобятся новая ссылка от администратора и ваш ID.',
+      okLabel: 'Выйти',
+      cancelLabel: L10n.of(context).cancel,
+      isDestructive: true,
+    );
+    if (consent != OkCancelResult.ok) return;
+    if (!mounted) return;
+    final client = Matrix.of(context).client;
+    await showFutureLoadingDialog(
+      context: context,
+      future: () => DvApi(client).post('devices/logout_others', {}),
+    );
+    if (!mounted) return;
+    setState(() => _devicesFuture = null);
+  }
+
   Future<void> toggleBiometrics() async {
     AppLock.of(context).showLockScreen();
 
@@ -83,13 +114,11 @@ class SettingsSecurityController extends State<SettingsSecurity> {
       useRootNavigator: false,
       context: context,
       title: l10n.pleaseChooseAPasscode,
-      message: l10n.pleaseEnter6Digits,
+      message: 'От 4 до 6 цифр',
       cancelLabel: l10n.cancel,
       validator: (text) {
-        if (text.length == 6 && int.tryParse(text)! >= 0) {
-          return null;
-        }
-        return l10n.pleaseEnter6Digits;
+        if (RegExp(r'^\d{4,6}$').hasMatch(text)) return null;
+        return 'Введите от 4 до 6 цифр';
       },
       keyboardType: TextInputType.number,
       obscureText: true,
@@ -151,8 +180,6 @@ class SettingsSecurityController extends State<SettingsSecurity> {
       );
     }
   }
-
-  Future<void> dehydrateAction() => Matrix.of(context).dehydrateAction(context);
 
   Future<void> changeShareKeysWith(ShareKeysWith? shareKeysWith) async {
     if (shareKeysWith == null) return;

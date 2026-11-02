@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Константы приложения: идентификатор, ссылки (код, обращения), цвета, имена каналов уведомлений.
+
 import 'dart:ui';
 
 abstract class AppConfig {
@@ -10,59 +12,51 @@ abstract class AppConfig {
 
   static const Color chatColor = primaryColor;
   static const double messageFontSize = 16.0;
-  static const bool allowOtherHomeservers = true;
-  static const bool enableRegistration = true;
+
+  // DVChat: единственный разрешённый сервер, выбор другого запрещён
+  static const bool allowOtherHomeservers = false;
+  // DVChat: регистрацию отключаем, аккаунты выдаёт админ
+  static const bool enableRegistration = false;
   static const bool hideTypingUsernames = false;
 
+  // DVChat: сервер, к которому привязано приложение (без схемы https://).
+  // Задаётся при сборке из файла dvchat.env (DVCHAT_HOMESERVER), см. docs/DEPLOY.md
+  static const String defaultHomeserver = String.fromEnvironment(
+    'DVCHAT_HOMESERVER',
+    defaultValue: 'chat.example.org',
+  );
+
+  // DVChat: адрес шлюза уведомлений Matrix (его получает Synapse при регистрации push).
+  // Задаётся при сборке из файла dvchat.env (DVCHAT_PUSH_GATEWAY)
+  static const String pushGatewayUrl = String.fromEnvironment(
+    'DVCHAT_PUSH_GATEWAY',
+    defaultValue: 'https://push.example.org/_matrix/push/v1/notify',
+  );
+
+  // DVChat: формат ссылки/QR для входа: dvchat://login#<base64url(JSON)>
+  // JSON: {"c":"одноразовый код"}; данные для входа по коду выдаёт сервер.
+  // Фрагмент после # по сети не уходит.
+  static const String loginLinkScheme = 'dvchat';
+  static const String loginLinkHost = 'login';
+
   static const String inviteLinkPrefix = 'https://matrix.to/#/';
-  static const String deepLinkPrefix = 'im.fluffychat://chat/';
+  static const String deepLinkPrefix = 'dvchat://chat/';
   static const String schemePrefix = 'matrix:';
-  static const String pushNotificationsChannelId = 'fluffychat_push';
-  static const String pushNotificationsAppId = 'chat.fluffy.fluffychat';
+  static const String pushNotificationsChannelId = 'dvchat_push';
+  static const String pushNotificationsAppId = 'online.dvbstudio.dvchat';
   static const double borderRadius = 18.0;
-  static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
 
-  static const String enablePushTutorial =
-      'https://ko-fi.com/post/How-can-I-get-Push-Notifications-without-Google-N7Q825URG6?fromEditor=true';
-  static const String encryptionTutorial =
-      'https://ko-fi.com/post/How-to-use-end-to-end-encryption-in-FluffyChat-A5O725WDR5';
-  static const String howDoIGetStickersTutorial =
-      'https://ko-fi.com/post/How-to-add-a-sticker-pack-to-FluffyChat-N4N01OXATI';
-  static const String appId = 'im.fluffychat.app';
-  static const String appOpenUrlScheme = 'im.fluffychat';
-  static const String appSsoUrlScheme = 'im.fluffychat.auth';
-  // Identifies the notification activation callback on Windows. Never change!
-  static const String windowsNotificationGuid =
-      '4894dfda-c70a-4ebc-b139-acae55f3988d';
+  static const String appId = 'online.dvbstudio.dvchat';
 
-  static const String sourceCodeUrl =
-      'https://github.com/krille-chan/fluffychat';
-  static const String supportUrl =
-      'https://github.com/krille-chan/fluffychat/issues';
-  static const String changelogUrl = 'https://fluffychat.im/changelog/';
-  static const String latestReleaseApiUrl =
-      'https://api.github.com/repos/krille-chan/fluffychat/releases/latest';
-  static const String helpUrl =
-      'https://ko-fi.com/post/How-can-I-support-FluffyChat-J2G325WE6I';
+  static const String sourceCodeUrl = 'https://github.com/Godween69/DVChat';
 
   static const Set<String> defaultReactions = {'👍', '❤️', '😂', '😮', '😢'};
 
   static final Uri newIssueUrl = Uri(
     scheme: 'https',
     host: 'github.com',
-    path: '/krille-chan/fluffychat/issues/new',
-  );
-
-  static final Uri homeserverList = Uri(
-    scheme: 'https',
-    host: 'raw.githubusercontent.com',
-    path: 'krille-chan/fluffychat/refs/heads/main/recommended_homeservers.json',
-  );
-
-  static final Uri crashReportEndpoint = Uri(
-    scheme: 'https',
-    host: 'crash.fluffy.chat',
+    path: '/Godween69/DVChat/issues/new',
   );
 
   static const String mainIsolatePortName = 'main_isolate';
@@ -70,4 +64,15 @@ abstract class AppConfig {
   static const String pushHelperCrashReportKey = 'push_helper_crash_report';
 
   static const String vodozemacVersion = '0.8.1';
+
+  // DVChat: пометки комнат для архива (из чата никто не выходит)
+  static const String archiveTag = 'u.dvchat.archive';
+  static const String hiddenTag = 'u.dvchat.hidden';
+
+  // DVChat: канал обновлений (веб-сервер с version.json и dvchat.apk).
+  // Адрес (с секретом) подставляет сборка
+  // из файла dvchat.env (DVCHAT_UPDATE_URL), в репозитории его нет
+  static const String updateBaseUrl = String.fromEnvironment(
+    'DVCHAT_UPDATE_URL',
+  );
 }

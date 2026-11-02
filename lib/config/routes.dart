@@ -3,42 +3,46 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Маршруты: все экраны приложения и переходы между ними (go_router).
+// Новый экран подключается здесь.
+
 import 'dart:async';
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/archive/archive.dart';
-import 'package:fluffychat/pages/bootstrap/bootstrap_page.dart';
-import 'package:fluffychat/pages/chat/chat.dart';
-import 'package:fluffychat/pages/chat_access_settings/chat_access_settings_controller.dart';
-import 'package:fluffychat/pages/chat_details/chat_details.dart';
-import 'package:fluffychat/pages/chat_encryption_settings/chat_encryption_settings.dart';
-import 'package:fluffychat/pages/chat_list/chat_list.dart';
-import 'package:fluffychat/pages/chat_members/chat_members.dart';
-import 'package:fluffychat/pages/chat_permissions_settings/chat_permissions_settings.dart';
-import 'package:fluffychat/pages/chat_search/chat_search_page.dart';
-import 'package:fluffychat/pages/device_settings/device_settings.dart';
-import 'package:fluffychat/pages/intro/intro_page_presenter.dart';
-import 'package:fluffychat/pages/invitation_selection/invitation_selection.dart';
-import 'package:fluffychat/pages/login/login.dart';
-import 'package:fluffychat/pages/new_group/new_group.dart';
-import 'package:fluffychat/pages/new_private_chat/new_private_chat.dart';
-import 'package:fluffychat/pages/settings/settings.dart';
-import 'package:fluffychat/pages/settings_3pid/settings_3pid.dart';
-import 'package:fluffychat/pages/settings_chat/settings_chat.dart';
-import 'package:fluffychat/pages/settings_emotes/settings_emotes.dart';
-import 'package:fluffychat/pages/settings_homeserver/settings_homeserver.dart';
-import 'package:fluffychat/pages/settings_ignore_list/settings_ignore_list.dart';
-import 'package:fluffychat/pages/settings_notifications/settings_notifications.dart';
-import 'package:fluffychat/pages/settings_password/settings_password.dart';
-import 'package:fluffychat/pages/settings_security/settings_security.dart';
-import 'package:fluffychat/pages/settings_style/settings_style.dart';
-import 'package:fluffychat/pages/sign_in/sign_in_page.dart';
-import 'package:fluffychat/widgets/config_viewer.dart';
-import 'package:fluffychat/widgets/layouts/empty_page.dart';
-import 'package:fluffychat/widgets/layouts/two_column_layout.dart';
-import 'package:fluffychat/widgets/log_view.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/archive/archive.dart';
+import 'package:dvchat/pages/bootstrap/bootstrap_page.dart';
+import 'package:dvchat/pages/chat/chat.dart';
+import 'package:dvchat/pages/chat_access_settings/chat_access_settings_controller.dart';
+import 'package:dvchat/pages/chat_details/chat_details.dart';
+import 'package:dvchat/pages/chat_encryption_settings/chat_encryption_settings.dart';
+import 'package:dvchat/pages/chat_list/chat_list.dart';
+import 'package:dvchat/pages/chat_members/chat_members.dart';
+import 'package:dvchat/pages/chat_permissions_settings/chat_permissions_settings.dart';
+import 'package:dvchat/pages/chat_search/chat_search_page.dart';
+import 'package:dvchat/pages/device_settings/device_settings.dart';
+import 'package:dvchat/pages/friends/friends_page.dart';
+import 'package:dvchat/pages/games/games_page.dart';
+import 'package:dvchat/pages/intro/intro_page_presenter.dart';
+import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
+import 'package:dvchat/pages/liza/liza_page.dart';
+import 'package:dvchat/pages/new_group/new_group.dart';
+import 'package:dvchat/pages/new_private_chat/new_private_chat.dart';
+import 'package:dvchat/pages/settings/settings.dart';
+import 'package:dvchat/pages/settings_3pid/settings_3pid.dart';
+import 'package:dvchat/pages/settings_chat/settings_chat.dart';
+import 'package:dvchat/pages/settings_emotes/settings_emotes.dart';
+import 'package:dvchat/pages/settings_feedback/settings_feedback.dart';
+import 'package:dvchat/pages/settings_homeserver/settings_homeserver.dart';
+import 'package:dvchat/pages/settings_ignore_list/settings_ignore_list.dart';
+import 'package:dvchat/pages/settings_notifications/settings_notifications.dart';
+import 'package:dvchat/pages/settings_password/settings_password.dart';
+import 'package:dvchat/pages/settings_security/settings_security.dart';
+import 'package:dvchat/pages/settings_style/settings_style.dart';
+import 'package:dvchat/widgets/dv_main_shell.dart';
+import 'package:dvchat/widgets/layouts/empty_page.dart';
+import 'package:dvchat/widgets/layouts/two_column_layout.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -73,39 +77,6 @@ abstract class AppRoutes {
       pageBuilder: (context, state) =>
           defaultPageBuilder(context, state, const IntroPagePresenter()),
       redirect: loggedInRedirect,
-      routes: [
-        GoRoute(
-          path: 'sign_in',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: false)),
-          redirect: loggedInRedirect,
-        ),
-        GoRoute(
-          path: 'sign_up',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: true)),
-          redirect: loggedInRedirect,
-        ),
-        GoRoute(
-          path: 'login',
-          pageBuilder: (context, state) => defaultPageBuilder(
-            context,
-            state,
-            Login(client: state.extra as Client),
-          ),
-          redirect: loggedInRedirect,
-        ),
-      ],
-    ),
-    GoRoute(
-      path: '/logs',
-      pageBuilder: (context, state) =>
-          defaultPageBuilder(context, state, const LogViewer()),
-    ),
-    GoRoute(
-      path: '/configs',
-      pageBuilder: (context, state) =>
-          defaultPageBuilder(context, state, const ConfigViewer()),
     ),
     GoRoute(
       path: '/backup',
@@ -123,18 +94,13 @@ abstract class AppRoutes {
       pageBuilder: (context, state, child) => noTransitionPageBuilder(
         context,
         state,
-        FluffyThemes.isColumnMode(context) &&
+        DvThemes.isColumnMode(context) &&
                 state.fullPath?.startsWith('/rooms/settings') == false
             ? TwoColumnLayout(
-                mainView: ChatList(
-                  activeChat: state.pathParameters['roomid'],
-                  activeSpace: state.uri.queryParameters['spaceId'],
-                  displayNavigationRail:
-                      state.path?.startsWith('/rooms/settings') != true,
-                ),
+                mainView: ChatList(activeChat: state.pathParameters['roomid']),
                 sideView: child,
               )
-            : child,
+            : DvMainShell(path: state.uri.path, child: child),
       ),
       routes: [
         GoRoute(
@@ -143,12 +109,10 @@ abstract class AppRoutes {
           pageBuilder: (context, state) => defaultPageBuilder(
             context,
             state,
-            FluffyThemes.isColumnMode(context)
+            DvThemes.isColumnMode(context)
                 ? const EmptyPage()
-                : ChatList(
-                    activeChat: state.pathParameters['roomid'],
-                    activeSpace: state.uri.queryParameters['spaceId'],
-                  ),
+                // DVChat: на телефоне вкладки живут в общем PageView (dv_main_shell.dart)
+                : const SizedBox.shrink(),
           ),
           routes: [
             GoRoute(
@@ -174,6 +138,40 @@ abstract class AppRoutes {
               ],
               redirect: loggedOutRedirect,
             ),
+            // Вкладки нижней панели переключаются без анимации перехода
+            GoRoute(
+              path: 'friends',
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const FriendsPage()
+                    : const SizedBox.shrink(),
+              ),
+              redirect: loggedOutRedirect,
+            ),
+            GoRoute(
+              path: 'games',
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const GamesPage()
+                    : const SizedBox.shrink(),
+              ),
+              redirect: loggedOutRedirect,
+            ),
+            GoRoute(
+              path: 'liza',
+              pageBuilder: (context, state) => noTransitionPageBuilder(
+                context,
+                state,
+                DvThemes.isColumnMode(context)
+                    ? const LizaPage()
+                    : const SizedBox.shrink(),
+              ),
+              redirect: loggedOutRedirect,
+            ),
             GoRoute(
               path: 'newprivatechat',
               pageBuilder: (context, state) => defaultPageBuilder(
@@ -188,30 +186,15 @@ abstract class AppRoutes {
             ),
             GoRoute(
               path: 'newgroup',
-              pageBuilder: (context, state) => defaultPageBuilder(
-                context,
-                state,
-                NewGroup(spaceId: state.uri.queryParameters['space_id']),
-              ),
-              redirect: loggedOutRedirect,
-            ),
-            GoRoute(
-              path: 'newspace',
-              pageBuilder: (context, state) => defaultPageBuilder(
-                context,
-                state,
-                NewGroup(
-                  createGroupType: CreateGroupType.space,
-                  spaceId: state.uri.queryParameters['space_id'],
-                ),
-              ),
+              pageBuilder: (context, state) =>
+                  defaultPageBuilder(context, state, const NewGroup()),
               redirect: loggedOutRedirect,
             ),
             ShellRoute(
               pageBuilder: (context, state, child) => defaultPageBuilder(
                 context,
                 state,
-                FluffyThemes.isColumnMode(context)
+                DvThemes.isColumnMode(context)
                     ? TwoColumnLayout(
                         mainView: Settings(key: state.pageKey),
                         sideView: child,
@@ -225,7 +208,7 @@ abstract class AppRoutes {
                   pageBuilder: (context, state) => defaultPageBuilder(
                     context,
                     state,
-                    FluffyThemes.isColumnMode(context)
+                    DvThemes.isColumnMode(context)
                         ? const EmptyPage()
                         : const Settings(),
                   ),
@@ -236,6 +219,15 @@ abstract class AppRoutes {
                         context,
                         state,
                         const SettingsNotifications(),
+                      ),
+                      redirect: loggedOutRedirect,
+                    ),
+                    GoRoute(
+                      path: 'feedback',
+                      pageBuilder: (context, state) => defaultPageBuilder(
+                        context,
+                        state,
+                        const SettingsFeedback(),
                       ),
                       redirect: loggedOutRedirect,
                     ),
@@ -277,44 +269,6 @@ abstract class AppRoutes {
                         ),
                       ],
                       redirect: loggedOutRedirect,
-                    ),
-                    GoRoute(
-                      path: 'addaccount',
-                      redirect: loggedOutRedirect,
-                      pageBuilder: (context, state) => defaultPageBuilder(
-                        context,
-                        state,
-                        const IntroPagePresenter(),
-                      ),
-                      routes: [
-                        GoRoute(
-                          path: 'sign_in',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: false),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                        GoRoute(
-                          path: 'sign_up',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: true),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                        GoRoute(
-                          path: 'login',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            Login(client: state.extra as Client),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                      ],
                     ),
                     GoRoute(
                       path: 'homeserver',
@@ -521,7 +475,7 @@ abstract class AppRoutes {
       final client = matrix.getClientByName(clientName);
       if (client != null) matrix.setActiveClient(client);
     }
-    return FluffyThemes.isColumnMode(context)
+    return DvThemes.isColumnMode(context)
         ? noTransitionPageBuilder(context, state, child)
         : MaterialPage(
             key: state.pageKey,

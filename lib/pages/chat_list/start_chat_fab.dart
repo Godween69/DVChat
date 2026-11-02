@@ -3,33 +3,33 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
+// DVChat: Плавающая кнопка «Новый чат».
+
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// DVChat: кнопка «+» открывает экран «Друзья» (чаты создаются из списка друзей).
+/// Оригинал: git show baseline-fluffychat-2.10.0:lib/pages/chat_list/start_chat_fab.dart
 class StartChatFab extends StatelessWidget {
   final bool extended;
   const StartChatFab({this.extended = false, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      heroTag: 'start_chat_fab',
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-      onPressed: () => context.go('/rooms/newprivatechat'),
-      extendedIconLabelSpacing: extended ? 10 : 0,
-      extendedPadding: extended
-          ? null
-          : const EdgeInsets.symmetric(horizontal: 16),
-      label: AnimatedSize(
-        alignment: Alignment.centerLeft,
-        duration: FluffyThemes.animationDuration,
-        curve: FluffyThemes.animationCurve,
-        child: extended ? Text(L10n.of(context).newChat) : SizedBox.shrink(),
-      ),
-      icon: const Icon(Icons.edit_square),
+    void open() => context.go('/rooms/friends');
+    if (extended) {
+      return FloatingActionButton.extended(
+        heroTag: null,
+        onPressed: open,
+        icon: const Icon(Icons.add),
+        label: const Text('Друзья'),
+      );
+    }
+    return FloatingActionButton(
+      heroTag: null,
+      onPressed: open,
+      tooltip: 'Друзья',
+      child: const Icon(Icons.add),
     );
   }
 }

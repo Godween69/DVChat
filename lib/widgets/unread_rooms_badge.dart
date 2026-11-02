@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Счётчик непрочитанных чатов на значке.
+
 import 'package:badges/badges.dart' as b;
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';

@@ -3,16 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Показ форматированных (HTML) сообщений: жирный, ссылки, цитаты, код.
+
 import 'package:collection/collection.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/code_highlight_theme.dart';
-import 'package:fluffychat/utils/event_checkbox_extension.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/code_highlight_theme.dart';
+import 'package:dvchat/utils/event_checkbox_extension.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:highlight/highlight.dart' show highlight;
 import 'package:html/dom.dart' as dom;
@@ -94,6 +96,18 @@ class HtmlMessage extends StatelessWidget {
   };
 
   static const Set<String> ignoredHtmlTags = {'mx-reply'};
+
+  /// DVChat: разобранный HTML держим в кэше: при каждой перерисовке чата (закрепили, ответили,
+  /// выделили) все видимые сообщения раньше разбирались заново, и кадры пропускались.
+  static final Map<String, dom.Element> _parsed = {};
+
+  static dom.Element _parseBody(String html) {
+    final element =
+        _parsed.remove(html) ?? parser.parse(html).body ?? dom.Element.html('');
+    _parsed[html] = element;
+    if (_parsed.length > 300) _parsed.remove(_parsed.keys.first);
+    return element;
+  }
 
   /// We add line breaks before these tags:
   static const Set<String> blockHtmlTags = {
@@ -586,7 +600,7 @@ class HtmlMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final element = parser.parse(html).body ?? dom.Element.html('');
+    final element = _parseBody(html);
     final configuredMaxLines = AppSettings.messagePreviewMaxLines.value;
     final maxLines = configuredMaxLines <= 0 ? null : configuredMaxLines;
     final span = _renderHtml(element, context);
@@ -657,8 +671,8 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedSize(
-          duration: FluffyThemes.animationDuration,
-          curve: FluffyThemes.animationCurve,
+          duration: DvThemes.animationDuration,
+          curve: DvThemes.animationCurve,
           alignment: AlignmentDirectional.topStart,
           child: Text.rich(
             widget.span,

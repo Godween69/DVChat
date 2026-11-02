@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран блокировки: ввод PIN-кода.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/widgets/app_lock.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';
@@ -20,9 +23,41 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   String? _errorText;
-  int _coolDownSeconds = 5;
   bool _inputBlocked = false;
   final TextEditingController _textEditingController = TextEditingController();
+  bool _checking = false;
+  Timer? _blockTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_syncLockout());
+  }
+
+  /// Пауза после ошибок хранится на диске, поэтому действует и после перезапуска приложения
+  Future<void> _syncLockout() async {
+    final wait = await AppLock.of(context).lockoutRemaining();
+    if (!mounted || wait == Duration.zero) return;
+    _blockFor(wait);
+  }
+
+  void _blockFor(Duration wait) {
+    _blockTimer?.cancel();
+    setState(() => _inputBlocked = true);
+    _blockTimer = Timer(wait, () {
+      if (!mounted) return;
+      setState(() {
+        _inputBlocked = false;
+        _errorText = null;
+      });
+    });
+  }
+
+  static String _waitText(Duration wait) {
+    final seconds = wait.inSeconds;
+    if (seconds < 90) return '$seconds с';
+    return '${(seconds / 60).ceil()} мин';
+  }
 
   Future<void> tryUnlockWithBiometrics() async {
     setState(() {
@@ -38,57 +73,40 @@ class _LockScreenState extends State<LockScreen> {
       });
       return;
     }
-
-    setState(() {
-      _errorText = L10n.of(context).wrongPinEntered(_coolDownSeconds);
-      _inputBlocked = true;
-    });
-    Future.delayed(Duration(seconds: _coolDownSeconds)).then((_) {
-      setState(() {
-        _inputBlocked = false;
-        _coolDownSeconds *= 2;
-        _errorText = null;
-      });
-    });
-    _textEditingController.clear();
   }
 
   Future<void> tryUnlock(String text) async {
-    text = text.trim();
-    setState(() {
-      _errorText = null;
-    });
+    if (_checking || _inputBlocked) return;
+    final pin = text.trim();
+    setState(() => _errorText = null);
 
-    final enteredPin = int.tryParse(text);
-    if (enteredPin == null) {
-      setState(() {
-        _errorText = L10n.of(context).invalidInput;
-      });
+    if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
+      setState(() => _errorText = L10n.of(context).invalidInput);
       _textEditingController.clear();
       return;
     }
 
-    if (AppLock.of(context).unlock(text)) {
-      setState(() {
-        _inputBlocked = false;
-        _errorText = null;
-      });
-      _textEditingController.clear();
-      return;
-    }
-
-    setState(() {
-      _errorText = L10n.of(context).wrongPinEntered(_coolDownSeconds);
-      _inputBlocked = true;
-    });
-    Future.delayed(Duration(seconds: _coolDownSeconds)).then((_) {
-      setState(() {
-        _inputBlocked = false;
-        _coolDownSeconds *= 2;
-        _errorText = null;
-      });
-    });
+    _checking = true;
+    final result = await AppLock.of(context).tryPin(pin);
+    _checking = false;
+    if (!mounted) return;
     _textEditingController.clear();
+    if (result.ok) {
+      setState(() {
+        _inputBlocked = false;
+        _errorText = null;
+      });
+      return;
+    }
+    if (result.wiped) return;
+    final waitText = result.wait > Duration.zero
+        ? ' Подождите ${_waitText(result.wait)}.'
+        : '';
+    setState(() {
+      _errorText =
+          'Неверный PIN.$waitText Осталось попыток до выхода из аккаунта: ${result.attemptsLeft}';
+    });
+    if (result.wait > Duration.zero) _blockFor(result.wait);
   }
 
   @override
@@ -97,7 +115,7 @@ class _LockScreenState extends State<LockScreen> {
       initialEntries: [
         OverlayEntry(
           builder: (context) => Scaffold(
-            appBar: AppBar(
+            appBar: AppBar(flexibleSpace: const DvBlurBar(), 
               title: Text(L10n.of(context).pleaseEnterYourPin),
               centerTitle: true,
             ),
@@ -122,12 +140,12 @@ class _LockScreenState extends State<LockScreen> {
                     autofocus: true,
                     textAlign: TextAlign.center,
                     readOnly: _inputBlocked,
-                    onChanged: (text) {
-                      if (text.length >= 6) tryUnlock(text);
-                    },
                     onSubmitted: tryUnlock,
                     style: const TextStyle(fontSize: 40),
-                    inputFormatters: [LengthLimitingTextInputFormatter(6)],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(40),
@@ -192,6 +210,7 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   void dispose() {
+    _blockTimer?.cancel();
     _textEditingController.dispose();
     super.dispose();
   }

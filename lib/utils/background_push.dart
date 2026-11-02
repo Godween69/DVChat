@@ -5,24 +5,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Регистрация приложения на получение пушей: токен FCM отправляется на сервер Matrix
+// (pusher), дальше сообщение идёт Synapse → шлюз уведомлений Matrix → FCM → телефон.
+
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
-//<GOOGLE_SERVICES>import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/main.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/push_helper.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/main.dart';
+import 'package:dvchat/utils/app_locale.dart';
+import 'package:dvchat/utils/notification_background_handler.dart';
+import 'package:dvchat/utils/push_helper.dart';
+import 'package:dvchat/utils/reaction_push_rule.dart';
+import 'package:dvchat/widgets/dvchat_app.dart';
+import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
-import 'package:unifiedpush/unifiedpush.dart';
-import 'package:unifiedpush_ui/unifiedpush_ui.dart';
 
 import '../config/app_config.dart';
 import '../config/setting_keys.dart';
@@ -50,27 +51,25 @@ class BackgroundPush {
     // inspired by _lookupL10n in .dart_tool/flutter_gen/gen_l10n/l10n.dart
     l10n ??=
         (context != null && context.mounted ? L10n.of(context) : null) ??
-        (await L10n.delegate.load(PlatformDispatcher.instance.locale));
+        (await L10n.delegate.load(appLocale));
   }
 
   final pendingTests = <String, Completer<void>>{};
   bool firebaseEnabled = false;
 
-  //<GOOGLE_SERVICES>final firebase = FcmSharedIsolate();
+  final firebase = FcmSharedIsolate();
 
   DateTime? lastReceivedPush;
 
-  bool upAction = false;
-
   Future<void> _init() async {
-    //<GOOGLE_SERVICES>firebaseEnabled = true;
+    firebaseEnabled = true;
     try {
       mainIsolateReceivePort?.listen((message) async {
         try {
           await notificationTap(
             NotificationResponseJson.fromJsonString(message),
             clients: clients,
-            router: FluffyChatApp.router,
+            router: DvChatApp.router,
             l10n: l10n,
           );
         } catch (e, s) {
@@ -89,7 +88,7 @@ class BackgroundPush {
             await notificationTap(
               NotificationResponseJson.fromJsonString(message),
               clients: clients,
-              router: FluffyChatApp.router,
+              router: DvChatApp.router,
               l10n: l10n,
             );
           } catch (e, s) {
@@ -100,36 +99,27 @@ class BackgroundPush {
       await _flutterLocalNotificationsPlugin.initialize(
         settings: const InitializationSettings(
           android: AndroidInitializationSettings('notifications_icon'),
-          iOS: DarwinInitializationSettings(),
         ),
         onDidReceiveNotificationResponse: (response) => notificationTap(
           response,
           clients: clients,
-          router: FluffyChatApp.router,
+          router: DvChatApp.router,
           l10n: l10n,
         ),
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
       Logs().v('Flutter Local Notifications initialized');
-      //<GOOGLE_SERVICES>firebase.setListeners(
-      //<GOOGLE_SERVICES>  onMessage: (message) => pushHelper(
-      //<GOOGLE_SERVICES>    PushNotification.fromJson(
-      //<GOOGLE_SERVICES>       message.tryGetMap<String, Object>('data') ?? message,
-      //<GOOGLE_SERVICES>    ),
-      //<GOOGLE_SERVICES>    clients: clients,
-      //<GOOGLE_SERVICES>    l10n: l10n,
-      //<GOOGLE_SERVICES>    activeRoomId: matrix?.activeRoomId,
-      //<GOOGLE_SERVICES>    flutterLocalNotificationsPlugin: _flutterLocalNotificationsPlugin,
-      //<GOOGLE_SERVICES>  ),
-      //<GOOGLE_SERVICES>);
-      if (Platform.isAndroid) {
-        await UnifiedPush.initialize(
-          onNewEndpoint: _newUpEndpoint,
-          onRegistrationFailed: (_, i) => _upUnregistered(i),
-          onUnregistered: _upUnregistered,
-          onMessage: _onUpMessage,
-        );
-      }
+      firebase.setListeners(
+        onMessage: (message) => pushHelper(
+          PushNotification.fromJson(
+            message.tryGetMap<String, Object>('data') ?? message,
+          ),
+          clients: clients,
+          l10n: l10n,
+          activeRoomId: matrix?.activeRoomId,
+          flutterLocalNotificationsPlugin: _flutterLocalNotificationsPlugin,
+        ),
+      );
     } catch (e, s) {
       Logs().e('Unable to initialize Flutter local notifications', e, s);
     }
@@ -161,10 +151,7 @@ class BackgroundPush {
     String? gatewayUrl,
     String? token,
   }) async {
-    if (PlatformInfos.isIOS) {
-      //<GOOGLE_SERVICES>await firebase.requestPermission();
-    }
-    if (PlatformInfos.isAndroid && !isIntegrationTest) {
+    if (PlatformInfos.isAndroid) {
       _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
@@ -214,13 +201,7 @@ class BackgroundPush {
 
     if (!client.isLogged()) return;
 
-    final legacyPushers = pushers.where(
-      (pusher) =>
-          pusher.appId == thisAppId || // To migrate older app-id format:
-          ((pusher.appId == 'chat.fluffy.fluffychat.data_message' ||
-                  pusher.appId == 'chat.fluffy.fluffychat') &&
-              pusher.pushkey == token),
-    );
+    final legacyPushers = pushers.where((pusher) => pusher.appId == thisAppId);
     for (final pusher in legacyPushers) {
       try {
         await client.deletePusher(pusher);
@@ -264,30 +245,21 @@ class BackgroundPush {
   static bool _wentToRoomOnStartup = false;
 
   Future<void> setupPush(BuildContext context) async {
-    if (PlatformInfos.isAndroid &&
-        (await UnifiedPush.getDistributors()).isNotEmpty &&
-        context.mounted) {
-      await UnifiedPushUi(
-        context: context,
-        instances: ['default'],
-        unifiedPushFunctions: UPFunctions(),
-        showNoDistribDialog: false,
-        onNoDistribDialogDismissed: () {}, // TODO: Implement me
-      ).registerAppWithDialog();
-    } else {
-      for (final client in clients) {
-        Logs().d('SetupPush for Client ${client.clientName}');
-        if (client.onLoginStateChanged.value != LoginState.loggedIn ||
-            !PlatformInfos.isMobile ||
-            matrix == null) {
-          return;
-        }
-        // Do not setup unifiedpush if this has been initialized by
-        // an unifiedpush action
-        if (upAction) {
-          return;
-        }
-        await setupFirebase(client);
+    for (final client in clients) {
+      Logs().d('SetupPush for Client ${client.clientName}');
+      if (client.onLoginStateChanged.value != LoginState.loggedIn ||
+          !PlatformInfos.isMobile ||
+          matrix == null) {
+        return;
+      }
+      await setupFirebase(client);
+      try {
+        await syncReactionPushRule(
+          client,
+          on: AppSettings.notifyAboutReactions.value,
+        );
+      } catch (e, s) {
+        Logs().w('[Push] Unable to sync reaction push rule', e, s);
       }
     }
 
@@ -306,7 +278,7 @@ class BackgroundPush {
         notificationTap(
           response,
           clients: clients,
-          router: FluffyChatApp.router,
+          router: DvChatApp.router,
           l10n: l10n,
         );
       }
@@ -314,23 +286,7 @@ class BackgroundPush {
   }
 
   Future<void> _noFcmWarning() async {
-    if (matrix == null) {
-      return;
-    }
-    if (AppSettings.showNoGoogle.value) {
-      return;
-    }
-    await loadLocale();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (PlatformInfos.isAndroid) {
-        onFcmError?.call(
-          l10n!.noGoogleServicesWarning,
-          link: Uri.parse(AppConfig.enablePushTutorial),
-        );
-        return;
-      }
-      onFcmError?.call(l10n!.oopsPushError);
-    });
+    // DVChat: предупреждение об отсутствии Google-сервисов клиентам не показываем
   }
 
   Future<void> setupFirebase(Client client) async {
@@ -340,14 +296,11 @@ class BackgroundPush {
       return;
     }
     if (_fcmToken?.isEmpty ?? true) {
-      if (PlatformInfos.isIOS) {
-        //<GOOGLE_SERVICES>await firebase.requestPermission();
-      }
       const max = 5;
       for (var i = 0; i < max; i++) {
         try {
           await Future.delayed(const Duration(seconds: 1));
-          //<GOOGLE_SERVICES>_fcmToken = await firebase.getToken();
+          _fcmToken = await firebase.getToken();
           if (_fcmToken != null) break;
         } catch (e, s) {
           Logs().w(
@@ -367,98 +320,5 @@ class BackgroundPush {
       gatewayUrl: AppSettings.pushNotificationsGatewayUrl.value,
       token: _fcmToken,
     );
-  }
-
-  Future<void> _newUpEndpoint(PushEndpoint newPushEndpoint, String i) async {
-    final newEndpoint = newPushEndpoint.url;
-    upAction = true;
-    if (newEndpoint.isEmpty) {
-      await _upUnregistered(i);
-      return;
-    }
-    var endpoint =
-        'https://matrix.gateway.unifiedpush.org/_matrix/push/v1/notify';
-    try {
-      final url = Uri.parse(newEndpoint)
-          .replace(path: '/_matrix/push/v1/notify', query: '')
-          .toString()
-          .split('?')
-          .first;
-      final res = json.decode(
-        utf8.decode((await http.get(Uri.parse(url))).bodyBytes),
-      );
-      if (res['gateway'] == 'matrix' ||
-          (res['unifiedpush'] is Map &&
-              res['unifiedpush']['gateway'] == 'matrix')) {
-        endpoint = url;
-      }
-    } catch (e) {
-      Logs().i(
-        '[Push] No self-hosted unified push gateway present: $newEndpoint',
-      );
-    }
-    Logs().i('[Push] UnifiedPush using endpoint $endpoint');
-
-    for (final client in clients) {
-      await setupPusher(
-        client: client,
-        gatewayUrl: endpoint,
-        token: newEndpoint,
-      );
-    }
-    await AppSettings.unifiedPushEndpoint.setItem(newEndpoint);
-    await AppSettings.unifiedPushRegistered.setItem(true);
-  }
-
-  Future<void> _upUnregistered(String i) async {
-    upAction = true;
-    Logs().i('[Push] Removing UnifiedPush endpoint...');
-    await AppSettings.unifiedPushEndpoint.setItem(
-      AppSettings.unifiedPushEndpoint.defaultValue,
-    );
-    await AppSettings.unifiedPushRegistered.setItem(false);
-  }
-
-  Future<void> _onUpMessage(PushMessage pushMessage, String i) async {
-    final message = pushMessage.content;
-    upAction = true;
-    final data = Map<String, dynamic>.from(
-      json.decode(utf8.decode(message))['notification'],
-    );
-    // UP may strip the devices list
-    data['devices'] ??= [];
-    await pushHelper(
-      PushNotification.fromJson(data),
-      clients: clients,
-      l10n: l10n,
-      activeRoomId: matrix?.activeRoomId,
-      flutterLocalNotificationsPlugin: _flutterLocalNotificationsPlugin,
-    );
-  }
-}
-
-class UPFunctions extends UnifiedPushFunctions {
-  final List<String> features = [
-    /*list of features*/
-  ];
-
-  @override
-  Future<String?> getDistributor() async {
-    return await UnifiedPush.getDistributor();
-  }
-
-  @override
-  Future<List<String>> getDistributors() async {
-    return await UnifiedPush.getDistributors(features);
-  }
-
-  @override
-  Future<void> registerApp(String instance) async {
-    await UnifiedPush.register(instance: instance, features: features);
-  }
-
-  @override
-  Future<void> saveDistributor(String distributor) async {
-    await UnifiedPush.saveDistributor(distributor);
   }
 }

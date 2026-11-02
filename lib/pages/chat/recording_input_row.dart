@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/chat_input_row.dart';
-import 'package:fluffychat/pages/chat/recording_view_model.dart';
+// DVChat: Строка записи голосового сообщения.
+
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/chat_input_row.dart';
+import 'package:dvchat/pages/chat/recording_view_model.dart';
+import 'package:dvchat/widgets/dv_live_wave.dart';
 import 'package:material_ui/material_ui.dart';
 
 class RecordingInputRow extends StatelessWidget {
@@ -21,7 +24,6 @@ class RecordingInputRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const maxDecibalWidth = 36.0;
     final time =
         '${state.duration.inMinutes.toString().padLeft(2, '0')}:${(state.duration.inSeconds % 60).toString().padLeft(2, '0')}';
     return SizedBox(
@@ -63,30 +65,12 @@ class RecordingInputRow extends StatelessWidget {
             ),
           Text(time),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const width = 4;
-                return Row(
-                  mainAxisSize: .min,
-                  mainAxisAlignment: .end,
-                  children: state.amplitudeTimeline.reversed
-                      .take((constraints.maxWidth / (width + 2)).floor())
-                      .toList()
-                      .reversed
-                      .map(
-                        (amplitude) => Container(
-                          margin: const EdgeInsets.only(left: 2),
-                          width: width.toDouble(),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          height: maxDecibalWidth * (amplitude / 100),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: DvLiveWave(
+                samples: state.amplitudeTimeline,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
           IconButton(

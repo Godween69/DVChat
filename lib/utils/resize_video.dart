@@ -3,24 +3,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Сжатие видео и картинок из файла перед отправкой.
+
 import 'package:cross_file/cross_file.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:light_compressor_v2/light_compressor_v2.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mime/mime.dart';
 
 extension ResizeImage on XFile {
-  Future<MatrixVideoFile> getVideoInfo({bool compress = true}) async {
+  Future<MatrixVideoFile> getVideoInfo({
+    bool compress = true,
+    bool small = false,
+  }) async {
     MediaInfo? mediaInfo;
     String? destinationPath;
     try {
-      if (PlatformInfos.isMobile || PlatformInfos.isMacOS) {
+      if (PlatformInfos.isMobile) {
         final result = await LightCompressor().compressVideo(
           path: path,
-          videoQuality: VideoQuality.medium,
+          videoQuality: small ? VideoQuality.low : VideoQuality.medium,
           android: AndroidConfig(isSharedStorage: false),
           ios: IOSConfig(saveInGallery: false),
-          video: Video(videoName: name, targetSizeMb: 5),
+          video: Video(videoName: name, targetSizeMb: small ? 2 : 5),
         );
         if (result is OnFailure) {
           throw result.message;

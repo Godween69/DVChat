@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Выбор файлов с телефона для отправки в чат.
+
+import 'package:dvchat/widgets/app_lock.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:flutter/widgets.dart';
 
 Future<List<XFile>> selectFiles(

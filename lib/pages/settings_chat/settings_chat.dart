@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Настройки чата» (логика): поведение отправки и показа сообщений.
+
 import 'package:material_ui/material_ui.dart';
 
 import 'settings_chat_view.dart';

@@ -3,9 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/member_actions_popup_menu_button.dart';
+// DVChat: Строка участника в сведениях о чате.
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -28,19 +31,21 @@ class ParticipantListItem extends StatelessWidget {
       Membership.leave => L10n.of(context).leftTheChat,
     };
 
-    final permissionBatch = switch (user.powerLevel.role) {
-      PowerLevelRole.user => null,
-      PowerLevelRole.moderator => L10n.of(context).moderator,
-      PowerLevelRole.admin => L10n.of(context).admin,
-      PowerLevelRole.owner => L10n.of(context).owner,
-    };
+    // В личном чате все равны: ярлыков «Владелец» и «Админ» нет
+    final permissionBatch = user.room.isDirectChat
+        ? null
+        : switch (user.powerLevel.role) {
+            PowerLevelRole.user => null,
+            PowerLevelRole.moderator => L10n.of(context).moderator,
+            PowerLevelRole.admin => L10n.of(context).admin,
+            PowerLevelRole.owner => L10n.of(context).owner,
+          };
 
     final isAdminOrOwner =
         user.powerLevel.role == PowerLevelRole.admin ||
         user.powerLevel.role == PowerLevelRole.owner;
 
     return ListTile(
-      onTap: () => showMemberActionsPopupMenu(context: context, user: user),
       title: Row(
         children: <Widget>[
           if (user.room.client.userDeviceKeys[user.id]?.masterKey?.verified ==
@@ -53,12 +58,7 @@ class ParticipantListItem extends StatelessWidget {
                 size: 16,
               ),
             ),
-          Expanded(
-            child: Text(
-              user.calcDisplayname(),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Expanded(child: Text(user.dvName(), overflow: TextOverflow.ellipsis)),
           if (permissionBatch != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -100,13 +100,13 @@ class ParticipantListItem extends StatelessWidget {
                 ),
         ],
       ),
-      subtitle: Text(user.id, maxLines: 1, overflow: TextOverflow.ellipsis),
       leading: Opacity(
         opacity: user.membership == Membership.join ? 1 : 0.5,
         child: Avatar(
           mxContent: user.avatarUrl,
-          name: user.calcDisplayname(),
+          name: user.dvName(),
           presenceUserId: user.stateKey,
+          onTap: () => DvProfilePage.open(context, user.id),
         ),
       ),
     );

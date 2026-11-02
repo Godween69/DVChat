@@ -3,13 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:convert';
+// DVChat: Все пользовательские настройки (ключи dvchat.*) с значениями по умолчанию и чтением/записью
+// через SharedPreferences. Старые ключи переносит legacy_migration.
 
 import 'package:async/async.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:managed_configurations/managed_configurations.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/utils/legacy_migration.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,76 +17,79 @@ enum AppSettings<T> {
   textMessageMaxLength<int>('textMessageMaxLength', 16384),
 
   /// Max lines for unselected HTML/text bubbles; 0 = unlimited (no fade).
-  messagePreviewMaxLines<int>('chat.fluffy.message_preview_max_lines', 50),
+  messagePreviewMaxLines<int>('dvchat.message_preview_max_lines', 50),
   audioRecordingNumChannels<int>('audioRecordingNumChannels', 1),
   audioRecordingAutoGain<bool>('audioRecordingAutoGain', true),
   audioRecordingEchoCancel<bool>('audioRecordingEchoCancel', false),
   audioRecordingNoiseSuppress<bool>('audioRecordingNoiseSuppress', true),
   audioRecordingBitRate<int>('audioRecordingBitRate', 64000),
   audioRecordingSamplingRate<int>('audioRecordingSamplingRate', 48000),
-  showNoGoogle<bool>('chat.fluffy.show_no_google', false),
-  unifiedPushRegistered<bool>('chat.fluffy.unifiedpush.registered', false),
-  unifiedPushEndpoint<String>('chat.fluffy.unifiedpush.endpoint', ''),
+  showNoGoogle<bool>('dvchat.show_no_google', false),
   pushNotificationsGatewayUrl<String>(
     'pushNotificationsGatewayUrl',
-    'https://push.fluffychat.im/_matrix/push/v1/notify',
+    AppConfig.pushGatewayUrl,
   ),
   pushNotificationsPusherFormat<String>(
     'pushNotificationsPusherFormat',
     'event_id_only',
   ),
-  renderHtml<bool>('chat.fluffy.renderHtml', true),
-  fontSizeFactor<double>('chat.fluffy.font_size_factor', 1.0),
-  hideRedactedEvents<bool>('chat.fluffy.hideRedactedEvents', false),
-  hideUnknownEvents<bool>('chat.fluffy.hideUnknownEvents', true),
-  autoplayImages<bool>('chat.fluffy.autoplay_images', true),
-  sendTypingNotifications<bool>('chat.fluffy.send_typing_notifications', true),
-  sendPublicReadReceipts<bool>('chat.fluffy.send_public_read_receipts', true),
-  swipeRightToLeftToReply<bool>('chat.fluffy.swipeRightToLeftToReply', true),
-  sendOnEnter<bool>('chat.fluffy.send_on_enter', false),
-  displayNavigationRail<bool>('chat.fluffy.display_navigation_rail', false),
-  shareKeysWith<String>('chat.fluffy.share_keys_with_2', 'all'),
-  noEncryptionWarningShown<bool>(
-    'chat.fluffy.no_encryption_warning_shown',
-    false,
-  ),
-  displayChatDetailsColumn('chat.fluffy.display_chat_details_column', false),
+  renderHtml<bool>('dvchat.renderHtml', true),
+  fontSizeFactor<double>('dvchat.font_size_factor', 1.0),
+  hideRedactedEvents<bool>('dvchat.hideRedactedEvents', false),
+  hideUnknownEvents<bool>('dvchat.hideUnknownEvents', true),
+  autoplayImages<bool>('dvchat.autoplay_images', true),
+  voiceMessageSpeedPercent<int>('dvchat.voice_message_speed', 100),
+  archiveDeleteConfirm<bool>('dvchat.archive_delete_confirm', true),
+  notifyAboutReactions<bool>('dvchat.notify_about_reactions', true),
+  // DVChat: «хочу получать уведомления о прочтении посланных сообщений» (серверная часть позже)
+  notifyAboutReadReceipts<bool>('dvchat.notify_read_receipts', true),
+  // DVChat: уведомления от игр (ваш ход) и отключённые партии
+  notifyAboutGames<bool>('dvchat.notify_games', true),
+  mutedGames<List<String>>('dvchat.muted_games', []),
+  sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
+  sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),
+  swipeRightToLeftToReply<bool>('dvchat.swipeRightToLeftToReply', true),
+  // DVChat: действие плашки при смахивании чата влево: archive, read, mute, pin, delete, none
+  chatSwipeAction<String>('dvchat.chat_swipe_action', 'archive'),
+  sendOnEnter<bool>('dvchat.send_on_enter', false),
+  shareKeysWith<String>('dvchat.share_keys_with_2', 'all'),
+  noEncryptionWarningShown<bool>('dvchat.no_encryption_warning_shown', false),
+  displayChatDetailsColumn('dvchat.display_chat_details_column', false),
   // AppConfig-mirrored settings
-  applicationName<String>('chat.fluffy.application_name', 'FluffyChat'),
-  defaultHomeserver<String>('chat.fluffy.default_homeserver', 'matrix.org'),
+  applicationName<String>('dvchat.application_name', 'DVChat'),
+  defaultHomeserver<String>(
+    'dvchat.default_homeserver',
+    AppConfig.defaultHomeserver,
+  ),
   // colorSchemeSeed stored as ARGB int
-  colorSchemeSeedInt<int>('chat.fluffy.color_scheme_seed', 0xFF5625BA),
+  colorSchemeSeedInt<int>('dvchat.color_scheme_seed', 0xFF5625BA),
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
-  enableSoftLogout<bool>('chat.fluffy.enable_soft_logout', true),
-  enableMatrixNativeOIDC<bool>('chat.fluffy.enable_matrix_native_oidc', true),
-  presetHomeserver<String>('chat.fluffy.preset_homeserver', ''),
-  welcomeText<String>('chat.fluffy.welcome_text', ''),
-  website<String>('chat.fluffy.website_url', 'https://fluffychat.im'),
-  logoUrl<String>(
-    'chat.fluffy.logo_url',
-    'https://fluffychat.im/assets/favicon.png',
-  ),
-  privacyPolicy<String>(
-    'chat.fluffy.privacy_policy_url',
-    'https://fluffychat.im/privacy',
-  ),
-  tos<String>('chat.fluffy.tos_url', 'https://fluffychat.im/tos'),
-  sendTimelineEventTimeout<int>('chat.fluffy.send_timeline_event_timeout', 15),
-  webNotificationSound<bool>('chat.fluffy.web_notification_sound', true),
-  chatFilter<String>('chat.fluffy.chat_filter', 'allChats'),
-  hideRoomsInSpaces<bool>('chat.fluffy.hideRoomsInSpaces', false),
-  showThumbnailsInTimeline<bool>('chat.fluffy.showThumbnailsInTimeline', true),
-  doubleTapToReact<bool>('chat.fluffy.double_tap_to_react', false),
-  doubleTapReaction<String>('chat.fluffy.double_tap_reaction', '❤️'),
-  benchmarksInLogs<bool>('chat.fluffy.benchmarks_in_logs', false),
-  autoSendErrorReports<bool?>('chat.fluffy.auto_send_eror_reports', null),
-  knownErrorHashes<List<String>>('chat.fluffy.known_crash_hashes', []),
-  checkForUpdates<bool>('chat.fluffy.check_for_updates', true),
-  lastUpdateCheckDate<String>('chat.fluffy.last_update_check_date', ''),
-  fallbackLiveKitInstance<String>(
-    'chat.fluffy.fallback_live_kit_instance',
-    'https://livekit-jwt.fluffy.chat',
-  );
+  enableSoftLogout<bool>('dvchat.enable_soft_logout', true),
+  sendTimelineEventTimeout<int>('dvchat.send_timeline_event_timeout', 15),
+  webNotificationSound<bool>('dvchat.web_notification_sound', true),
+  chatFilter<String>('dvchat.chat_filter', 'allChats'),
+  showThumbnailsInTimeline<bool>('dvchat.showThumbnailsInTimeline', true),
+  doubleTapToReact<bool>('dvchat.double_tap_to_react', false),
+  // DVChat: цвет фона чата (ARGB, 0 = по умолчанию)
+  chatBackgroundColorInt<int>('dvchat.chat_background_color', 0),
+  // DVChat: реакция по двойному касанию по умолчанию: 👍
+  doubleTapReaction<String>('dvchat.double_tap_reaction', '👍'),
+  // DVChat: готовый градиентный фон чата (id из dv_wallpaper_presets.dart, пусто = нет)
+  chatWallpaperPreset<String>('dvchat.chat_wallpaper_preset', ''),
+  // DVChat: оформление списков: plain (обычное), plates (плашки), frames (рамки)
+  listStyle<String>('dvchat.list_style', 'plain'),
+  // DVChat: контраст плашек и рамок с фоном (0..1)
+  listContrast<double>('dvchat.list_contrast', 0.4),
+  // DVChat: звук в играх (по умолчанию включён) и его громкость
+  gameSound<bool>('dvchat.game_sound', true),
+  gameVolume<double>('dvchat.game_volume', 0.8),
+  benchmarksInLogs<bool>('dvchat.benchmarks_in_logs', false),
+  autoSendErrorReports<bool?>('dvchat.auto_send_eror_reports', null),
+  knownErrorHashes<List<String>>('dvchat.known_crash_hashes', []),
+  checkForUpdates<bool>('dvchat.check_for_updates', true),
+  // DVChat: после выхода из аккаунта показать, что делать дальше (пока человек не нажмёт «Понятно»)
+  loggedOutNoticePending<bool>('dvchat.logged_out_notice', false),
+  lastUpdateCheckDate<String>('dvchat.last_update_check_date', '');
 
   final String key;
   final T _defaultValue;
@@ -96,23 +99,20 @@ enum AppSettings<T> {
   static SharedPreferences get store => _store!;
   static SharedPreferences? _store;
 
-  static Map<String, Object?>? _platformConfiguration;
+  T get defaultValue => _defaultValue;
 
-  T get defaultValue {
-    final platformConfig = _platformConfiguration?[name];
-    if (platformConfig is T) return platformConfig;
-    return _defaultValue;
-  }
-
-  static Future<void> reset({bool loadWebConfigFile = true}) async {
+  static Future<void> reset() async {
     await AppSettings._store!.clear();
-    await init(loadWebConfigFile: loadWebConfigFile);
+    await init();
   }
 
-  static Future<SharedPreferences> init({bool loadWebConfigFile = true}) async {
+  static Future<SharedPreferences> init() async {
     if (AppSettings._store != null) return AppSettings.store;
 
     final store = AppSettings._store = await SharedPreferences.getInstance();
+
+    // DVChat: перенос ключей со старых имён (одноразово, потом цикл пустой)
+    await migrateLegacySettings(store);
 
     // Migrate wrong datatype for fontSizeFactor
     final fontSizeFactorString = Result(
@@ -135,24 +135,6 @@ enum AppSettings<T> {
         AppSettings.doubleTapToReact.key,
         PlatformInfos.isMobile,
       );
-    }
-
-    // Load configuration from config.json file or MDM:
-    if (PlatformInfos.isMobile) {
-      _platformConfiguration =
-          await ManagedConfigurations().getManagedConfigurations;
-    } else if (kIsWeb && loadWebConfigFile) {
-      try {
-        final configJsonString = utf8.decode(
-          (await http.get(Uri.parse('config.json'))).bodyBytes,
-        );
-        _platformConfiguration =
-            json.decode(configJsonString) as Map<String, Object?>;
-      } on FormatException catch (_) {
-        Logs().v('[ConfigLoader] config.json not found');
-      } catch (e) {
-        Logs().v('[ConfigLoader] config.json not found', e);
-      }
     }
 
     return store;

@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/themes.dart';
+// DVChat: Двухколоночная раскладка (список и содержимое) для широких экранов.
+
+import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TwoColumnLayout extends StatelessWidget {
@@ -29,8 +31,8 @@ class TwoColumnLayout extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               decoration: const BoxDecoration(),
               width:
-                  FluffyThemes.columnWidth +
-                  (hasNavigationRail ? FluffyThemes.navRailWidth : 0),
+                  DvThemes.columnWidth +
+                  (hasNavigationRail ? DvThemes.navRailWidth : 0),
               child: mainView,
             ),
             Container(width: 1.0, color: theme.dividerColor),

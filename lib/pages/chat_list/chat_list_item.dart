@@ -3,17 +3,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_list/active_call_indicator.dart';
-import 'package:fluffychat/pages/chat_list/unread_bubble.dart';
-import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/room_status_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/hover_builder.dart';
-import 'package:fluffychat/widgets/typing_animation.dart';
+// DVChat: Строка чата в списке: аватар, имя, последнее сообщение, счётчик непрочитанных.
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_list/unread_bubble.dart';
+import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_decrypt_state.dart';
+import 'package:dvchat/utils/dv_last_event.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/room_status_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/dv_decrypting_line.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/hover_builder.dart';
+import 'package:dvchat/widgets/typing_animation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -21,43 +27,113 @@ import '../../config/themes.dart';
 import '../../utils/date_time_extension.dart';
 import '../../widgets/avatar.dart';
 
-class ChatListItem extends StatelessWidget {
+/// DVChat: справа в строке чата: время (слева от него колокольчик, если уведомления
+/// выключены) и под ним три точки: то же меню, что открывается долгим нажатием.
+class _ChatTrailing extends StatelessWidget {
+  const _ChatTrailing({
+    required this.room,
+    required this.isMuted,
+    required this.onMenu,
+  });
+
   final Room room;
-  final Room? space;
+  final bool isMuted;
+  final VoidCallback onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dim = theme.colorScheme.onSurfaceVariant;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isMuted)
+              Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: Icon(
+                  Icons.notifications_off_outlined,
+                  size: 13,
+                  color: dim,
+                ),
+              ),
+            Text(
+              room.latestEventReceivedTime.localizedTimeShort(context),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: room.hasNewMessages ? FontWeight.bold : null,
+                color: room.highlightCount >= 1
+                    ? theme.colorScheme.error
+                    : room.hasNewMessages
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
+            ),
+          ],
+        ),
+        InkResponse(
+          onTap: onMenu,
+          radius: 18,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+            child: Icon(Icons.more_vert, size: 20, color: dim),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatListItemBody extends StatelessWidget {
+  final Room room;
   final bool activeChat;
   final void Function(BuildContext context)? onLongPress;
   final void Function()? onForget;
   final void Function() onTap;
   final String? filter;
 
-  const ChatListItem(
+  const _ChatListItemBody(
     this.room, {
     this.activeChat = false,
     required this.onTap,
     this.onLongPress,
     this.onForget,
     this.filter,
-    this.space,
-    super.key,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      DvLastEvent.tick,
+      DvListStyle.revision,
+      DvDecryptState.busy,
+    ]),
+    builder: (context, _) => _buildItem(context),
+  );
+
+  Widget _buildItem(BuildContext context) {
     final theme = Theme.of(context);
 
     final isMuted = room.pushRuleState != PushRuleState.notify;
     final typingText = room.getLocalizedTypingText(context);
-    final lastEvent = room.lastEvent;
+    final lastEvent = DvLastEvent.of(room);
+    // DVChat: пока открываются ключи шифрования, вместо «не расшифровано» крутится индикатор
+    final decrypting =
+        DvDecryptState.busy.value &&
+        lastEvent != null &&
+        (lastEvent.messageType == MessageTypes.BadEncrypted ||
+            lastEvent.type == EventTypes.Encrypted);
     final ownMessage = lastEvent?.senderId == room.client.userID;
     final directChatMatrixId = room.directChatMatrixID;
     final isDirectChat = directChatMatrixId != null;
     final hasNotifications = room.notificationCount > 0;
     final backgroundColor = activeChat
         ? theme.colorScheme.secondaryContainer
-        : null;
-    final displayname = room.getLocalizedDisplayname(
-      MatrixLocals(L10n.of(context)),
-    );
+        : DvListStyle.fill(context);
+    final displayname = room.dvDisplayname(MatrixLocals(L10n.of(context)));
     final filter = this.filter;
     if (filter != null && !displayname.toLowerCase().contains(filter)) {
       return const SizedBox.shrink();
@@ -66,14 +142,16 @@ class ChatListItem extends StatelessWidget {
     final needLastEventSender =
         lastEvent != null &&
         room.getState(EventTypes.RoomMember, lastEvent.senderId) == null;
-    final space = this.space;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: DvListStyle.outerPadding,
       child: Material(
-        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        shape: DvListStyle.shape(context),
         clipBehavior: Clip.hardEdge,
         color: backgroundColor,
+        elevation: DvListStyle.elevation,
+        shadowColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
         child: FutureBuilder(
           future: room.name.isEmpty ? room.loadHeroUsers() : null,
           builder: (context, _) => HoverBuilder(
@@ -83,79 +161,29 @@ class ChatListItem extends StatelessWidget {
               onLongPress: () => onLongPress?.call(context),
               leading: HoverBuilder(
                 builder: (context, hovered) => AnimatedScale(
-                  duration: FluffyThemes.animationDuration,
-                  curve: FluffyThemes.animationCurve,
+                  duration: DvThemes.animationDuration,
+                  curve: DvThemes.animationCurve,
                   scale: hovered ? 1.1 : 1.0,
                   child: SizedBox(
                     width: Avatar.defaultSize,
                     height: Avatar.defaultSize,
                     child: Stack(
                       children: [
-                        if (space != null)
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            child: Avatar(
-                              shapeBorder: RoundedSuperellipseBorder(
-                                side: BorderSide(
-                                  width: 2,
-                                  color:
-                                      backgroundColor ??
-                                      theme.colorScheme.surface,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  AppConfig.spaceBorderRadius * 0.75,
-                                ),
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppConfig.spaceBorderRadius * 0.75,
-                              ),
-                              mxContent: space.avatar,
-                              size: Avatar.defaultSize * 0.75,
-                              name: space.getLocalizedDisplayname(),
-                              onTap: () => onLongPress?.call(context),
-                            ),
-                          ),
                         Positioned(
                           bottom: 0,
                           right: 0,
                           child: Avatar(
-                            shapeBorder: space == null
-                                ? room.isSpace
-                                      ? RoundedSuperellipseBorder(
-                                          side: BorderSide(
-                                            width: 1,
-                                            color: theme.dividerColor,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.spaceBorderRadius,
-                                          ),
-                                        )
-                                      : null
-                                : RoundedRectangleBorder(
-                                    side: BorderSide(
-                                      width: 2,
-                                      color:
-                                          backgroundColor ??
-                                          theme.colorScheme.surface,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      Avatar.defaultSize,
-                                    ),
-                                  ),
-                            borderRadius: room.isSpace
-                                ? BorderRadius.circular(
-                                    AppConfig.spaceBorderRadius,
-                                  )
-                                : null,
                             mxContent: room.avatar,
-                            size: space != null
-                                ? Avatar.defaultSize * 0.75
-                                : Avatar.defaultSize,
+                            size: Avatar.defaultSize,
                             name: displayname,
                             presenceUserId: directChatMatrixId,
                             presenceBackgroundColor: backgroundColor,
-                            onTap: () => onLongPress?.call(context),
+                            onTap: directChatMatrixId == null
+                                ? () => onLongPress?.call(context)
+                                : () => DvProfilePage.open(
+                                    context,
+                                    directChatMatrixId,
+                                  ),
                           ),
                         ),
                         Positioned(
@@ -164,8 +192,8 @@ class ChatListItem extends StatelessWidget {
                           child: GestureDetector(
                             onTap: () => onLongPress?.call(context),
                             child: AnimatedScale(
-                              duration: FluffyThemes.animationDuration,
-                              curve: FluffyThemes.animationCurve,
+                              duration: DvThemes.animationDuration,
+                              curve: DvThemes.animationCurve,
                               scale: listTileHovered ? 1.0 : 0.0,
                               child: Material(
                                 color: backgroundColor,
@@ -193,7 +221,7 @@ class ChatListItem extends StatelessWidget {
                       softWrap: false,
                     ),
                   ),
-                  if (isMuted)
+                  if (isMuted && onForget != null)
                     const Padding(
                       padding: EdgeInsets.only(left: 4.0),
                       child: Icon(Icons.notifications_off_outlined, size: 16),
@@ -220,7 +248,7 @@ class ChatListItem extends StatelessWidget {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                  if (!room.isSpace && room.membership != Membership.invite)
+                  if (room.membership != Membership.invite && onForget != null)
                     Padding(
                       padding: const EdgeInsets.only(left: 4.0),
                       child: Text(
@@ -244,14 +272,9 @@ class ChatListItem extends StatelessWidget {
               ),
               subtitle: Row(
                 children: [
-                  if (room.hasActiveMatrixRtcCall)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4.0),
-                      child: ActiveCallIndicator(room: room),
-                    ),
                   if (typingText.isEmpty &&
                       ownMessage &&
-                      room.lastEvent?.status.isSending == true) ...[
+                      lastEvent?.status.isSending == true) ...[
                     const SizedBox(
                       width: 16,
                       height: 16,
@@ -261,14 +284,14 @@ class ChatListItem extends StatelessWidget {
                   ],
                   AnimatedSize(
                     clipBehavior: Clip.hardEdge,
-                    duration: FluffyThemes.animationDuration,
-                    curve: FluffyThemes.animationCurve,
+                    duration: DvThemes.animationDuration,
+                    curve: DvThemes.animationCurve,
                     child: typingText.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.only(right: 4.0),
                             child: TypingAnimation(size: 4.0),
                           )
-                        : room.lastEvent?.relationshipType ==
+                        : lastEvent?.relationshipType ==
                               RelationshipTypes.thread
                         ? Container(
                             decoration: BoxDecoration(
@@ -302,19 +325,15 @@ class ChatListItem extends StatelessWidget {
                         : const SizedBox.shrink(),
                   ),
                   Expanded(
-                    child: room.isSpace && room.membership == Membership.join
-                        ? Text(
-                            L10n.of(
-                              context,
-                            ).countChats(room.spaceChildren.length),
-                          )
-                        : typingText.isNotEmpty
+                    child: typingText.isNotEmpty
                         ? Text(
                             typingText,
                             style: TextStyle(color: theme.colorScheme.primary),
                             maxLines: 1,
                             softWrap: false,
                           )
+                        : decrypting
+                        ? const DvDecryptingLine()
                         : FutureBuilder(
                             key: ValueKey(
                               '${lastEvent?.eventId}_${lastEvent?.type}_${lastEvent?.redacted}',
@@ -327,9 +346,13 @@ class ChatListItem extends StatelessWidget {
                                     plaintextBody: true,
                                     removeMarkdown: true,
                                     withSenderNamePrefix:
+                                        // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+                                        !(lastEvent.content.containsKey(
+                                          'online.dvbstudio.dvchat.newcomer',
+                                        )) &&
                                         (!isDirectChat ||
-                                        directChatMatrixId !=
-                                            room.lastEvent?.senderId),
+                                            directChatMatrixId !=
+                                                lastEvent.senderId),
                                   )
                                 : null,
                             initialData: lastEvent?.calcLocalizedBodyFallback(
@@ -339,9 +362,12 @@ class ChatListItem extends StatelessWidget {
                               plaintextBody: true,
                               removeMarkdown: true,
                               withSenderNamePrefix:
+                                  // DVChat: служебное приветствие («X теперь в DVChat») показываем без имени автора
+                                  !(lastEvent.content.containsKey(
+                                    'online.dvbstudio.dvchat.newcomer',
+                                  )) &&
                                   (!isDirectChat ||
-                                  directChatMatrixId !=
-                                      room.lastEvent?.senderId),
+                                      directChatMatrixId != lastEvent.senderId),
                             ),
                             builder: (context, snapshot) => Text(
                               room.membership == Membership.invite
@@ -364,8 +390,9 @@ class ChatListItem extends StatelessWidget {
                               maxLines: room.notificationCount >= 1 ? 2 : 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                decoration: room.lastEvent?.redacted == true
-                                    ? TextDecoration.lineThrough
+                                color: lastEvent?.redacted == true
+                                    ? theme.colorScheme.onSurfaceVariant
+                                          .withAlpha(110)
                                     : null,
                               ),
                             ),
@@ -398,7 +425,11 @@ class ChatListItem extends StatelessWidget {
                               );
                             },
                           )
-                        : null
+                        : _ChatTrailing(
+                            room: room,
+                            isMuted: isMuted,
+                            onMenu: () => onLongPress?.call(context),
+                          )
                   : IconButton(
                       icon: const Icon(Icons.delete_outlined),
                       onPressed: onForget,
@@ -406,6 +437,43 @@ class ChatListItem extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// DVChat: обёртка, которая догружает участников личного чата и ПОСЛЕ этого
+/// заново строит всю строку списка. Раньше имя считалось до загрузки и оставалось
+/// логином («dima»), пока чат не откроют.
+class ChatListItem extends StatelessWidget {
+  final Room room;
+  final bool activeChat;
+  final void Function(BuildContext context)? onLongPress;
+  final void Function()? onForget;
+  final void Function() onTap;
+  final String? filter;
+
+  const ChatListItem(
+    this.room, {
+    this.activeChat = false,
+    required this.onTap,
+    this.onLongPress,
+    this.onForget,
+    this.filter,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Object?>(
+      future: room.name.isEmpty ? room.loadHeroUsers() : null,
+      builder: (context, _) => _ChatListItemBody(
+        room,
+        activeChat: activeChat,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        onForget: onForget,
+        filter: filter,
       ),
     );
   }

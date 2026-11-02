@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Окно сканирования QR-кода камерой (вход, добавление друга).
+
 import 'dart:async';
 import 'dart:io';
 
-import 'package:fluffychat/l10n/l10n.dart';
+import 'package:dvchat/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 
@@ -27,8 +29,6 @@ class QrScannerModalState extends State<QrScannerModal> {
     super.reassemble();
     if (Platform.isAndroid) {
       controller!.pauseCamera();
-    } else if (Platform.isIOS) {
-      controller!.resumeCamera();
     }
   }
 

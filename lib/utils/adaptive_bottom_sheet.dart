@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Показ нижней панели/диалога, подстраивающегося под размер экрана.
+
 import 'dart:math';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
 
 Future<T?> showAdaptiveBottomSheet<T>({
@@ -16,7 +18,7 @@ Future<T?> showAdaptiveBottomSheet<T>({
   bool isScrollControlled = true,
   bool useRootNavigator = true,
 }) {
-  if (FluffyThemes.isColumnMode(context)) {
+  if (DvThemes.isColumnMode(context)) {
     return showDialog<T>(
       context: context,
       useRootNavigator: useRootNavigator,

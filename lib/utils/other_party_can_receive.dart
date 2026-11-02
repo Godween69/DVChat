@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Проверка, может ли собеседник получить сообщение (есть ли у него ключи/устройства).
+
 import 'package:matrix/matrix.dart';
 
 extension OtherPartyCanReceiveExtension on Room {

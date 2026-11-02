@@ -8,7 +8,7 @@
 # Generates some glue code for translation of /command hints.
 
 # How to use this:
-# - Add any new hints to assets/l10n/intl_en.arb
+# - Add any new hints to lib/l10n/intl_ru.arb
 #   They must be of the form commandHint_<command> with <command> in lowercase.
 # - Run this script to regenerate the glue code
 # - Run flutter test to see if you did everything right
@@ -27,7 +27,7 @@ String commandHint(L10n l10n, String command) {
 $(sed -n \
   's/[[:blank:]]*\"\(commandHint_\([[:lower:]]*\)\)\".*/    case "\2":\
       return l10n.\1;/p' \
-  lib/l10n/intl_en.arb
+  lib/l10n/intl_ru.arb
 )
     default:
       return \"\";

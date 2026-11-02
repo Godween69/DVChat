@@ -3,6 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Группы аккаунтов (bundles): помечает, какие входы относятся к одной группе,
+// для переключения между несколькими аккаунтами. Данные хранятся в account data.
+
 import 'package:matrix/matrix.dart';
 
 class AccountBundles {
@@ -48,7 +51,7 @@ class AccountBundle {
   };
 }
 
-const accountBundlesType = 'im.fluffychat.account_bundles';
+const accountBundlesType = 'online.dvbstudio.dvchat.account_bundles';
 
 extension AccountBundlesExtension on Client {
   List<AccountBundle> get accountBundles {

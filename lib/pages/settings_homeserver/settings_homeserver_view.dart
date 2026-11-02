@@ -3,13 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «О сервере» (внешний вид): сведения о домашнем сервере и его возможностях.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:convert';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -29,10 +32,10 @@ class SettingsHomeserverView extends StatelessWidget {
 
     final client = Matrix.of(context).client;
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: !FluffyThemes.isColumnMode(context),
-        centerTitle: FluffyThemes.isColumnMode(context),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
+        automaticallyImplyLeading: !DvThemes.isColumnMode(context),
+        centerTitle: DvThemes.isColumnMode(context),
         title: Text(
           L10n.of(
             context,

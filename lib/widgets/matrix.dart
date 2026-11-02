@@ -3,23 +3,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Центральный «пульт» приложения: хранит клиенты Matrix, вход и выход, подписки
+// на уведомления, блокировку приложения. Доступен из любого экрана через Matrix.of(context).
+
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/init_with_restore.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/uia_request_manager.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_recording_signal.dart';
+import 'package:dvchat/utils/dv_stats_sync.dart';
+import 'package:dvchat/utils/init_with_restore.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/uia_request_manager.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/dvchat_app.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
@@ -67,11 +66,6 @@ class MatrixState extends State<Matrix> {
   SharedPreferences get store => widget.store;
 
   BackgroundPush? backgroundPush;
-
-  final ValueNotifier<String?> activeCallRoomId = ValueNotifier(null);
-  final ValueNotifier<CallPosition> callPosition = ValueNotifier(
-    CallPosition.fullScreen,
-  );
 
   Client get client {
     if (_activeClient < 0 || _activeClient >= widget.clients.length) {
@@ -165,7 +159,7 @@ class MatrixState extends State<Matrix> {
                 _registerSubs(_loginClientCandidate!.clientName);
                 setActiveClient(_loginClientCandidate);
                 _loginClientCandidate = null;
-                FluffyChatApp.router.go('/backup');
+                DvChatApp.router.go('/rooms');
               });
     if (widget.clients.isEmpty) widget.clients.add(candidate);
     return candidate;
@@ -177,6 +171,7 @@ class MatrixState extends State<Matrix> {
   final onRoomKeyRequestSub = <String, StreamSubscription>{};
   final onKeyVerificationRequestSub = <String, StreamSubscription>{};
   final onNotification = <String, StreamSubscription>{};
+  final onHiddenEventsSub = <String, StreamSubscription<Event>>{};
   final onLogoutSub = <String, StreamSubscription<LoginState>>{};
   final onUiaRequest = <String, StreamSubscription<UiaRequest>>{};
 
@@ -196,7 +191,7 @@ class MatrixState extends State<Matrix> {
   }
 
   String? get activeRoomId {
-    final route = FluffyChatApp.router.routeInformationProvider.value.uri.path;
+    final route = DvChatApp.router.routeInformationProvider.value.uri.path;
     if (!route.startsWith('/rooms/')) return null;
     return route.split('/')[2];
   }
@@ -241,14 +236,14 @@ class MatrixState extends State<Matrix> {
                   KeyVerificationState.done,
                   KeyVerificationState.error,
                 }.contains(request.state)) {
-              FluffyChatApp.router.pop('dialog');
+              DvChatApp.router.pop('dialog');
             }
             hidPopup = true;
           };
           request.onUpdate = null;
           hidPopup = true;
           await KeyVerificationDialog(request: request).show(
-            FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
+            DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
                 context,
           );
         });
@@ -256,6 +251,9 @@ class MatrixState extends State<Matrix> {
         .where((state) => state == LoginState.loggedOut)
         .listen((_) {
           final loggedInWithMultipleClients = widget.clients.length > 1;
+          if (!loggedInWithMultipleClients) {
+            unawaited(AppSettings.loggedOutNoticePending.setItem(true));
+          }
 
           _cancelSubs(c.clientName);
           widget.clients.remove(c);
@@ -264,11 +262,7 @@ class MatrixState extends State<Matrix> {
 
           if (loggedInWithMultipleClients) {
             final snackbarContext =
-                FluffyChatApp
-                    .router
-                    .routerDelegate
-                    .navigatorKey
-                    .currentContext ??
+                DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
                 context;
 
             if (!snackbarContext.mounted) return;
@@ -278,25 +272,13 @@ class MatrixState extends State<Matrix> {
             ).showSnackBar(SnackBar(content: Text(l10n.oneClientLoggedOut)));
             return;
           }
-          FluffyChatApp.router.go('/');
+          DvChatApp.router.go('/');
         });
     onUiaRequest[name] ??= c.onUiaRequest.stream.listen(uiaRequestHandler);
-    if (PlatformInfos.isWeb || PlatformInfos.isDesktop) {
-      FlutterLocalNotificationsPlugin().initialize(
-        settings: InitializationSettings(
-          linux: LinuxInitializationSettings(
-            defaultActionName: FluffyChatNotificationActions.open.name,
-          ),
-          windows: ClientManager.windowsNotificationSettings,
-          macOS: const DarwinInitializationSettings(),
-        ),
-        onDidReceiveNotificationResponse: (response) => notificationTap(
-          response,
-          clients: widget.clients,
-          router: FluffyChatApp.router,
-          l10n: null,
-        ),
-      );
+    onHiddenEventsSub[name] ??= attachHiddenEventCleaner(c);
+    DvStatsSync.watch(c);
+    DvRecordingSignal.attach(c);
+    if (PlatformInfos.isWeb) {
       c.onSync.stream.first.then((s) {
         html.Notification.requestPermission();
         onNotification[name] ??= c.onNotification.stream.listen(
@@ -315,6 +297,8 @@ class MatrixState extends State<Matrix> {
     onLogoutSub.remove(name);
     onNotification[name]?.cancel();
     onNotification.remove(name);
+    onHiddenEventsSub[name]?.cancel();
+    onHiddenEventsSub.remove(name);
   }
 
   void initMatrix() {
@@ -327,7 +311,7 @@ class MatrixState extends State<Matrix> {
         this,
         onFcmError: (errorMsg, {Uri? link}) async {
           final context =
-              FluffyChatApp.router.routerDelegate.navigatorKey.currentContext ??
+              DvChatApp.router.routerDelegate.navigatorKey.currentContext ??
               this.context;
           if (!context.mounted) return;
           final result = await showOkCancelAlertDialog(
@@ -401,35 +385,4 @@ class MatrixState extends State<Matrix> {
   Widget build(BuildContext context) {
     return Provider(create: (_) => this, child: widget.child);
   }
-
-  Future<void> dehydrateAction(BuildContext context) async {
-    final l10n = L10n.of(context);
-    final response = await showOkCancelAlertDialog(
-      context: context,
-      isDestructive: true,
-      title: l10n.dehydrate,
-      message: l10n.dehydrateWarning,
-    );
-    if (response != OkCancelResult.ok) {
-      return;
-    }
-    if (!context.mounted) return;
-    final result = await showFutureLoadingDialog(
-      context: context,
-      future: client.exportDump,
-    );
-    final export = result.result;
-    if (export == null) return;
-
-    final exportBytes = Uint8List.fromList(const Utf8Codec().encode(export));
-
-    final exportFileName =
-        'fluffychat-export-${DateFormat(DateFormat.YEAR_MONTH_DAY).format(DateTime.now())}.fluffybackup';
-
-    final file = MatrixFile(bytes: exportBytes, name: exportFileName);
-    if (!context.mounted) return;
-    file.save(context);
-  }
 }
-
-enum CallPosition { fullScreen, top }

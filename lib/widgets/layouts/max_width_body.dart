@@ -3,8 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
+// DVChat: Ограничение ширины содержимого на широких экранах.
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
 import 'package:material_ui/material_ui.dart';
 
 class MaxWidthBody extends StatelessWidget {
@@ -27,7 +29,7 @@ class MaxWidthBody extends StatelessWidget {
         builder: (context, constraints) {
           final theme = Theme.of(context);
 
-          const desiredWidth = FluffyThemes.columnWidth * 1.5;
+          const desiredWidth = DvThemes.columnWidth * 1.5;
           final body = constraints.maxWidth <= desiredWidth
               ? child
               : Container(
@@ -35,7 +37,7 @@ class MaxWidthBody extends StatelessWidget {
                   padding: const EdgeInsets.all(32),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
-                      maxWidth: FluffyThemes.columnWidth * 1.5,
+                      maxWidth: DvThemes.columnWidth * 1.5,
                     ),
                     child: Material(
                       shape: RoundedRectangleBorder(

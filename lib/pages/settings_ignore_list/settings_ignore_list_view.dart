@@ -3,9 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+// DVChat: Экран «Скрытые пользователи» (внешний вид): список игнорируемых.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../widgets/matrix.dart';
@@ -21,8 +25,8 @@ class SettingsIgnoreListView extends StatelessWidget {
     final theme = Theme.of(context);
 
     final client = Matrix.of(context).client;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).blockedUsers),
       ),
@@ -85,7 +89,7 @@ class SettingsIgnoreListView extends StatelessWidget {
                         onPressed: () => showFutureLoadingDialog(
                           context: context,
                           future: () =>
-                              client.unignoreUser(client.ignoredUsers[i]),
+                              client.unblockUser(client.ignoredUsers[i]),
                         ),
                       ),
                     ),

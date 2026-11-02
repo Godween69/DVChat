@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Корневой сертификат ISRG Root X1 (Let's Encrypt), вшит для старых Android.
+
 // ignore: constant_identifier_names
 const String ISRG_X1 = '''-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw

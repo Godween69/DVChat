@@ -3,38 +3,47 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран переписки (логика): отправка сообщений, вложения, ответы, редактирование, прокрутка,
+// выбор сообщений. Самый большой модуль приложения. Внешний вид — chat_view.dart.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:desktop_drop/desktop_drop.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/chat_view.dart';
+import 'package:dvchat/pages/chat/event_info_dialog.dart';
+import 'package:dvchat/pages/chat/events/shopping_list.dart';
+import 'package:dvchat/pages/chat/start_poll_bottom_sheet.dart';
+import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
+import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
+import 'package:dvchat/pages/chat_details/chat_details.dart';
+import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
+import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/dv_clear.dart';
+import 'package:dvchat/utils/dv_confirm.dart';
+import 'package:dvchat/utils/dv_pins.dart';
+import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_resend.dart';
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/event_extension.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/filtered_timeline_extension.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/utils/other_party_can_receive.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/show_scaffold_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
+import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/chat_view.dart';
-import 'package:fluffychat/pages/chat/event_info_dialog.dart';
-import 'package:fluffychat/pages/chat/start_poll_bottom_sheet.dart';
-import 'package:fluffychat/pages/chat/trust_user_key_dialog.dart';
-import 'package:fluffychat/pages/chat/utils/web_file_to_x_file.dart';
-import 'package:fluffychat/pages/chat_details/chat_details.dart';
-import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/utils/matrix_live_kit_calls/matrix_live_kit_call.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/event_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/filtered_timeline_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/other_party_can_receive.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/show_scaffold_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
-import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -42,7 +51,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:mime/mime.dart';
-import 'package:ogg_caf_converter/ogg_caf_converter.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:universal_html/universal_html.dart' as web;
@@ -74,7 +82,7 @@ class ChatPage extends StatelessWidget {
         timeline?.room ?? Matrix.of(context).client.getRoomById(roomId);
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -138,29 +146,8 @@ class ChatController extends State<ChatPageWithRoom>
   Timer? typingCoolDown;
   Timer? typingTimeout;
   bool currentlyTyping = false;
-  bool dragging = false;
 
   final GlobalKey inputBarKey = GlobalKey();
-
-  void onDragEntered(_) => setState(() => dragging = true);
-
-  void onDragExited(_) => setState(() => dragging = false);
-
-  Future<void> onDragDone(DropDoneDetails details) async {
-    setState(() => dragging = false);
-    if (details.files.isEmpty) return;
-
-    await showAdaptiveDialog(
-      context: context,
-      builder: (c) => SendFileDialog(
-        files: details.files,
-        room: room,
-        outerContext: context,
-        threadRootEventId: activeThreadId,
-        threadLastEventId: threadLastEventId,
-      ),
-    );
-  }
 
   bool get canSaveSelectedEvent =>
       selectedEvents.length == 1 &&
@@ -215,65 +202,95 @@ class ChatController extends State<ChatPageWithRoom>
     selectedEvents.clear();
   });
 
-  Future<void> recreateChat() async {
-    final room = this.room;
-    final userId = room.directChatMatrixID;
-    if (userId == null) {
-      throw Exception(
-        'Try to recreate a room with is not a DM room. This should not be possible from the UI!',
-      );
-    }
-    await showFutureLoadingDialog(
-      context: context,
-      future: () => room.invite(userId),
-    );
-  }
+  bool _historyBusy = false;
+  bool _futureBusy = false;
 
-  Future<void> leaveChat() async {
-    final success = await showFutureLoadingDialog(
-      context: context,
-      future: room.leave,
-    );
-    if (!mounted) return;
-    if (success.error != null) return;
-    context.go('/rooms');
-  }
-
+  /// DVChat: подгрузка старых сообщений без кнопки. Скрытые служебные события в чате не видны,
+  /// поэтому порция из одних скрытых событий ничего не добавляет: повторяем (не больше шести раз),
+  /// пока не появятся видимые сообщения или история не кончится.
   Future<void> requestHistory([_]) async {
-    Logs().v('Requesting history...');
-    await timeline?.requestHistory(historyCount: _loadHistoryCount);
+    final timeline = this.timeline;
+    if (timeline == null || _historyBusy) return;
+    _historyBusy = true;
+    try {
+      Logs().v('Requesting history...');
+      for (var i = 0; i < 6; i++) {
+        final before = timeline.events.filterByVisibleInGui().length;
+        await timeline.requestHistory(historyCount: _loadHistoryCount);
+        if (!mounted || !timeline.canRequestHistory) break;
+        if (timeline.events.filterByVisibleInGui().length > before) break;
+      }
+    } finally {
+      _historyBusy = false;
+    }
   }
 
   Future<void> requestFuture() async {
     final timeline = this.timeline;
-    if (timeline == null) return;
-    Logs().v('Requesting future...');
+    if (timeline == null || _futureBusy) return;
+    _futureBusy = true;
+    try {
+      Logs().v('Requesting future...');
 
-    final mostRecentEvent = timeline.events.filterByVisibleInGui().firstOrNull;
+      final mostRecentEvent = timeline.events
+          .filterByVisibleInGui()
+          .firstOrNull;
 
-    await timeline.requestFuture(historyCount: _loadHistoryCount);
+      await timeline.requestFuture(historyCount: _loadHistoryCount);
 
-    if (mostRecentEvent != null) {
-      setReadMarker(eventId: mostRecentEvent.eventId);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final index = timeline.events.filterByVisibleInGui().indexOf(
-          mostRecentEvent,
-        );
-        if (index >= 0) {
-          scrollController.scrollToIndex(
-            index,
-            preferPosition: AutoScrollPosition.begin,
+      if (mostRecentEvent != null) {
+        setReadMarker(eventId: mostRecentEvent.eventId);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final index = timeline.events.filterByVisibleInGui().indexOf(
+            mostRecentEvent,
           );
-        }
-      });
+          if (index >= 0) {
+            scrollController.scrollToIndex(
+              index,
+              preferPosition: AutoScrollPosition.begin,
+            );
+          }
+        });
+      }
+    } finally {
+      _futureBusy = false;
     }
   }
+
+  bool _bannerScrolledAway = false;
 
   void _updateScrollController() {
     if (!mounted) {
       return;
     }
     if (!scrollController.hasClients) return;
+    // DVChat: у верхнего края (в перевёрнутом списке это конец прокрутки) подгружаем историю,
+    // у нижнего края старого окна подгружаем новые сообщения; кнопки «Загрузить больше» нет
+    final scrollPosition = scrollController.position;
+    final loadedTimeline = timeline;
+    if (loadedTimeline != null && activeThreadId == null) {
+      if (scrollPosition.maxScrollExtent - scrollPosition.pixels < 800 &&
+          loadedTimeline.canRequestHistory &&
+          !loadedTimeline.isRequestingHistory) {
+        unawaited(requestHistory());
+      } else if (scrollPosition.pixels < 200 &&
+          loadedTimeline.canRequestFuture &&
+          !loadedTimeline.isRequestingFuture) {
+        unawaited(requestFuture());
+      }
+    }
+    // DVChat: плашку «перейти к последнему прочитанному» убираем, когда человек сам
+    // прокрутил вверх и вернулся вниз; иначе она возвращалась бы при каждом входе
+    if (scrollUpBannerEventId != null) {
+      final pixels = scrollController.position.pixels;
+      if (pixels > 400) {
+        _bannerScrolledAway = true;
+      } else if (_bannerScrolledAway && pixels <= 0) {
+        _bannerScrolledAway = false;
+        discardScrollUpBannerEventId();
+        setReadMarker();
+      }
+    }
     if (timeline?.allowNewEvent == false ||
         scrollController.position.pixels > 0 && _scrolledUp == false) {
       setState(() => _scrolledUp = true);
@@ -401,10 +418,6 @@ class ChatController extends State<ChatPageWithRoom>
     _loadDraft();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _shareItems();
-      _checkMatrixRtcCallSupport();
-      if (widget.action == 'call') {
-        Matrix.of(context).activeCallRoomId.value = room.id;
-      }
     });
     web.window.addEventListener('paste', _handleClipboardFilePasteWeb);
 
@@ -426,23 +439,21 @@ class ChatController extends State<ChatPageWithRoom>
         room.lastEvent?.relationshipType == RelationshipTypes.thread
         ? room.lastEvent?.relationshipEventId
         : null;
+    // DVChat: сервер подтверждает метку только со следующей синхронизацией, поэтому при быстром
+    // повторном входе в чат берём ту метку, что мы сами поставили (иначе ложный прыжок наверх)
     readMarkerEventId = room.hasNewMessages
-        ? lastEventThreadId ?? room.fullyRead
+        ? lastEventThreadId ?? _localReadUpTo[room.id] ?? room.fullyRead
         : '';
     WidgetsBinding.instance.addObserver(this);
+    DvClear.wiped.addListener(_onDvWiped);
     _tryLoadTimeline();
   }
 
-  Future<void> _checkMatrixRtcCallSupport() async {
-    try {
-      final urls = await room.client.getLiveKitServiceUrls();
-      if (urls.isEmpty) return;
-      setState(() {
-        supportLiveKitCalls = true;
-      });
-    } catch (e) {
-      Logs().d('Unable to check MatrixRTC call support', e);
-    }
+  /// DVChat: переписка этой комнаты очищена (метка сервера): лента перечитывается из уже очищенной базы
+  void _onDvWiped() {
+    if (!mounted || !DvClear.wiped.value.startsWith('${room.id}|')) return;
+    loadTimelineFuture = _getTimeline();
+    setState(() {});
   }
 
   final Set<String> expandedEventIds = {};
@@ -497,10 +508,20 @@ class ChatController extends State<ChatPageWithRoom>
             .indexWhere((e) => e.eventId == readMarkerEventId);
       }
 
-      if (readMarkerEventIndex > 1) {
+      // DVChat: к метке прыгаем, только если после неё есть настоящие чужие сообщения
+      // (свои сообщения и служебные события непрочитанными не считаются)
+      final hasUnread =
+          readMarkerEventId.isNotEmpty &&
+          _hasUnreadFromOthers(readMarkerEventId);
+      Logs().d(
+        'DVChat: непрочитанное: метка=$readMarkerEventId индекс=$readMarkerEventIndex чужие после метки=$hasUnread',
+      );
+      if (readMarkerEventIndex > 1 && hasUnread) {
         Logs().v('Scroll up to visible event', readMarkerEventId);
         scrollToEventId(readMarkerEventId, highlightEvent: false);
-      } else if (readMarkerEventId.isNotEmpty && readMarkerEventIndex == -1) {
+      } else if (readMarkerEventId.isNotEmpty &&
+          readMarkerEventIndex == -1 &&
+          hasUnread) {
         _showScrollUpMaterialBanner(readMarkerEventId);
       }
 
@@ -512,6 +533,29 @@ class ChatController extends State<ChatPageWithRoom>
       ErrorReporter(context, 'Unable to load timeline').onErrorCallback(e, s);
       rethrow;
     }
+  }
+
+  /// DVChat: есть ли после метки прочтения настоящие сообщения от других людей
+  bool _hasUnreadFromOthers(String markerEventId) {
+    final me = room.client.userID;
+    final events =
+        timeline?.events.filterByVisibleInGui(
+          exceptionEventId: markerEventId,
+          threadId: activeThreadId,
+        ) ??
+        const <Event>[];
+    for (final e in events) {
+      if (e.eventId == markerEventId) return false;
+      if (e.senderId != me &&
+          const {
+            EventTypes.Message,
+            EventTypes.Encrypted,
+            EventTypes.Sticker,
+          }.contains(e.type)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String? scrollUpBannerEventId;
@@ -531,7 +575,7 @@ class ChatController extends State<ChatPageWithRoom>
     final firstEvent = timeline?.events.firstOrNull;
     final eventId = firstEvent?.transactionId ?? firstEvent?.eventId;
     animateInEventId = eventId;
-    await Future.delayed(FluffyThemes.animationDuration);
+    await Future.delayed(DvThemes.animationDuration);
     if (animateInEventId == eventId) animateInEventId = null;
   }
 
@@ -587,6 +631,9 @@ class ChatController extends State<ChatPageWithRoom>
 
   String? _setReadMarkerEventId;
 
+  /// DVChat: до какого сообщения прочитан чат по нашим же отправленным меткам (по комнатам)
+  static final Map<String, String> _localReadUpTo = {};
+
   void setReadMarker({String? eventId}) {
     // Do not send read markers when app is not in foreground
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
@@ -605,12 +652,9 @@ class ChatController extends State<ChatPageWithRoom>
     final timeline = this.timeline;
     if (timeline == null || timeline.events.isEmpty) return;
 
-    // Do not set read marker on rtc notification while call is active. This
-    // mutes callkit.
-    if (room.hasActiveMatrixRtcCall &&
-        timeline.events.first.type == RtcNotificationContent.eventType) {
-      return;
-    }
+    // DVChat: скрытое событие «прочитал» для автора сообщения (личные чаты)
+    // ignore: unawaited_futures
+    sendReadNotice(room, timeline);
 
     eventId ??= timeline.events.firstWhereOrNull((event) {
       if (event.eventId == room.lastEvent?.eventId) return true;
@@ -654,6 +698,7 @@ class ChatController extends State<ChatPageWithRoom>
 
     Logs().d('Set read marker...', eventId);
     _setReadMarkerEventId = eventId;
+    _localReadUpTo[room.id] = eventId;
     // ignore: unawaited_futures
     timeline
         .setReadMarker(
@@ -667,6 +712,7 @@ class ChatController extends State<ChatPageWithRoom>
 
   @override
   void dispose() {
+    DvClear.wiped.removeListener(_onDvWiped);
     timeline?.cancelSubscriptions();
     timeline = null;
     _storeInputTimeoutTimer?.cancel();
@@ -948,12 +994,7 @@ class ChatController extends State<ChatPageWithRoom>
 
     final bytesResult = await showFutureLoadingDialog(
       context: context,
-      future: () {
-        if (PlatformInfos.isCupertinoStyle && fileName.endsWith('.ogg')) {
-          return OggCafConverter().convertCafToOggInMemory(input: path);
-        }
-        return XFile(path).readAsBytes();
-      },
+      future: () => XFile(path).readAsBytes(),
     );
     final bytes = bytesResult.result;
     if (bytes == null) return;
@@ -1096,22 +1137,17 @@ class ChatController extends State<ChatPageWithRoom>
   }
 
   Future<void> redactEventsAction() async {
-    final reasonInput = selectedEvents.any((event) => event.status.isSent)
-        ? await showTextInputDialog(
-            context: context,
-            title: L10n.of(context).redactMessage,
-            message: L10n.of(context).redactMessageDescription,
-            isDestructive: true,
-            hintText: L10n.of(context).optionalRedactReason,
-            maxLength: 255,
-            maxLines: 3,
-            minLines: 1,
-            okLabel: L10n.of(context).remove,
-            cancelLabel: L10n.of(context).cancel,
-          )
-        : null;
-    if (reasonInput == null) return;
-    final reason = reasonInput.isEmpty ? null : reasonInput;
+    // DVChat: простое подтверждение, без причины
+    if (selectedEvents.any((event) => event.status.isSent)) {
+      final confirmed = await DvConfirm.ask(
+        context,
+        key: 'dv_confirm_redact',
+        title: 'Удалить сообщение?',
+        message: 'Сообщение будет удалено для всех участников.',
+        okLabel: L10n.of(context).remove,
+      );
+      if (!confirmed) return;
+    }
     if (!mounted) return;
     await showFutureLoadingDialog(
       context: context,
@@ -1121,7 +1157,7 @@ class ChatController extends State<ChatPageWithRoom>
           onProgress(i / count);
           if (event.status.isSent) {
             if (event.canRedact) {
-              await event.redactEvent(reason: reason);
+              await event.redactEvent();
             } else {
               final client = currentRoomBundle.firstWhere(
                 (cl) => selectedEvents.first.senderId == cl!.userID,
@@ -1131,10 +1167,7 @@ class ChatController extends State<ChatPageWithRoom>
                 return;
               }
               final room = client.getRoomById(roomId)!;
-              await Event.fromJson(
-                event.toJson(),
-                room,
-              ).redactEvent(reason: reason);
+              await Event.fromJson(event.toJson(), room).redactEvent();
             }
           } else {
             await event.cancelSend();
@@ -1167,6 +1200,10 @@ class ChatController extends State<ChatPageWithRoom>
     return true;
   }
 
+  bool get selectedIsPinned =>
+      selectedEvents.length == 1 &&
+      room.pinnedEventIds.contains(selectedEvents.single.eventId);
+
   bool get canPinSelectedEvents {
     if (isArchived ||
         !room.canChangeStateEvent(EventTypes.RoomPinnedEvents) ||
@@ -1181,6 +1218,7 @@ class ChatController extends State<ChatPageWithRoom>
   bool get canEditSelectedEvents {
     if (isArchived ||
         selectedEvents.length != 1 ||
+        selectedEvents.first.messageType != MessageTypes.Text ||
         !selectedEvents.first.status.isSent) {
       return false;
     }
@@ -1213,13 +1251,13 @@ class ChatController extends State<ChatPageWithRoom>
   void sendAgainAction() {
     final event = selectedEvents.first;
     if (event.status.isError) {
-      event.sendAgain();
+      unawaited(DvResend.retry(event, context: context));
     }
     final allEditEvents = event
         .aggregatedEvents(timeline!, RelationshipTypes.edit)
         .where((e) => e.status.isError);
     for (final e in allEditEvents) {
-      e.sendAgain();
+      unawaited(DvResend.retry(e));
     }
     setState(() => selectedEvents.clear());
   }
@@ -1284,10 +1322,18 @@ class ChatController extends State<ChatPageWithRoom>
       setState(() {
         scrollToEventIdMarker = eventId;
       });
+      // Вспышка гаснет сама; метку снимаем, чтобы она не повторялась при прокрутке
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 2400), () {
+          if (mounted && scrollToEventIdMarker == eventId) {
+            setState(() => scrollToEventIdMarker = null);
+          }
+        }),
+      );
     }
     await scrollController.scrollToIndex(
       eventIndex + 1,
-      duration: FluffyThemes.animationDuration,
+      duration: DvThemes.animationDuration,
       preferPosition: AutoScrollPosition.middle,
     );
     _updateScrollController();
@@ -1354,6 +1400,17 @@ class ChatController extends State<ChatPageWithRoom>
   void _startEditingEvent(Event event, {bool clearSelection = false}) {
     final timeline = this.timeline;
     if (timeline == null) return;
+
+    // DVChat: список покупок правится в своём окне, а не как обычный текст
+    if (dvShoppingOf(event) != null) {
+      if (clearSelection) {
+        setState(() {
+          selectedEvents.clear();
+        });
+      }
+      openShoppingEditor(context, event, timeline, focusNew: false);
+      return;
+    }
 
     final client = currentRoomBundle.firstWhere(
       (c) => c?.userID == event.senderId,
@@ -1499,42 +1556,47 @@ class ChatController extends State<ChatPageWithRoom>
       case AddPopupMenuActions.location:
         sendLocationAction();
         return;
+      case AddPopupMenuActions.shopping:
+        showAdaptiveBottomSheet(
+          context: context,
+          builder: (context) => ShoppingListSheet(room: room),
+        );
+        return;
     }
   }
 
   Future<void> unpinEvent(String eventId) async {
-    final response = await showOkCancelAlertDialog(
-      context: context,
+    final ok = await DvConfirm.ask(
+      context,
+      key: 'dv_confirm_unpin',
       title: L10n.of(context).unpin,
       message: L10n.of(context).confirmEventUnpin,
       okLabel: L10n.of(context).unpin,
-      cancelLabel: L10n.of(context).cancel,
     );
-    if (!mounted) return;
-    if (response == OkCancelResult.ok) {
-      final events = room.pinnedEventIds
-        ..removeWhere((oldEvent) => oldEvent == eventId);
-      showFutureLoadingDialog(
-        context: context,
-        future: () => room.setPinnedEvents(events),
-      );
-    }
+    if (!ok || !mounted) return;
+    final events = room.pinnedEventIds
+      ..removeWhere((oldEvent) => oldEvent == eventId);
+    showFutureLoadingDialog(
+      context: context,
+      future: () => DvPins.save(room, events),
+    );
   }
 
   void pinEvent() {
-    final pinnedEventIds = room.pinnedEventIds;
-    final selectedEventIds = selectedEvents.map((e) => e.eventId).toSet();
+    final pinned = room.pinnedEventIds;
+    final selectedIds = selectedEvents.map((e) => e.eventId).toList();
     final unpin =
-        selectedEventIds.length == 1 &&
-        pinnedEventIds.contains(selectedEventIds.single);
+        selectedIds.length == 1 && pinned.contains(selectedIds.single);
     if (unpin) {
-      pinnedEventIds.removeWhere(selectedEventIds.contains);
+      pinned.removeWhere(selectedIds.contains);
     } else {
-      pinnedEventIds.addAll(selectedEventIds);
+      pinned.addAll(selectedIds.where((id) => !pinned.contains(id)));
     }
+    // Действие сделано: выходим из режима выделения обратно в чат
+    clearSelectedEvents();
     showFutureLoadingDialog(
       context: context,
-      future: () => room.setPinnedEvents(pinnedEventIds),
+      future: () => DvPins.save(room, pinned),
     );
   }
 
@@ -1610,8 +1672,11 @@ class ChatController extends State<ChatPageWithRoom>
   bool get isArchived =>
       {Membership.leave, Membership.ban}.contains(room.membership);
 
-  void showEventInfo([Event? event]) =>
-      (event ?? selectedEvents.single).showInfoDialog(context);
+  void showEventInfo([Event? event]) {
+    // DVChat: служебные сведения (исходный код события) — только администратору
+    if (!isDvAdmin(Matrix.of(context).client)) return;
+    (event ?? selectedEvents.single).showInfoDialog(context);
+  }
 
   void cancelReplyEventAction() => setState(() {
     if (editEvent != null) {
@@ -1621,12 +1686,6 @@ class ChatController extends State<ChatPageWithRoom>
     replyEvent = null;
     editEvent = null;
   });
-
-  void startOrJoinVideoCall() {
-    Matrix.of(context).activeCallRoomId.value = room.id;
-  }
-
-  bool supportLiveKitCalls = false;
 
   Future<void> _cancelEditWithConfirmation() async {
     final originalText = editEvent!
@@ -1678,12 +1737,12 @@ class ChatController extends State<ChatPageWithRoom>
           ValueListenableBuilder(
             valueListenable: _displayChatDetailsColumn,
             builder: (context, displayChatDetailsColumn, _) =>
-                !FluffyThemes.isThreeColumnMode(context) ||
+                !DvThemes.isThreeColumnMode(context) ||
                     room.membership != Membership.join ||
                     !displayChatDetailsColumn
                 ? const SizedBox(height: double.infinity, width: 0)
                 : Container(
-                    width: FluffyThemes.columnWidth,
+                    width: DvThemes.columnWidth,
                     clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
                       border: Border(
@@ -1713,4 +1772,5 @@ enum AddPopupMenuActions {
   photoCamera,
   videoCamera,
   location,
+  shopping,
 }

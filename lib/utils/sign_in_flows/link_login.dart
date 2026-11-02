@@ -1,0 +1,394 @@
+// DVChat: вход по ссылке dvchat://login#<base64url(JSON {"c":"одноразовый код"})>
+// Источники ссылки: буфер обмена, QR-код, системная ссылка (intent)
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/sign_in_flows/crypto_autosetup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
+
+class LoginLinkData {
+  final String username;
+  final String password;
+  // Кодовая фраза шифрования из поля k (может отсутствовать)
+  final String? cryptoPassphrase;
+  // Одноразовый код (новый формат ссылки): данные для входа выдаёт сервер
+  final String? code;
+  const LoginLinkData({
+    this.username = '',
+    this.password = '',
+    this.cryptoPassphrase,
+    this.code,
+  });
+}
+
+/// Разбирает строку-ссылку. Возвращает null, если формат неверный.
+LoginLinkData? parseLoginLink(String raw) {
+  final uri = Uri.tryParse(raw.trim());
+  if (uri == null) return null;
+  if (uri.scheme != AppConfig.loginLinkScheme ||
+      uri.host != AppConfig.loginLinkHost) {
+    return null;
+  }
+  if (uri.fragment.isEmpty) return null;
+  try {
+    // normalize дописывает недостающие "=" в конце base64
+    final bytes = base64Url.decode(base64Url.normalize(uri.fragment));
+    final json = jsonDecode(utf8.decode(bytes));
+    if (json is! Map) return null;
+    // Новый формат: в ссылке только одноразовый код, остальное выдаёт сервер
+    final c = json['c'];
+    if (c is String && c.isNotEmpty) return LoginLinkData(code: c);
+    // Прежний формат (логин и пароль прямо в ссылке) больше не принимается
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Логинится на наш сервер по данным из ссылки, открывает чаты,
+/// шифрование настраивает в фоне.
+Future<void> loginByLink(BuildContext context, String raw) async {
+  final parsed = parseLoginLink(raw);
+  if (parsed == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Некорректная ссылка для входа')),
+    );
+    return;
+  }
+  // Ссылка с кодом: данные для входа получаем у сервера (код одноразовый)
+  final code = parsed.code;
+  final data = code == null ? parsed : await _redeemLoginCode(context, code);
+  if (data == null || !context.mounted) return;
+  final matrix = Matrix.of(context);
+  // Пароль нужен серверу при первой настройке шифрования (запрос UIA)
+  matrix.cachedPassword = data.password;
+  Client? loggedClient;
+  // Окно входа на сервере: 60 секунд с момента обмена кода. Всё это время человек видит крутилку
+  final redeemedAt = DateTime.now();
+  final run = _LoginRun();
+  final outcome = await _loginWithProgress(context, redeemedAt, run, () async {
+    final client = await matrix.getLoginClient();
+    // Сервер всегда наш, чужие адреса игнорируются
+    await client.checkHomeserver(Uri.https(AppConfig.defaultHomeserver, ''));
+    await client.login(
+      LoginType.mLoginPassword,
+      identifier: AuthenticationUserIdentifier(user: data.username),
+      password: data.password,
+      initialDeviceDisplayName: PlatformInfos.appDisplayName,
+    );
+    if (run.timedOut) {
+      // Вход всё же прошёл, когда мы уже сказали «не получилось»: выходим, чтобы не остаться наполовину
+      unawaited(client.logout().catchError((_) {}));
+      return;
+    }
+    loggedClient = client;
+  });
+  if (outcome != null) {
+    matrix.cachedPassword = null;
+    if (!context.mounted) return;
+    if (outcome is _LoginTimeout) {
+      await showOkAlertDialog(
+        context: context,
+        title: 'Не получилось войти за 60 секунд',
+        message:
+            'Скорее всего, слабый интернет. Эта ссылка уже использована: '
+            'запросите у администратора новую ссылку и попробуйте ещё раз.',
+        okLabel: 'Понятно',
+      );
+    } else {
+      _showLoginError(context, outcome.toLocalizedString(context));
+    }
+    return;
+  }
+  final client = loggedClient;
+  final phrase = data.cryptoPassphrase;
+  if (client != null && phrase != null) {
+    // Шифрование настраивается в фоне, пароль забываем по завершении
+    unawaited(
+      setupCryptoSilently(
+        client,
+        phrase,
+      ).whenComplete(() => matrix.cachedPassword = null),
+    );
+  } else {
+    matrix.cachedPassword = null;
+  }
+  if (context.mounted) context.go('/rooms');
+}
+
+/// Состояние одной попытки входа: флаг «время вышло»
+class _LoginRun {
+  bool timedOut = false;
+}
+
+class _LoginTimeout {
+  const _LoginTimeout();
+}
+
+/// Выполняет вход под крутилкой с отсчётом. Возвращает null при успехе, ошибку при сбое
+/// или _LoginTimeout, если за окно входа (60 секунд от обмена кода) войти не вышло.
+Future<Object?> _loginWithProgress(
+  BuildContext context,
+  DateTime redeemedAt,
+  _LoginRun run,
+  Future<void> Function() job,
+) async {
+  const window = Duration(seconds: 60);
+  final left = window - DateTime.now().difference(redeemedAt);
+  final done = Completer<Object?>();
+  unawaited(
+    job().then(
+      (_) {
+        if (!done.isCompleted) done.complete(null);
+      },
+      onError: (Object e) {
+        if (!done.isCompleted) done.complete(e);
+      },
+    ),
+  );
+  unawaited(
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: _LoginProgressDialog(redeemedAt: redeemedAt, window: window),
+      ),
+    ),
+  );
+  Object? result;
+  try {
+    result = await done.future.timeout(
+      left.isNegative ? Duration.zero : left,
+      onTimeout: () {
+        run.timedOut = true;
+        return const _LoginTimeout();
+      },
+    );
+  } finally {
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+  }
+  return result;
+}
+
+class _LoginProgressDialog extends StatefulWidget {
+  const _LoginProgressDialog({required this.redeemedAt, required this.window});
+
+  final DateTime redeemedAt;
+  final Duration window;
+
+  @override
+  State<_LoginProgressDialog> createState() => _LoginProgressDialogState();
+}
+
+class _LoginProgressDialogState extends State<_LoginProgressDialog> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.window.inSeconds;
+    final left = (total - DateTime.now().difference(widget.redeemedAt).inSeconds)
+        .clamp(0, total);
+    return AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator.adaptive(),
+          const SizedBox(height: 16),
+          Text('Идёт вход…', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const Text(
+            'Если интернет слабый, это может занять до минуты. Не закрывайте приложение.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(value: left / total),
+          const SizedBox(height: 6),
+          Text('Осталось $left с'),
+        ],
+      ),
+    );
+  }
+}
+
+void _showLoginError(BuildContext context, String text) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+}
+
+/// Меняет одноразовый код из ссылки на данные входа. Если человек уже входил раньше,
+/// сервер просит ID: спрашиваем его в диалоге (до 6 попыток). Пока ID не введён верно,
+/// код не расходуется.
+Future<LoginLinkData?> _redeemLoginCode(
+  BuildContext context,
+  String code,
+) async {
+  String? dvId;
+  for (var attempt = 0; attempt < 6; attempt++) {
+    final body = <String, String>{'code': code};
+    if (dvId != null) body['dv_id'] = dvId;
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.https(AppConfig.defaultHomeserver, '/_synapse/client/dv/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      if (context.mounted) _showLoginError(context, 'Нет связи с сервером');
+      return null;
+    }
+    var json = <String, Object?>{};
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, Object?>) json = decoded;
+    } catch (_) {}
+
+    if (response.statusCode == 200) {
+      final u = json['u'];
+      final p = json['p'];
+      final k = json['k'];
+      if (u is String && p is String && u.isNotEmpty && p.isNotEmpty) {
+        return LoginLinkData(
+          username: u,
+          password: p,
+          cryptoPassphrase: k is String && k.isNotEmpty ? k : null,
+        );
+      }
+      if (context.mounted) {
+        _showLoginError(context, 'Сервер вернул неполные данные для входа');
+      }
+      return null;
+    }
+
+    final err = json['errcode'];
+    if (err == 'DV_NEED_ID' || err == 'DV_BAD_ID') {
+      if (!context.mounted) return null;
+      final input = await showTextInputDialog(
+        context: context,
+        title: 'Введите ваш ID',
+        message: err == 'DV_BAD_ID'
+            ? 'ID неверный, попробуйте ещё раз'
+            : 'Для входа с нового устройства нужен ваш ID из профиля',
+        okLabel: 'Войти',
+        cancelLabel: 'Отмена',
+        keyboardType: TextInputType.number,
+        maxLength: 10,
+        validator: (value) => RegExp(r'^\d{10}$').hasMatch(value.trim())
+            ? null
+            : 'ID состоит из 10 цифр',
+      );
+      if (input == null) return null;
+      dvId = input.trim();
+      continue;
+    }
+    if (context.mounted) {
+      _showLoginError(
+        context,
+        err == 'M_LIMIT_EXCEEDED'
+            ? 'Слишком часто, подождите минуту'
+            : 'Ссылка недействительна или уже использована',
+      );
+    }
+    return null;
+  }
+  if (context.mounted) _showLoginError(context, 'Слишком много попыток');
+  return null;
+}
+
+/// Читает ссылку из буфера обмена и логинится.
+Future<void> pasteAndLogin(BuildContext context) async {
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
+  if (!context.mounted) return;
+  final text = data?.text ?? '';
+  await loginByLink(context, text);
+  // Пароль не должен оставаться в буфере обмена после входа
+  if (parseLoginLink(text) != null) {
+    await Clipboard.setData(const ClipboardData(text: ''));
+  }
+}
+
+/// Ссылка вводится или вставляется в поле вручную (запасной путь для веб-версии,
+/// например на iPhone, где вставка из буфера обмена бывает капризной).
+Future<void> typeLinkAndLogin(BuildContext context) async {
+  final text = await showTextInputDialog(
+    context: context,
+    title: 'Ссылка для входа',
+    hintText: 'dvchat://login#…',
+    okLabel: 'Войти',
+    cancelLabel: 'Отмена',
+    keyboardType: TextInputType.url,
+    autocorrect: false,
+  );
+  if (text == null || text.trim().isEmpty || !context.mounted) return;
+  await loginByLink(context, text);
+}
+
+/// Открывает сканер QR, строку из кода отдаёт в loginByLink.
+Future<void> scanAndLogin(BuildContext context) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => QrScannerModal(
+        onScan: (code) {
+          // Сканер закрывается сам до вызова onScan, контекст страницы жив
+          if (!context.mounted) return;
+          unawaited(loginByLink(context, code));
+        },
+      ),
+    ),
+  );
+}
+
+/// Ссылка, пришедшая от системы (dvchat://...), ждёт, пока стартовый экран её заберёт.
+/// Хранится с временем получения: старше 30 секунд считается устаревшей.
+class PendingLoginLink {
+  static final ValueNotifier<({String link, DateTime at})?> notifier =
+      ValueNotifier(null);
+
+  static void set(String link) =>
+      notifier.value = (link: link, at: DateTime.now());
+
+  /// Отдаёт ссылку один раз и очищает хранилище.
+  static String? take() {
+    final value = notifier.value;
+    if (value == null) return null;
+    notifier.value = null;
+    if (DateTime.now().difference(value.at) > const Duration(seconds: 30)) {
+      return null;
+    }
+    return value.link;
+  }
+}
+
+/// Остаток прежней схемы (страница /backup): удалим вместе со страницей.
+class PendingCryptoPassphrase {
+  static String? take() => null;
+}

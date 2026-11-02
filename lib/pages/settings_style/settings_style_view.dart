@@ -3,19 +3,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:ui';
+// DVChat: Экран «Оформление» (внешний вид): тема, цвета, шрифт, фон чата.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/events/state_message.dart';
+import 'package:dvchat/utils/account_config.dart';
+import 'package:dvchat/utils/color_value.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_wallpaper_presets.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/dv_list_card.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/events/state_message.dart';
-import 'package:fluffychat/utils/account_config.dart';
-import 'package:fluffychat/utils/color_value.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -27,16 +31,190 @@ class SettingsStyleView extends StatelessWidget {
 
   const SettingsStyleView(this.controller, {super.key});
 
+  /// Пример строки списка. Не const, чтобы перерисовывался при смене оформления.
+  Widget _sampleCard(String letter, String name, String text) => DvListCard(
+    child: ListTile(
+      leading: CircleAvatar(child: Text(letter)),
+      title: Text(name),
+      subtitle: Text(text),
+    ),
+  );
+
+  /// Миниатюра стиля списка: две строки в этом стиле и подпись; выбранная обведена
+  Widget _styleChip(BuildContext context, String mode, String label) {
+    final theme = Theme.of(context);
+    final selected = DvListStyle.mode == mode;
+    final on = theme.colorScheme.onSurface;
+    Widget miniRow() => Container(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: mode == DvListStyle.plates ? on.withAlpha(30) : null,
+        borderRadius: BorderRadius.circular(8),
+        border: mode == DvListStyle.frames
+            ? Border.all(color: on.withAlpha(100))
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.primary.withAlpha(140),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 4,
+                  width: 34,
+                  decoration: BoxDecoration(
+                    color: on.withAlpha(160),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: on.withAlpha(70),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => controller.setListStyle(mode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: selected
+                  ? theme.colorScheme.primary.withAlpha(24)
+                  : null,
+              border: Border.all(
+                color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                miniRow(),
+                miniRow(),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Круглый цветной значок темы; выбранный обведён
+  Widget _themeChip(ThemeMode mode, IconData icon, Color color, String label) {
+    final selected = controller.currentTheme == mode;
+    return Expanded(
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => controller.switchTheme(mode),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withAlpha(selected ? 70 : 30),
+                  border: Border.all(
+                    color: selected ? color : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+                child: Icon(icon, color: color, size: 30),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Ряд готовых обоев: первый кружок «без обоев»
+  Widget _presetRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = AppSettings.chatWallpaperPreset.value;
+    Widget swatch(String id, Widget? inner, Gradient? g, String label) {
+      final selected = current == id;
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: () => controller.setWallpaperPreset(id),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: g,
+              color: g == null ? theme.colorScheme.surfaceContainerHighest : null,
+              border: Border.all(
+                color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                width: selected ? 3 : 1,
+              ),
+            ),
+            child: inner,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          swatch('', const Icon(Icons.block, size: 20), null, 'Без обоев'),
+          for (final p in DvWallpapers.all) swatch(p.id, null, p.swatch, p.name),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     const colorPickerSize = 32.0;
     final client = Matrix.of(context).client;
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: !FluffyThemes.isColumnMode(context),
-        centerTitle: FluffyThemes.isColumnMode(context),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
+        automaticallyImplyLeading: !DvThemes.isColumnMode(context),
+        centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).changeTheme),
       ),
       backgroundColor: theme.colorScheme.surface,
@@ -46,29 +224,55 @@ class SettingsStyleView extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: SegmentedButton<ThemeMode>(
-                selected: {controller.currentTheme},
-                onSelectionChanged: (selected) =>
-                    controller.switchTheme(selected.single),
-                segments: [
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    label: Text(L10n.of(context).lightTheme),
-                    icon: const Icon(Icons.light_mode_outlined),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    label: Text(L10n.of(context).darkTheme),
-                    icon: const Icon(Icons.dark_mode_outlined),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    label: Text(L10n.of(context).systemTheme),
-                    icon: const Icon(Icons.auto_mode_outlined),
-                  ),
+              // DVChat: тема выбирается цветными значками (солнце, луна, авто)
+              child: Row(
+                children: [
+                  _themeChip(ThemeMode.light, Icons.light_mode, Colors.amber.shade700, L10n.of(context).lightTheme),
+                  _themeChip(ThemeMode.dark, Icons.dark_mode, Colors.indigo.shade400, L10n.of(context).darkTheme),
+                  _themeChip(ThemeMode.system, Icons.brightness_auto, Colors.teal, L10n.of(context).systemTheme),
                 ],
               ),
             ),
+            Divider(color: theme.dividerColor),
+            ListTile(
+              title: Text(
+                'Оформление списков',
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text('Как выглядят чаты, друзья и архив'),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Row(
+                children: [
+                  _styleChip(context, DvListStyle.plain, 'Обычный'),
+                  _styleChip(context, DvListStyle.plates, 'Плашки'),
+                  _styleChip(context, DvListStyle.frames, 'Рамки'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            _sampleCard('Д', 'Дмитрий', 'Так выглядит список'),
+            _sampleCard('С', 'Степан', 'Чаты и друзья оформляются одинаково'),
+            if (!DvListStyle.isPlain) ...[
+              const ListTile(
+                title: Text('Контраст'),
+                subtitle: Text(
+                  'Насколько плашки и рамки отличаются от фона: слева почти сливаются, справа заметнее',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Slider(
+                  value: DvListStyle.contrast,
+                  onChanged: controller.previewListContrast,
+                  onChangeEnd: controller.saveListContrast,
+                ),
+              ),
+            ],
             Divider(color: theme.dividerColor),
             ListTile(
               title: Text(
@@ -85,7 +289,7 @@ class SettingsStyleView extends StatelessWidget {
                     Theme.of(context).brightness == Brightness.light
                     ? light?.primary
                     : dark?.primary;
-                final colors = [null, AppConfig.chatColor, ...Colors.primaries];
+                final colors = [null, AppConfig.chatColor, ..._dvSeeds];
                 if (systemColor == null) {
                   colors.remove(null);
                 }
@@ -98,6 +302,24 @@ class SettingsStyleView extends StatelessWidget {
                   itemCount: colors.length,
                   itemBuilder: (context, i) {
                     final color = colors[i];
+                    // Показываем цвет, который реально получится у сообщений в этой теме
+                    final seed = color ?? systemColor;
+                    final isDark = theme.brightness == Brightness.dark;
+                    final scheme = seed == null
+                        ? null
+                        : ColorScheme.fromSeed(
+                            seedColor: seed,
+                            brightness: theme.brightness,
+                            dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
+                          );
+                    final swatch = scheme == null
+                        ? null
+                        : (isDark ? scheme.primaryContainer : scheme.primary);
+                    final onSwatch = scheme == null
+                        ? null
+                        : (isDark
+                              ? scheme.onPrimaryContainer
+                              : scheme.onPrimary);
                     return Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Tooltip(
@@ -108,7 +330,7 @@ class SettingsStyleView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(colorPickerSize),
                           onTap: () => controller.setChatColor(color),
                           child: Material(
-                            color: color ?? systemColor,
+                            color: swatch,
                             elevation: 6,
                             borderRadius: BorderRadius.circular(
                               colorPickerSize,
@@ -116,14 +338,14 @@ class SettingsStyleView extends StatelessWidget {
                             child: SizedBox(
                               width: colorPickerSize,
                               height: colorPickerSize,
-                              child: controller.currentColor == color
+                              child:
+                                  controller.currentColor?.toARGB32() ==
+                                      color?.toARGB32()
                                   ? Center(
                                       child: Icon(
                                         Icons.check,
                                         size: 16,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimary,
+                                        color: onSwatch,
                                       ),
                                     )
                                   : null,
@@ -169,30 +391,54 @@ class SettingsStyleView extends StatelessWidget {
                         ),
                       ),
                       child: AnimatedContainer(
-                        duration: FluffyThemes.animationDuration,
-                        curve: FluffyThemes.animationCurve,
+                        duration: DvThemes.animationDuration,
+                        curve: DvThemes.animationCurve,
+                        // Обрезка по краям требует decoration; без неё в готовой сборке
+                        // ошибка и вместо блока бесконечная белая пустота
                         decoration: const BoxDecoration(),
                         clipBehavior: Clip.hardEdge,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
+                            if (accountConfig.wallpaperUrl == null &&
+                                DvWallpapers.byId(
+                                      AppSettings.chatWallpaperPreset.value,
+                                    ) !=
+                                    null)
+                              // Те же обои и тот же рисунок, что будут в ленте чата
+                              Positioned.fill(
+                                child: DvWallpaperLayer(
+                                  preset: DvWallpapers.byId(
+                                    AppSettings.chatWallpaperPreset.value,
+                                  )!,
+                                  dark: theme.brightness == Brightness.dark,
+                                ),
+                              ),
                             if (accountConfig.wallpaperUrl != null)
-                              Opacity(
-                                opacity: controller.wallpaperOpacity,
-                                child: ImageFiltered(
-                                  imageFilter: ImageFilter.blur(
-                                    sigmaX: controller.wallpaperBlur,
-                                    sigmaY: controller.wallpaperBlur,
-                                  ),
-                                  child: MxcImage(
+                              Stack(
+                                children: [
+                                  MxcImage(
                                     key: ValueKey(accountConfig.wallpaperUrl),
                                     uri: accountConfig.wallpaperUrl,
                                     fit: BoxFit.cover,
                                     isThumbnail: true,
-                                    width: FluffyThemes.columnWidth * 2,
+                                    width: DvThemes.columnWidth * 2,
                                     height: 212,
                                   ),
-                                ),
+                                  Positioned.fill(
+                                    child: ColoredBox(
+                                      color: theme.colorScheme.surface
+                                          .withAlpha(
+                                            (255 *
+                                                    (1 -
+                                                        controller
+                                                            .wallpaperOpacity
+                                                            .clamp(0.0, 1.0)))
+                                                .round(),
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             Column(
                               mainAxisSize: .min,
@@ -216,7 +462,8 @@ class SettingsStyleView extends StatelessWidget {
                                   padding: EdgeInsets.only(
                                     left: 12 + 12 + Avatar.defaultSize,
                                     right: 12,
-                                    top: accountConfig.wallpaperUrl == null
+                                    top: (accountConfig.wallpaperUrl == null &&
+                                            AppSettings.chatWallpaperPreset.value.isEmpty)
                                         ? 0
                                         : 12,
                                     bottom: 12,
@@ -249,7 +496,8 @@ class SettingsStyleView extends StatelessWidget {
                                     padding: EdgeInsets.only(
                                       right: 12,
                                       left: 12,
-                                      top: accountConfig.wallpaperUrl == null
+                                      top: (accountConfig.wallpaperUrl == null &&
+                                              AppSettings.chatWallpaperPreset.value.isEmpty)
                                           ? 0
                                           : 12,
                                       bottom: 12,
@@ -285,6 +533,18 @@ class SettingsStyleView extends StatelessWidget {
                     ),
                     Divider(color: theme.dividerColor),
                     ListTile(
+                      title: Text(
+                        'Готовые обои',
+                        style: TextStyle(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text('Свою картинку можно поставить ниже, она важнее'),
+                    ),
+                    _presetRow(context),
+                    Divider(color: theme.dividerColor),
+                    ListTile(
                       title: TextButton.icon(
                         style: TextButton.styleFrom(
                           backgroundColor: theme.colorScheme.secondaryContainer,
@@ -314,16 +574,6 @@ class SettingsStyleView extends StatelessWidget {
                         onChanged: controller.updateWallpaperOpacity,
                         onChangeEnd: controller.saveWallpaperOpacity,
                       ),
-                      ListTile(title: Text(L10n.of(context).blur)),
-                      Slider.adaptive(
-                        min: 0.0,
-                        max: 10.0,
-                        divisions: 10,
-                        semanticFormatterCallback: (d) => d.toString(),
-                        value: controller.wallpaperBlur,
-                        onChanged: controller.updateWallpaperBlur,
-                        onChangeEnd: controller.saveWallpaperBlur,
-                      ),
                     ],
                   ],
                 );
@@ -347,3 +597,13 @@ class SettingsStyleView extends StatelessWidget {
     );
   }
 }
+
+/// DVChat: 19 заметно разных оттенков по кругу (красный, оранжевый, олива, зелёные,
+/// бирюза, голубые, синие, фиолетовые, розовые)
+final List<Color> _dvSeeds = [
+  for (final h in const [
+    0, 14, 28, 62, 90, 120, 145, 165, 180, 195,
+    210, 225, 240, 258, 275, 292, 310, 328, 345, //
+  ])
+    HSLColor.fromAHSL(1, h.toDouble(), 0.78, 0.5).toColor(),
+];

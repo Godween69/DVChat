@@ -3,12 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: HTTP-клиент с вшитыми корневыми сертификатами Let's Encrypt: на старых Android
+// их нет в системе, и без этого TLS к нашему серверу не работал бы.
+
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluffychat/config/isrg_x1.dart';
-import 'package:fluffychat/config/isrg_x2.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:dvchat/config/isrg_x1.dart';
+import 'package:dvchat/config/isrg_x2.dart';
+import 'package:dvchat/utils/platform_infos.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http/retry.dart' as retry;

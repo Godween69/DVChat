@@ -3,12 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/chat/chat.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
-import 'package:fluffychat/widgets/typing_animation.dart';
+// DVChat: Строка «печатает…» внизу чата.
+
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat/chat.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_recording_signal.dart';
+import 'package:dvchat/widgets/avatar.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:dvchat/widgets/recording_animation.dart';
+import 'package:dvchat/widgets/typing_animation.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TypingIndicators extends StatelessWidget {
@@ -21,7 +26,9 @@ class TypingIndicators extends StatelessWidget {
 
     const avatarSize = Avatar.defaultSize / 2;
 
-    return StreamBuilder<Object>(
+    return ValueListenableBuilder<int>(
+      valueListenable: DvRecordingSignal.changes,
+      builder: (context, value, child) => StreamBuilder<Object>(
       stream: controller.room.client.onSync.stream.where(
         (syncUpdate) =>
             syncUpdate.rooms?.join?[controller.room.id]?.ephemeral?.any(
@@ -30,19 +37,32 @@ class TypingIndicators extends StatelessWidget {
             false,
       ),
       builder: (context, _) {
+        final myId = Matrix.of(context).client.userID;
         final typingUsers = controller.room.typingUsers
-          ..removeWhere((u) => u.stateKey == Matrix.of(context).client.userID);
+          ..removeWhere((u) => u.stateKey == myId);
+        // DVChat: кто записывает голосовое (показываем так же, как печатающих)
+        final recorders = DvRecordingSignal.recorders(
+          controller.room.id,
+        ).where((id) => id != myId).toList();
+        for (final id in recorders) {
+          if (!typingUsers.any((u) => u.stateKey == id)) {
+            typingUsers.add(
+              controller.room.unsafeGetUserFromMemoryOrFallback(id),
+            );
+          }
+        }
+        final recording = recorders.isNotEmpty;
 
         return Container(
           width: double.infinity,
           alignment: Alignment.center,
           child: AnimatedContainer(
             constraints: const BoxConstraints(
-              maxWidth: FluffyThemes.maxTimelineWidth,
+              maxWidth: DvThemes.maxTimelineWidth,
             ),
             height: typingUsers.isEmpty ? 0 : avatarSize + 8,
-            duration: FluffyThemes.animationDuration,
-            curve: FluffyThemes.animationCurve,
+            duration: DvThemes.animationDuration,
+            curve: DvThemes.animationCurve,
             alignment:
                 controller.timeline!.events.isNotEmpty &&
                     controller.timeline!.events.first.senderId ==
@@ -64,7 +84,7 @@ class TypingIndicators extends StatelessWidget {
                         Avatar(
                           size: avatarSize,
                           mxContent: typingUsers.first.avatarUrl,
-                          name: typingUsers.first.calcDisplayname(),
+                          name: typingUsers.first.dvName(),
                         ),
                       if (typingUsers.length == 2)
                         Padding(
@@ -75,7 +95,7 @@ class TypingIndicators extends StatelessWidget {
                                 ? typingUsers.last.avatarUrl
                                 : null,
                             name: typingUsers.length == 2
-                                ? typingUsers.last.calcDisplayname()
+                                ? typingUsers.last.dvName()
                                 : '+${typingUsers.length - 1}',
                           ),
                         ),
@@ -90,7 +110,11 @@ class TypingIndicators extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: typingUsers.isEmpty ? null : const TypingAnimation(),
+                    child: typingUsers.isEmpty
+                        ? null
+                        : recording
+                        ? const RecordingAnimation()
+                        : const TypingAnimation(),
                   ),
                 ),
               ],
@@ -98,6 +122,7 @@ class TypingIndicators extends StatelessWidget {
           ),
         );
       },
+    ),
     );
   }
 }

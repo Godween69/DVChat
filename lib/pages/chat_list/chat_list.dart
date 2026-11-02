@@ -3,35 +3,38 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Список чатов (логика): выбор, архив, закрепление, удаление, поиск, переходы.
+
 import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:cross_file/cross_file.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_list/chat_list_view.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/show_scaffold_dialog.dart';
-import 'package:fluffychat/utils/show_update_snackbar.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/share_scaffold_dialog.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_list/chat_list_view.dart';
+import 'package:dvchat/pages/whats_new/dv_whats_new.dart';
+import 'package:dvchat/utils/dv_crypto_heal.dart';
+import 'package:dvchat/utils/dv_dm_rights.dart';
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/utils/show_scaffold_dialog.dart';
+import 'package:dvchat/utils/update_checker.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/dv_swipe_row.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/widgets/share_scaffold_dialog.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_callkit_incoming/entities/entities.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_shortcuts_new/flutter_shortcuts_new.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:matrix/matrix.dart' as sdk;
 import 'package:matrix/matrix.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../utils/account_bundles.dart';
 import '../../config/setting_keys.dart';
@@ -59,68 +62,21 @@ extension LocalizedActiveFilter on ActiveFilter {
 
 class ChatList extends StatefulWidget {
   final String? activeChat;
-  final String? activeSpace;
-  final bool displayNavigationRail;
 
-  const ChatList({
-    super.key,
-    required this.activeChat,
-    this.activeSpace,
-    this.displayNavigationRail = false,
-  });
+  const ChatList({super.key, required this.activeChat});
 
   @override
   ChatListController createState() => ChatListController();
 }
 
 class ChatListController extends State<ChatList>
-    with TickerProviderStateMixin, RouteAware {
+    with TickerProviderStateMixin, RouteAware, WidgetsBindingObserver {
   StreamSubscription? _intentDataStreamSubscription;
 
   StreamSubscription? _intentFileStreamSubscription;
 
-  StreamSubscription? _callEventSubscription;
-
   late ActiveFilter activeFilter;
   String? activeTag;
-
-  String? _activeSpaceId;
-
-  String? get activeSpaceId => _activeSpaceId;
-
-  Future<void> setActiveSpace(String spaceId) async {
-    await Matrix.of(context).client.getRoomById(spaceId)!.postLoad();
-    if (!mounted) return;
-    if (!FluffyThemes.isColumnMode(context) &&
-        !AppSettings.displayNavigationRail.value) {
-      await AppSettings.displayNavigationRail.setItem(true);
-    }
-
-    setState(() {
-      _activeSpaceId = spaceId;
-    });
-  }
-
-  void clearActiveSpace() => setState(() {
-    _activeSpaceId = null;
-  });
-
-  void _onCallEvent(CallEvent? event) {
-    switch (event) {
-      case CallEventActionCallAccept():
-        _joinCallWith(event.callKitParams);
-        break;
-      case CallEventActionCallEnded():
-        final roomId = event.callKitParams.extra?.tryGet<String>('roomId');
-        if (roomId != null &&
-            Matrix.of(context).activeCallRoomId.value == roomId) {
-          Matrix.of(context).activeCallRoomId.value = null;
-        }
-        break;
-      default:
-        break;
-    }
-  }
 
   Future<void> onChatTap(Room room) async {
     final l10n = L10n.of(context);
@@ -154,11 +110,6 @@ class ChatListController extends State<ChatList>
       return;
     }
 
-    if (room.isSpace) {
-      setActiveSpace(room.id);
-      return;
-    }
-
     context.go('/rooms/${room.id}');
   }
 
@@ -167,9 +118,9 @@ class ChatListController extends State<ChatList>
       case ActiveFilter.allChats:
         return (room) => true;
       case ActiveFilter.messages:
-        return (room) => !room.isSpace && room.isDirectChat;
+        return (room) => room.isDirectChat;
       case ActiveFilter.groups:
-        return (room) => !room.isSpace && !room.isDirectChat;
+        return (room) => !room.isDirectChat;
       case ActiveFilter.unread:
         return (room) => room.isUnreadOrInvited;
       case ActiveFilter.tag:
@@ -180,146 +131,6 @@ class ChatListController extends State<ChatList>
   List<Room> get filteredRooms => Matrix.of(
     context,
   ).client.rooms.where(getRoomFilterByActiveFilter(activeFilter)).toList();
-
-  bool isSearchMode = false;
-  Future<QueryPublicRoomsResponse>? publicRoomsResponse;
-  String? searchServer;
-  Timer? _coolDown;
-  SearchUserDirectoryResponse? userSearchResult;
-  QueryPublicRoomsResponse? roomSearchResult;
-
-  bool isSearching = false;
-  static const String _serverStoreNamespace = 'im.fluffychat.search.server';
-
-  Future<void> setServer() async {
-    final matrix = Matrix.of(context);
-    final l10n = L10n.of(context);
-    final newServer = await showTextInputDialog(
-      useRootNavigator: false,
-      title: l10n.changeTheHomeserver,
-      context: context,
-      okLabel: l10n.ok,
-      cancelLabel: l10n.cancel,
-      prefixText: 'https://',
-      hintText: matrix.client.homeserver?.host,
-      initialText: searchServer,
-      keyboardType: TextInputType.url,
-      autocorrect: false,
-      validator: (server) =>
-          server.contains('.') == true ? null : l10n.invalidServerName,
-    );
-    if (newServer == null) return;
-    if (!mounted) return;
-    matrix.store.setString(_serverStoreNamespace, newServer);
-    setState(() {
-      searchServer = newServer;
-    });
-    _coolDown?.cancel();
-    _coolDown = Timer(const Duration(milliseconds: 500), _search);
-  }
-
-  final TextEditingController searchController = TextEditingController();
-  final FocusNode searchFocusNode = FocusNode();
-
-  Future<void> _search() async {
-    final client = Matrix.of(context).client;
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    if (!isSearching) {
-      setState(() {
-        isSearching = true;
-      });
-    }
-    SearchUserDirectoryResponse? userSearchResult;
-    QueryPublicRoomsResponse? roomSearchResult;
-    final searchQuery = searchController.text.trim();
-    try {
-      roomSearchResult = await client.queryPublicRooms(
-        server: searchServer,
-        filter: PublicRoomQueryFilter(genericSearchTerm: searchQuery),
-        limit: 20,
-      );
-
-      if (searchQuery.isValidMatrixIdStrict() &&
-          searchQuery.sigil == '#' &&
-          roomSearchResult.chunk.any(
-                (room) => room.canonicalAlias == searchQuery,
-              ) ==
-              false) {
-        final response = await client.getRoomIdByAlias(searchQuery);
-        final roomId = response.roomId;
-        if (roomId != null) {
-          roomSearchResult.chunk.add(
-            PublishedRoomsChunk(
-              name: searchQuery,
-              guestCanJoin: false,
-              numJoinedMembers: 0,
-              roomId: roomId,
-              worldReadable: false,
-              canonicalAlias: searchQuery,
-            ),
-          );
-        }
-      }
-      userSearchResult = await client.searchUserDirectory(
-        searchController.text,
-        limit: 20,
-      );
-    } catch (e, s) {
-      Logs().w('Searching has crashed', e, s);
-      if (!mounted) return;
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(e.toLocalizedString(context))),
-      );
-    }
-    if (!isSearchMode) return;
-    setState(() {
-      isSearching = false;
-      this.roomSearchResult = roomSearchResult;
-      this.userSearchResult = userSearchResult;
-    });
-  }
-
-  void onSearchEnter(String text, {bool globalSearch = true}) {
-    if (text.isEmpty) {
-      cancelSearch(unfocus: false);
-      return;
-    }
-
-    setState(() {
-      isSearchMode = true;
-    });
-    _coolDown?.cancel();
-    if (globalSearch) {
-      _coolDown = Timer(const Duration(milliseconds: 500), _search);
-    }
-  }
-
-  void openNavrail() {
-    setState(() {
-      AppSettings.displayNavigationRail.setItem(
-        !AppSettings.displayNavigationRail.value,
-      );
-    });
-  }
-
-  void startSearch() {
-    setState(() {
-      isSearchMode = true;
-    });
-    searchFocusNode.requestFocus();
-    _coolDown?.cancel();
-    _coolDown = Timer(const Duration(milliseconds: 500), _search);
-  }
-
-  void cancelSearch({bool unfocus = true}) {
-    setState(() {
-      searchController.clear();
-      isSearchMode = false;
-      roomSearchResult = userSearchResult = null;
-      isSearching = false;
-    });
-    if (unfocus) searchFocusNode.unfocus();
-  }
 
   BoxConstraints? snappingSheetContainerSize;
 
@@ -338,16 +149,6 @@ class ChatListController extends State<ChatList>
       scrolledToTop.value = newScrolledToTop;
     }
   }
-
-  Future<void> editSpace(BuildContext context, String spaceId) async {
-    await Matrix.of(context).client.getRoomById(spaceId)!.postLoad();
-    if (!context.mounted) return;
-    context.push('/rooms/$spaceId/details');
-  }
-
-  // Needs to match GroupsSpacesEntry for 'separate group' checking.
-  List<Room> get spaces =>
-      Matrix.of(context).client.rooms.where((r) => r.isSpace).toList();
 
   String? get activeChat => widget.activeChat;
 
@@ -399,42 +200,40 @@ class ChatListController extends State<ChatList>
     }
   }
 
-  void _joinCallWith(CallKitParams params) {
-    final roomId = params.extra?.tryGet<String>('roomId');
-    final clientName = params.extra?.tryGet<String>('clientName');
-    if (roomId != null) {
-      context.go('/rooms/$roomId?client=$clientName&action=call');
+  StreamSubscription? _onRoomTagUpdate;
+
+  /// DVChat: почасовая проверка обновлений, пока приложение открыто или висит в фоне
+  Timer? _updateTimer;
+
+  /// DVChat: при возврате в приложение проверяем обновление (не чаще раза в час)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      DvUpdateChecker.check(context);
     }
   }
-
-  StreamSubscription? _onRoomTagUpdate;
 
   @override
   void initState() {
     _initReceiveSharingIntent();
-    _activeSpaceId = widget.activeSpace;
 
     scrollController.addListener(_onScroll);
     _waitForFirstSync();
-    if (PlatformInfos.isMobile) {
-      _callEventSubscription = FlutterCallkitIncoming.onEvent.listen(
-        _onCallEvent,
-      );
-      FlutterCallkitIncoming.activeCalls().then((calls) {
-        final params = calls.firstOrNull;
-        if (params == null) return;
-        _joinCallWith(params);
-      });
-    }
+    DvDmRights.watch(Matrix.of(context).client);
+    // Если ключи шифрования после входа не открылись, открываем их фразой с сервера
+    unawaited(DvCryptoHeal.run(Matrix.of(context).client));
+    WidgetsBinding.instance.addObserver(this);
+    _updateTimer = Timer.periodic(const Duration(hours: 1), (_) {
+      if (mounted) DvUpdateChecker.check(context);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        searchServer = Matrix.of(
-          context,
-        ).store.getString(_serverStoreNamespace);
         Matrix.of(context).backgroundPush?.setupPush(context);
-        UpdateNotifier.showUpdateDialog(context);
-        UpdateNotifier.showUpdateAvailableBanner(context);
+        // При каждом запуске приложения проверяем обновление без ограничения по времени
+        DvUpdateChecker.check(context, startup: true);
+        // DVChat: после обновления один раз показываем страницу «Что нового»
+        unawaited(DvWhatsNew.maybeShow(context));
       }
 
       // Workaround for system UI overlay style not applied on app start
@@ -478,11 +277,10 @@ class ChatListController extends State<ChatList>
   void dispose() {
     _intentDataStreamSubscription?.cancel();
     _intentFileStreamSubscription?.cancel();
-    _callEventSubscription?.cancel();
     _onRoomTagUpdate?.cancel();
+    _updateTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     scrollController.removeListener(_onScroll);
-    searchController.dispose();
-    searchFocusNode.dispose();
     scrollController.dispose();
     scrolledToTop.dispose();
     _clientStream.close();
@@ -500,244 +298,153 @@ class ChatListController extends State<ChatList>
     ).onErrorCallback(report.first, StackTrace.fromString(report.last));
   }
 
-  Future<void> chatContextAction(
-    Room room,
-    BuildContext posContext, [
-    Room? space,
-  ]) async {
-    final overlay =
-        Overlay.of(posContext).context.findRenderObject() as RenderBox;
+  /// DVChat: плашка действия при смахивании чата влево (настраивается в «Чатах»)
+  DvSwipeAction? swipeActionFor(Room room) {
+    final cs = Theme.of(context).colorScheme;
+    switch (AppSettings.chatSwipeAction.value) {
+      case 'none':
+        return null;
+      case 'delete':
+        return DvSwipeAction(
+          icon: Icons.delete_outline,
+          label: 'Удалить',
+          color: cs.error,
+          onColor: cs.onError,
+          onTap: () => runChatAction(room, ChatContextAction.delete),
+        );
+      case 'read':
+        final unread = room.notificationCount > 0 || room.markedUnread;
+        return DvSwipeAction(
+          icon: unread
+              ? Icons.mark_chat_read_outlined
+              : Icons.mark_chat_unread_outlined,
+          label: unread ? 'Прочитано' : 'Не прочитано',
+          color: cs.secondary,
+          onColor: cs.onSecondary,
+          onTap: () => _toggleRead(room),
+        );
+      case 'mute':
+        final loud = room.pushRuleState == PushRuleState.notify;
+        return DvSwipeAction(
+          icon: loud
+              ? Icons.notifications_off_outlined
+              : Icons.notifications_outlined,
+          label: loud ? 'Без звука' : 'Со звуком',
+          color: cs.tertiary,
+          onColor: cs.onTertiary,
+          onTap: () => runChatAction(room, ChatContextAction.mute),
+        );
+      case 'pin':
+        return DvSwipeAction(
+          icon: room.isFavourite ? Icons.push_pin : Icons.push_pin_outlined,
+          label: room.isFavourite ? 'Открепить' : 'Закрепить',
+          color: cs.primary,
+          onColor: cs.onPrimary,
+          onTap: () => runChatAction(room, ChatContextAction.favorite),
+        );
+      default:
+        return DvSwipeAction(
+          icon: room.isDirectChat ? Icons.archive_outlined : Icons.logout,
+          label: room.isDirectChat ? 'В архив' : 'Покинуть',
+          color: cs.primary,
+          onColor: cs.onPrimary,
+          onTap: () => runChatAction(room, ChatContextAction.leave),
+        );
+    }
+  }
 
-    final button = posContext.findRenderObject() as RenderBox;
+  Future<void> _toggleRead(Room room) async {
+    try {
+      final unread = room.notificationCount > 0 || room.markedUnread;
+      if (!unread) {
+        await room.markUnread(true);
+        return;
+      }
+      if (room.markedUnread) await room.markUnread(false);
+      final id = room.lastEvent?.eventId;
+      if (id != null) {
+        await room.setReadMarker(
+          id,
+          mRead: id,
+          public: AppSettings.sendPublicReadReceipts.value,
+        );
+      }
+    } catch (e, s) {
+      Logs().w('Не удалось изменить отметку прочтения', e, s);
+    }
+  }
 
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(const Offset(0, -65), ancestor: overlay),
-        button.localToGlobal(
-          button.size.bottomRight(Offset.zero) + const Offset(-50, 0),
-          ancestor: overlay,
-        ),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    final spacesWithPowerLevels = room.client.rooms
-        .where(
-          (space) =>
-              space.isSpace &&
-              space.canChangeStateEvent(EventTypes.SpaceChild) &&
-              !space.spaceChildren.any((c) => c.roomId == room.id),
-        )
-        .toList();
-
-    var action = await showMenu<ChatContextAction>(
-      context: posContext,
-      position: position,
+  Future<void> chatContextAction(Room room, BuildContext posContext) async {
+    // DVChat: стеклянное меню с цветными значками (вместо серого выпадающего списка)
+    final joined = room.membership == Membership.join;
+    final notifying = room.pushRuleState == PushRuleState.notify;
+    final action = await showDvGlassMenu<ChatContextAction>(
+      posContext,
+      place: DvGlassMenuPlace.auto,
       items: [
-        if (space != null)
-          PopupMenuItem(
-            value: ChatContextAction.goToSpace,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Avatar(
-                  mxContent: space.avatar,
-                  size: Avatar.defaultSize / 2,
-                  name: space.getLocalizedDisplayname(),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).goToSpace(space.getLocalizedDisplayname()),
-                ),
-              ],
-            ),
-          ),
-        if (room.membership == Membership.join) ...[
-          PopupMenuItem(
+        if (joined) ...[
+          DvGlassMenuItem(
             value: ChatContextAction.mute,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  room.pushRuleState == PushRuleState.notify
-                      ? Icons.notifications_off_outlined
-                      : Icons.notifications_off,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  room.pushRuleState == PushRuleState.notify
-                      ? L10n.of(context).muteChat
-                      : L10n.of(context).unmuteChat,
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: ChatContextAction.markUnread,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  room.markedUnread
-                      ? Icons.mark_as_unread
-                      : Icons.mark_as_unread_outlined,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  room.markedUnread
-                      ? L10n.of(context).markAsRead
-                      : L10n.of(context).markAsUnread,
-                ),
-              ],
-            ),
+            icon: notifying
+                ? Icons.notifications_off_rounded
+                : Icons.notifications_active_rounded,
+            title: notifying
+                ? L10n.of(context).muteChat
+                : L10n.of(context).unmuteChat,
+            color: DvMenuColors.purple,
           ),
           if (!room.isLowPriority)
-            PopupMenuItem(
+            DvGlassMenuItem(
               value: ChatContextAction.favorite,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(
-                    room.isFavourite ? Icons.push_pin : Icons.push_pin_outlined,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    room.isFavourite
-                        ? L10n.of(context).unpin
-                        : L10n.of(context).pin,
-                  ),
-                ],
-              ),
+              icon: room.isFavourite
+                  ? Icons.push_pin_rounded
+                  : Icons.push_pin_outlined,
+              title: room.isFavourite
+                  ? L10n.of(context).unpin
+                  : L10n.of(context).pin,
+              color: DvMenuColors.amber,
             ),
         ],
-        PopupMenuItem(
+        DvGlassMenuItem(
           value: ChatContextAction.leave,
-          child: Row(
-            mainAxisSize: .min,
-            children: [
-              Icon(
-                Icons.delete_outlined,
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                room.membership == Membership.invite
-                    ? L10n.of(context).delete
-                    : L10n.of(context).leave,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-              ),
-            ],
-          ),
+          icon: room.isDirectChat
+              ? Icons.archive_rounded
+              : Icons.logout_rounded,
+          title: room.membership == Membership.invite
+              ? L10n.of(context).delete
+              : room.isDirectChat
+              ? 'В архив'
+              : L10n.of(context).leave,
+          color: DvMenuColors.orange,
+          dividerBefore: true,
         ),
-        if (room.membership == Membership.invite)
-          PopupMenuItem(
-            value: ChatContextAction.block,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  Icons.block_outlined,
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).block,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ],
-            ),
+        // DVChat: полное удаление чата мимо архива (с подтверждением)
+        if (joined)
+          const DvGlassMenuItem(
+            value: ChatContextAction.delete,
+            icon: Icons.delete_rounded,
+            title: 'Удалить',
+            destructive: true,
           ),
-        if (room.membership == Membership.join)
-          PopupMenuItem(
-            value: ChatContextAction.showMore,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(Icons.adaptive.more_outlined),
-                const SizedBox(width: 12),
-                Text(L10n.of(context).more),
-              ],
-            ),
+        if (room.membership == Membership.invite)
+          DvGlassMenuItem(
+            value: ChatContextAction.block,
+            icon: Icons.block_rounded,
+            title: L10n.of(context).block,
+            destructive: true,
           ),
       ],
     );
     if (!posContext.mounted || !mounted) return;
-    if (action == ChatContextAction.showMore) {
-      action = await showMenu<ChatContextAction>(
-        context: posContext,
-        position: position,
-        items: [
-          if (!room.isFavourite)
-            PopupMenuItem(
-              value: ChatContextAction.lowPriority,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(
-                    room.isLowPriority
-                        ? Icons.low_priority
-                        : Icons.low_priority_outlined,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    room.isLowPriority
-                        ? L10n.of(context).unsetLowPriority
-                        : L10n.of(context).setLowPriority,
-                  ),
-                ],
-              ),
-            ),
-          if (activeTag == null)
-            PopupMenuItem(
-              value: ChatContextAction.addTag,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(Icons.bookmark_add_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).addTag),
-                ],
-              ),
-            )
-          else
-            PopupMenuItem(
-              value: ChatContextAction.removeTag,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(Icons.bookmark_remove_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).removeTag),
-                ],
-              ),
-            ),
-          if (spacesWithPowerLevels.isNotEmpty)
-            PopupMenuItem(
-              value: ChatContextAction.addToSpace,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  const Icon(Icons.group_work_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).addToSpace),
-                ],
-              ),
-            ),
-        ],
-      );
-    }
-
     if (action == null) return;
+    await runChatAction(room, action);
+  }
+
+  /// DVChat: выполнить действие над чатом (из меню или со свайпа)
+  Future<void> runChatAction(Room room, ChatContextAction action) async {
     if (!mounted) return;
 
     switch (action) {
-      case ChatContextAction.goToSpace:
-        setActiveSpace(space!.id);
-        return;
       case ChatContextAction.favorite:
         await showFutureLoadingDialog(
           context: context,
@@ -770,6 +477,14 @@ class ChatListController extends State<ChatList>
           extra: inviteEvent?.senderId,
         );
       case ChatContextAction.leave:
+        // DVChat: личный чат нельзя покинуть, его отправляют в архив
+        if (room.isDirectChat && room.membership == Membership.join) {
+          await showFutureLoadingDialog(
+            context: context,
+            future: room.moveToArchive,
+          );
+          return;
+        }
         final confirmed = await showOkCancelAlertDialog(
           context: context,
           title: L10n.of(context).areYouSure,
@@ -784,27 +499,31 @@ class ChatListController extends State<ChatList>
         await showFutureLoadingDialog(context: context, future: room.leave);
 
         return;
-      case ChatContextAction.addToSpace:
-        final space = await showModalActionPopup(
+      case ChatContextAction.delete:
+        // DVChat: удалить чат у себя: выйти из комнаты и убрать её из списка
+        final confirmedDelete = await showOkCancelAlertDialog(
           context: context,
-          title: L10n.of(context).space,
-          actions: spacesWithPowerLevels
-              .map(
-                (space) => AdaptiveModalAction(
-                  value: space,
-                  label: space.getLocalizedDisplayname(
-                    MatrixLocals(L10n.of(context)),
-                  ),
-                ),
-              )
-              .toList(),
+          title: 'Удалить чат?',
+          message: 'Вы действительно хотите удалить чат?',
+          okLabel: 'Удалить',
+          cancelLabel: L10n.of(context).cancel,
+          isDestructive: true,
         );
-        if (space == null) return;
+        if (confirmedDelete != OkCancelResult.ok) return;
         if (!mounted) return;
+        if (room.isSupportRoom) {
+          // DVChat: чат с поддержкой не покидаем, только скрываем
+          await showFutureLoadingDialog(
+            context: context,
+            future: room.hideForever,
+          );
+          return;
+        }
         await showFutureLoadingDialog(
           context: context,
-          future: () => space.setSpaceChild(room.id),
+          future: room.deleteForMe,
         );
+        return;
       case ChatContextAction.lowPriority:
         await showFutureLoadingDialog(
           context: context,
@@ -875,36 +594,6 @@ class ChatListController extends State<ChatList>
     });
   }
 
-  Future<void> setStatus() async {
-    final l10n = L10n.of(context);
-    final client = Matrix.of(context).client;
-    final currentPresence = await client.fetchCurrentPresence(client.userID!);
-    if (!mounted) return;
-    final input = await showTextInputDialog(
-      useRootNavigator: false,
-      context: context,
-      title: l10n.setStatus,
-      message: l10n.leaveEmptyToClearStatus,
-      okLabel: l10n.ok,
-      cancelLabel: l10n.cancel,
-      hintText: l10n.statusExampleMessage,
-      maxLines: 6,
-      minLines: 1,
-      maxLength: 255,
-      initialText: currentPresence.statusMsg,
-    );
-    if (input == null) return;
-    if (!mounted) return;
-    await showFutureLoadingDialog(
-      context: context,
-      future: () => client.setPresence(
-        client.userID!,
-        PresenceType.online,
-        statusMsg: input,
-      ),
-    );
-  }
-
   bool waitForFirstSync = false;
 
   Future<void> _waitForFirstSync() async {
@@ -927,34 +616,37 @@ class ChatListController extends State<ChatList>
     setState(() {
       waitForFirstSync = true;
     });
-
-    if (client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
-          (device) => !device.verified && !device.blocked,
+    // DVChat: один раз сообщаем, что в аккаунт вошли и на других устройствах.
+    // Спокойным сообщением с кнопкой в «Устройства»: дальше решает сам человек.
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('dv_other_devices_notice') ?? false) return;
+    final myDevice = client.deviceID;
+    final hasOthers =
+        client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
+          (d) => d.deviceId != myDevice,
         ) ??
-        false) {
-      late final ScaffoldFeatureController controller;
-      final theme = Theme.of(context);
-      controller = ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 15),
-          showCloseIcon: true,
-          backgroundColor: theme.colorScheme.errorContainer,
-          closeIconColor: theme.colorScheme.onErrorContainer,
-          content: Text(
-            L10n.of(context).oneOfYourDevicesIsNotVerified,
-            style: TextStyle(color: theme.colorScheme.onErrorContainer),
-          ),
-          action: SnackBarAction(
-            onPressed: () {
-              controller.close();
-              router.go('/rooms/settings/devices');
-            },
-            textColor: theme.colorScheme.onErrorContainer,
-            label: L10n.of(context).settings,
-          ),
+        false;
+    if (!hasOthers || !mounted) return;
+    await prefs.setBool('dv_other_devices_notice', true);
+    if (!mounted) return;
+    late final ScaffoldFeatureController controller;
+    controller = ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 20),
+        showCloseIcon: true,
+        content: const Text(
+          'Вы вошли в этот аккаунт не только на этом устройстве. '
+          'Если вы не узнаёте другие входы, откройте список устройств и завершите их.',
         ),
-      );
-    }
+        action: SnackBarAction(
+          label: 'Устройства',
+          onPressed: () {
+            controller.close();
+            router.go('/rooms/settings/devices');
+          },
+        ),
+      ),
+    );
   }
 
   void setActiveFilter(ActiveFilter filter, String? tag) {
@@ -974,7 +666,6 @@ class ChatListController extends State<ChatList>
     context.go('/rooms');
     setState(() {
       activeFilter = ActiveFilter.allChats;
-      _activeSpaceId = null;
       Matrix.of(context).setActiveClient(client);
     });
     _clientStream.add(client);
@@ -983,7 +674,6 @@ class ChatListController extends State<ChatList>
   void setActiveBundle(String bundle) {
     context.go('/rooms');
     setState(() {
-      _activeSpaceId = null;
       Matrix.of(context).activeBundle = bundle;
       if (!Matrix.of(
         context,
@@ -1068,14 +758,11 @@ class ChatListController extends State<ChatList>
 
   @override
   Widget build(BuildContext context) => ChatListView(this);
-
-  Future<void> dehydrate() => Matrix.of(context).dehydrateAction(context);
 }
 
 enum EditBundleAction { addToBundle, removeFromBundle }
 
 enum ChatContextAction {
-  goToSpace,
   favorite,
   lowPriority,
   addTag,
@@ -1083,7 +770,7 @@ enum ChatContextAction {
   markUnread,
   mute,
   leave,
-  addToSpace,
+  delete,
   block,
   showMore,
 }

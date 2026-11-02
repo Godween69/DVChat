@@ -3,143 +3,250 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'dart:async';
+// DVChat: Меню «три точки» в шапке чата (поиск, сведения, архив, уведомления).
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/blocked_periods.dart';
+import 'package:dvchat/utils/dv_clear.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
-import 'matrix.dart';
+enum ChatPopupMenuActions {
+  details,
+  search,
+  archive,
+  restore,
+  leave,
+  block,
+  unblock,
+  clearChat,
+}
 
-enum ChatPopupMenuActions { details, encryption, leave, search }
-
-class ChatSettingsPopupMenu extends StatefulWidget {
+class ChatSettingsPopupMenu extends StatelessWidget {
   final Room room;
   final bool displayChatDetails;
 
   const ChatSettingsPopupMenu(this.room, this.displayChatDetails, {super.key});
 
-  @override
-  ChatSettingsPopupMenuState createState() => ChatSettingsPopupMenuState();
-}
+  /// DVChat: собеседник в личном чате (null — не личный чат)
+  String? get _partnerId => room.isDirectChat ? room.directChatMatrixID : null;
 
-class ChatSettingsPopupMenuState extends State<ChatSettingsPopupMenu> {
-  StreamSubscription? notificationChangeSub;
-
-  @override
-  void dispose() {
-    notificationChangeSub?.cancel();
-    super.dispose();
+  /// DVChat: пункты стеклянного меню (то же, что раньше было в выпадающем списке)
+  List<DvGlassMenuItem<ChatPopupMenuActions>> _items(BuildContext context) {
+    final l10n = L10n.of(context);
+    return [
+      if (displayChatDetails)
+        DvGlassMenuItem(
+          value: ChatPopupMenuActions.details,
+          icon: Icons.info_outline_rounded,
+          color: DvMenuColors.blue,
+          title: l10n.chatDetails,
+        ),
+      DvGlassMenuItem(
+        value: ChatPopupMenuActions.search,
+        icon: Icons.search_outlined,
+        color: DvMenuColors.teal,
+        title: l10n.search,
+      ),
+      // Личный чат нельзя покинуть, его отправляют в архив
+      if (room.isDirectChat)
+        if (room.isInArchive && !room.isClosedChat)
+          const DvGlassMenuItem(
+            value: ChatPopupMenuActions.restore,
+            icon: Icons.unarchive_outlined,
+            color: DvMenuColors.green,
+            title: 'Вернуть из архива',
+          )
+        else
+          const DvGlassMenuItem(
+            value: ChatPopupMenuActions.archive,
+            icon: Icons.archive_outlined,
+            color: DvMenuColors.orange,
+            title: 'В архив',
+          )
+      else
+        DvGlassMenuItem(
+          value: ChatPopupMenuActions.leave,
+          icon: Icons.delete_outlined,
+          title: l10n.leave,
+          destructive: true,
+        ),
+      // DVChat: очистка личного чата только с согласия собеседника (служебные чаты не очищаются)
+      if (_partnerId != null &&
+          _partnerId!.localpart != 'dvnotice' &&
+          DvClear.stateOf(room) != DvClearState.incoming)
+        DvGlassMenuItem(
+          value: ChatPopupMenuActions.clearChat,
+          icon: Icons.cleaning_services_outlined,
+          color: DvMenuColors.purple,
+          title: DvClear.stateOf(room) == DvClearState.waiting
+              ? 'Просьба об очистке отправлена'
+              : 'Очистить чат…',
+        ),
+      // DVChat: блокировка собеседника в личном чате (администратора заблокировать нельзя)
+      if (_partnerId != null && _partnerId!.localpart != 'dima')
+        if (room.client.ignoredUsers.contains(_partnerId))
+          const DvGlassMenuItem(
+            value: ChatPopupMenuActions.unblock,
+            icon: Icons.lock_open_outlined,
+            color: DvMenuColors.green,
+            dividerBefore: true,
+            title: 'Разблокировать',
+          )
+        else
+          const DvGlassMenuItem(
+            value: ChatPopupMenuActions.block,
+            icon: Icons.block_outlined,
+            title: 'Заблокировать',
+            destructive: true,
+            dividerBefore: true,
+          ),
+    ];
   }
 
+  /// DVChat: «три точки» открывают стеклянное меню под кнопкой (вместо серого выпадающего списка)
   @override
   Widget build(BuildContext context) {
-    notificationChangeSub ??= Matrix.of(context).client.onSync.stream
-        .where(
-          (syncUpdate) =>
-              syncUpdate.accountData?.any(
-                (accountData) => accountData.type == 'm.push_rules',
-              ) ??
-              false,
-        )
-        .listen((u) => setState(() {}));
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        const SizedBox.shrink(),
-        PopupMenuButton<ChatPopupMenuActions>(
-          useRootNavigator: true,
-          onSelected: (choice) async {
-            switch (choice) {
-              case ChatPopupMenuActions.leave:
-                final l10n = L10n.of(context);
-                final router = GoRouter.of(context);
-                final confirmed = await showOkCancelAlertDialog(
-                  context: context,
-                  title: l10n.areYouSure,
-                  message: l10n.archiveRoomDescription,
-                  okLabel: l10n.leave,
-                  cancelLabel: l10n.cancel,
-                  isDestructive: true,
-                );
-                if (confirmed != OkCancelResult.ok) return;
-                if (!context.mounted) return;
-                final result = await showFutureLoadingDialog(
-                  context: context,
-                  future: () => widget.room.leave(),
-                );
-                if (result.error == null) {
-                  router.go('/rooms');
-                }
-
-                break;
-              case ChatPopupMenuActions.details:
-                _showChatDetails();
-                break;
-              case ChatPopupMenuActions.search:
-                context.go('/rooms/${widget.room.id}/search');
-                break;
-              case ChatPopupMenuActions.encryption:
-                context.go('/rooms/${widget.room.id}/encryption');
-                break;
-            }
-          },
-          itemBuilder: (BuildContext context) => [
-            if (widget.displayChatDetails)
-              PopupMenuItem<ChatPopupMenuActions>(
-                value: ChatPopupMenuActions.details,
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline_rounded),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).chatDetails),
-                  ],
-                ),
-              ),
-            PopupMenuItem<ChatPopupMenuActions>(
-              value: ChatPopupMenuActions.search,
-              child: Row(
-                children: [
-                  const Icon(Icons.search_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).search),
-                ],
-              ),
-            ),
-            PopupMenuItem<ChatPopupMenuActions>(
-              value: ChatPopupMenuActions.encryption,
-              child: Row(
-                children: [
-                  const Icon(Icons.lock_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).encryption),
-                ],
-              ),
-            ),
-            PopupMenuItem<ChatPopupMenuActions>(
-              value: ChatPopupMenuActions.leave,
-              child: Row(
-                children: [
-                  const Icon(Icons.delete_outlined),
-                  const SizedBox(width: 12),
-                  Text(L10n.of(context).leave),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
+    return Builder(
+      builder: (anchor) => IconButton(
+        tooltip: 'Меню',
+        icon: const Icon(Icons.more_vert),
+        onPressed: () async {
+          final choice = await showDvGlassMenu<ChatPopupMenuActions>(
+            anchor,
+            items: _items(anchor),
+          );
+          if (choice == null || !anchor.mounted) return;
+          await _onSelected(anchor, choice);
+        },
+      ),
     );
   }
 
-  void _showChatDetails() {
+  Future<void> _onSelected(
+    BuildContext context,
+    ChatPopupMenuActions choice,
+  ) async {
+    final router = GoRouter.of(context);
+    switch (choice) {
+      case ChatPopupMenuActions.leave:
+        if (room.isSupportRoom) {
+          // DVChat: чат с поддержкой не покидаем, только скрываем
+          final hidden = await showFutureLoadingDialog(
+            context: context,
+            future: room.hideForever,
+          );
+          if (hidden.error == null) router.go('/rooms');
+          break;
+        }
+        final l10n = L10n.of(context);
+        final confirmed = await showOkCancelAlertDialog(
+          context: context,
+          title: l10n.areYouSure,
+          message: l10n.archiveRoomDescription,
+          okLabel: l10n.leave,
+          cancelLabel: l10n.cancel,
+          isDestructive: true,
+        );
+        if (confirmed != OkCancelResult.ok) return;
+        if (!context.mounted) return;
+        final result = await showFutureLoadingDialog(
+          context: context,
+          future: room.leave,
+        );
+        if (result.error == null) router.go('/rooms');
+        break;
+      case ChatPopupMenuActions.archive:
+        final result = await showFutureLoadingDialog(
+          context: context,
+          future: room.moveToArchive,
+        );
+        if (result.error == null) router.go('/rooms');
+        break;
+      case ChatPopupMenuActions.restore:
+        await showFutureLoadingDialog(
+          context: context,
+          future: room.restoreFromArchive,
+        );
+        break;
+      case ChatPopupMenuActions.block:
+        {
+          final partnerId = room.directChatMatrixID;
+          if (partnerId == null) return;
+          final ok = await showOkCancelAlertDialog(
+            context: context,
+            title: 'Заблокировать собеседника?',
+            message:
+                'Его сообщения перестанут показываться вам. Он об этом не узнает. '
+                'Разблокировать можно в этом же меню.',
+            okLabel: 'Заблокировать',
+            cancelLabel: L10n.of(context).cancel,
+            isDestructive: true,
+          );
+          if (ok != OkCancelResult.ok) return;
+          if (!context.mounted) return;
+          await showFutureLoadingDialog(
+            context: context,
+            future: () => room.client.blockUser(partnerId),
+          );
+          break;
+        }
+      case ChatPopupMenuActions.unblock:
+        {
+          final partnerId = room.directChatMatrixID;
+          if (partnerId == null) return;
+          await showFutureLoadingDialog(
+            context: context,
+            future: () => room.client.unblockUser(partnerId),
+          );
+          break;
+        }
+      case ChatPopupMenuActions.clearChat:
+        {
+          if (DvClear.stateOf(room) == DvClearState.waiting) return;
+          final ok = await showOkCancelAlertDialog(
+            context: context,
+            title: 'Попросить очистить чат?',
+            message:
+                '${DvClear.peerName(room)} получит уведомление и сможет согласиться или отказаться. '
+                'Если согласится, все сообщения в этом чате сотрутся у вас обоих без возврата. '
+                'Пока ответа нет, ничего не стирается.',
+            okLabel: 'Попросить',
+            cancelLabel: L10n.of(context).cancel,
+            isDestructive: true,
+          );
+          if (ok != OkCancelResult.ok) return;
+          if (!context.mounted) return;
+          final result = await showFutureLoadingDialog(
+            context: context,
+            future: () => DvClear.request(room),
+          );
+          if (result.error == null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Просьба отправлена, ждём ответа')),
+            );
+          }
+          break;
+        }
+      case ChatPopupMenuActions.details:
+        _showChatDetails(context);
+        break;
+      case ChatPopupMenuActions.search:
+        router.go('/rooms/${room.id}/search');
+        break;
+    }
+  }
+
+  void _showChatDetails(BuildContext context) {
     if (GoRouterState.of(context).uri.path.endsWith('/details')) {
-      context.go('/rooms/${widget.room.id}');
+      context.go('/rooms/${room.id}');
     } else {
-      context.go('/rooms/${widget.room.id}/details');
+      context.go('/rooms/${room.id}/details');
     }
   }
 }

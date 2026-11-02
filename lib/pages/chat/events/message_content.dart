@@ -3,13 +3,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Содержимое сообщения по типу: текст, картинка, видео, файл, голос, опрос.
+
 import 'dart:math';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat/events/poll.dart';
-import 'package:fluffychat/pages/chat/events/video_player.dart';
-import 'package:fluffychat/pages/image_viewer/image_viewer.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/events/album_bubble.dart';
+import 'package:dvchat/pages/chat/events/poll.dart';
+import 'package:dvchat/pages/chat/events/shopping_list.dart';
+import 'package:dvchat/pages/chat/events/video_player.dart';
+import 'package:dvchat/pages/image_viewer/image_viewer.dart';
+import 'package:dvchat/utils/dv_album.dart';
+import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -19,6 +25,7 @@ import '../../../utils/platform_infos.dart';
 import '../../../utils/url_launcher.dart';
 import 'audio_player.dart';
 import 'cute_events.dart';
+import 'dv_meta_pad.dart';
 import 'html_message.dart';
 import 'image_bubble.dart';
 import 'map_bubble.dart';
@@ -34,6 +41,9 @@ class MessageContent extends StatelessWidget {
   final bool selected;
   final Set<String> bigEmojis;
 
+  /// Ширина метки (время, галочки) внутри пузыря; 0 — метки в пузыре нет
+  final double metaWidth;
+
   const MessageContent(
     this.event, {
     this.onInfoTab,
@@ -44,10 +54,23 @@ class MessageContent extends StatelessWidget {
     required this.borderRadius,
     required this.selected,
     required this.bigEmojis,
+    this.metaWidth = 0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final core = _core(context);
+    // Всё, кроме текста (голосовые, файлы, опросы), получает свободную строку под метку
+    if (metaWidth > 0 &&
+        core is! _InlineMeta &&
+        core is! ImageBubble &&
+        !(core is AudioPlayerWidget && !core.hasCaption)) {
+      return Padding(padding: const EdgeInsets.only(bottom: 16), child: core);
+    }
+    return core;
+  }
+
+  Widget _core(BuildContext context) {
     const fontSize = AppConfig.messageFontSize;
     final buttonTextColor = textColor;
     switch (event.type) {
@@ -58,6 +81,16 @@ class MessageContent extends StatelessWidget {
           case MessageTypes.Image:
           case MessageTypes.Sticker:
             if (event.redacted) continue textmessage;
+            // DVChat: первое фото альбома показывает всю пачку одной сеткой
+            if (event.messageType == MessageTypes.Image &&
+                dvAlbumOf(event)?.index == 0) {
+              return AlbumBubble(
+                head: event,
+                timeline: timeline,
+                textColor: textColor,
+                borderRadius: borderRadius,
+              );
+            }
             final maxSize = event.messageType == MessageTypes.Sticker
                 ? 128.0
                 : 256.0;
@@ -90,6 +123,7 @@ class MessageContent extends StatelessWidget {
               borderRadius: borderRadius,
               timeline: timeline,
               textColor: textColor,
+              metaWidth: metaWidth,
               onTap: () => showDialog(
                 context: context,
                 builder: (_) => ImageViewer(
@@ -102,15 +136,13 @@ class MessageContent extends StatelessWidget {
           case CuteEventContent.eventType:
             return CuteContent(event);
           case MessageTypes.Audio:
-            if (PlatformInfos.isMobile ||
-                PlatformInfos.isMacOS ||
-                PlatformInfos.isWeb ||
-                PlatformInfos.isLinux) {
+            if (PlatformInfos.isMobile || PlatformInfos.isWeb) {
               return AudioPlayerWidget(
                 event,
                 color: textColor,
                 linkColor: linkColor,
                 fontSize: fontSize,
+                timeline: timeline,
               );
             }
             return MessageDownloadContent(
@@ -161,11 +193,21 @@ class MessageContent extends StatelessWidget {
           textmessage:
           default:
             if (event.redacted) {
-              return RedactionWidget(
+              return _InlineMeta(
+                metaWidth: metaWidth,
+                child: RedactionWidget(
+                  event: event,
+                  buttonTextColor: buttonTextColor,
+                  onInfoTab: onInfoTab,
+                  fontSize: fontSize,
+                ),
+              );
+            }
+            if (dvShoppingOf(event) != null) {
+              return ShoppingListCard(
                 event: event,
-                buttonTextColor: buttonTextColor,
-                onInfoTab: onInfoTab,
-                fontSize: fontSize,
+                timeline: timeline,
+                textColor: textColor,
               );
             }
             var html = AppSettings.renderHtml.value && event.isRichMessage
@@ -178,8 +220,8 @@ class MessageContent extends StatelessWidget {
             final bigEmotes =
                 !event.isRichMessage && bigEmojis.contains(event.body);
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            return _InlineMeta(
+              metaWidth: metaWidth,
               child: HtmlMessage(
                 html: html,
                 textColor: textColor,
@@ -202,11 +244,14 @@ class MessageContent extends StatelessWidget {
         }
       case PollEventContent.startType:
         if (event.redacted) {
-          return RedactionWidget(
-            event: event,
-            buttonTextColor: buttonTextColor,
-            onInfoTab: onInfoTab,
-            fontSize: fontSize,
+          return _InlineMeta(
+            metaWidth: metaWidth,
+            child: RedactionWidget(
+              event: event,
+              buttonTextColor: buttonTextColor,
+              onInfoTab: onInfoTab,
+              fontSize: fontSize,
+            ),
           );
         }
         return PollWidget(
@@ -221,8 +266,8 @@ class MessageContent extends StatelessWidget {
           builder: (context, snapshot) {
             return _ButtonContent(
               label: L10n.of(context).startedACall(
-                snapshot.data?.calcDisplayname() ??
-                    event.senderFromMemoryOrFallback.calcDisplayname(),
+                snapshot.data?.dvName() ??
+                    event.senderFromMemoryOrFallback.dvName(),
               ),
               icon: '📞',
               textColor: buttonTextColor,
@@ -237,8 +282,8 @@ class MessageContent extends StatelessWidget {
           builder: (context, snapshot) {
             return _ButtonContent(
               label: L10n.of(context).userSentUnknownEvent(
-                snapshot.data?.calcDisplayname() ??
-                    event.senderFromMemoryOrFallback.calcDisplayname(),
+                snapshot.data?.dvName() ??
+                    event.senderFromMemoryOrFallback.dvName(),
                 event.type,
               ),
               icon: 'ℹ️',
@@ -268,24 +313,16 @@ class RedactionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<User?>(
-      future: event.redactedBecause?.fetchSenderUser(),
-      builder: (context, snapshot) {
-        final reason = event.redactedBecause?.content.tryGet<String>('reason');
-        final redactedBy =
-            snapshot.data?.calcDisplayname() ??
-            event.redactedBecause?.senderId.localpart ??
-            L10n.of(context).user;
-        return _ButtonContent(
-          label: reason == null
-              ? L10n.of(context).redactedBy(redactedBy)
-              : L10n.of(context).redactedByBecause(redactedBy, reason),
-          icon: '🗑️',
-          textColor: buttonTextColor.withAlpha(128),
-          onPressed: () => onInfoTab!(event),
+    // DVChat: как в WhatsApp — просто «Сообщение удалено», без имени и причины
+    return InkWell(
+      onTap: () => onInfoTab?.call(event),
+      child: Text(
+        '🚫  Сообщение удалено',
+        style: TextStyle(
+          color: buttonTextColor.withAlpha(150),
           fontSize: fontSize,
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -318,4 +355,16 @@ class _ButtonContent extends StatelessWidget {
       ),
     );
   }
+}
+
+/// DVChat: текст сообщения с местом под время и галочки (см. DvMetaPad).
+class _InlineMeta extends StatelessWidget {
+  const _InlineMeta({required this.metaWidth, required this.child});
+
+  final double metaWidth;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      DvMetaPad(metaWidth: metaWidth, child: child);
 }

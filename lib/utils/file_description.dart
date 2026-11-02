@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Расширение Event: подпись к файлу/картинке (описание вложения).
+
 import 'package:matrix/matrix.dart';
 
 extension FileDescriptionExtension on Event {

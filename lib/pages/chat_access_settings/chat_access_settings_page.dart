@@ -3,11 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_access_settings/chat_access_settings_controller.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
+// DVChat: Доступ к чату (внешний вид).
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat_access_settings/chat_access_settings_controller.dart';
+import 'package:dvchat/utils/dv_share.dart';
+import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
 import 'package:material_ui/material_ui.dart' hide Visibility;
 import 'package:matrix/matrix.dart';
 
@@ -20,8 +23,8 @@ class ChatAccessSettingsPageView extends StatelessWidget {
     final theme = Theme.of(context);
 
     final room = controller.room;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).accessAndVisibility),
       ),
@@ -95,10 +98,7 @@ class ChatAccessSettingsPageView extends StatelessWidget {
                                 !controller.joinRulesLoading &&
                                 room.canChangeJoinRules,
                             title: Text(
-                              joinRule.localizedString(
-                                L10n.of(context),
-                                controller.knownSpaceParents,
-                              ),
+                              joinRule.localizedString(L10n.of(context)),
                             ),
                             value: joinRule,
                           ),
@@ -218,7 +218,7 @@ class ChatAccessSettingsPageView extends StatelessWidget {
                   subtitle: SelectableText(room.id),
                   trailing: IconButton(
                     icon: const Icon(Icons.copy_outlined),
-                    onPressed: () => FluffyShare.share(room.id, context),
+                    onPressed: () => DvShare.share(room.id, context),
                   ),
                 ),
                 ListTile(
@@ -268,7 +268,7 @@ class _AliasListTile extends StatelessWidget {
           ? const Icon(Icons.star)
           : const Icon(Icons.link_outlined),
       title: InkWell(
-        onTap: () => FluffyShare.share('https://matrix.to/#/$alias', context),
+        onTap: () => DvShare.share('https://matrix.to/#/$alias', context),
         child: SelectableText(
           alias,
           style: TextStyle(
@@ -291,7 +291,7 @@ class _AliasListTile extends StatelessWidget {
 }
 
 extension JoinRulesDisplayString on JoinRules {
-  String localizedString(L10n l10n, Set<Room> spaceParents) {
+  String localizedString(L10n l10n) {
     switch (this) {
       case JoinRules.public:
         return l10n.anyoneCanJoin;
@@ -301,18 +301,11 @@ extension JoinRulesDisplayString on JoinRules {
         return l10n.usersMustKnock;
       case JoinRules.private:
         return l10n.noOneCanJoin;
+      // Эти два правила привязаны к спейсам, которых в DVChat нет; нужны только
+      // чтобы показать уже стоящее правило
       case JoinRules.restricted:
-        return l10n.spaceMemberOf(
-          spaceParents
-              .map((space) => space.getLocalizedDisplayname(MatrixLocals(l10n)))
-              .join(', '),
-        );
       case JoinRules.knockRestricted:
-        return l10n.spaceMemberOfCanKnock(
-          spaceParents
-              .map((space) => space.getLocalizedDisplayname(MatrixLocals(l10n)))
-              .join(', '),
-        );
+        return 'Ограниченный доступ';
     }
   }
 }

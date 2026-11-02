@@ -3,14 +3,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Устройства» (логика): список входов в аккаунт, переименование, удаление.
+
 import 'package:async/async.dart' show Result;
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/device_settings/device_settings_view.dart';
-import 'package:fluffychat/pages/key_verification/key_verification_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/device_settings/device_settings_view.dart';
+import 'package:dvchat/pages/key_verification/key_verification_dialog.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart' hide Result;
@@ -86,9 +89,10 @@ class DevicesSettingsController extends State<DevicesSettings> {
     await showFutureLoadingDialog(
       context: context,
       delay: false,
-      future: () => matrix.client.uiaRequestBackground(
-        (auth) => matrix.client.deleteDevices(deviceIds, auth: auth),
-      ),
+      // DVChat: пароля у людей нет (вход по ссылке), поэтому удаление идёт через сервер
+      future: () => DvApi(
+        matrix.client,
+      ).post('devices/logout_others', {'device_ids': deviceIds}),
     );
     reload();
   }

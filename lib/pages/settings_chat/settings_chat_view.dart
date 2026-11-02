@@ -3,18 +3,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Экран «Настройки чата» (внешний вид): поведение отправки и показа сообщений.
+
+import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
+import 'package:dvchat/widgets/layouts/max_width_body.dart';
+import 'package:dvchat/widgets/settings_switch_list_tile.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/settings_switch_list_tile.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'settings_chat.dart';
+
+const Map<String, String> _swipeOptions = {
+  'archive': 'Архивировать (в группах: покинуть)',
+  'read': 'Прочитано / не прочитано',
+  'mute': 'Выключить звук',
+  'pin': 'Закрепить',
+  'delete': 'Удалить',
+  'none': 'Ничего',
+};
 
 class SettingsChatView extends StatelessWidget {
   final SettingsChatController controller;
@@ -24,61 +34,58 @@ class SettingsChatView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    // DVChat: в настройках чата только двойное касание для реакции и выбор реакции
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(L10n.of(context).chat),
-        automaticallyImplyLeading: !FluffyThemes.isColumnMode(context),
-        centerTitle: FluffyThemes.isColumnMode(context),
+        automaticallyImplyLeading: !DvThemes.isColumnMode(context),
+        centerTitle: DvThemes.isColumnMode(context),
       ),
       body: ListTileTheme(
         iconColor: theme.textTheme.bodyLarge!.color,
         child: MaxWidthBody(
           child: Column(
             children: [
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).formattedMessages,
-                subtitle: L10n.of(context).formattedMessagesDescription,
-                setting: AppSettings.renderHtml,
-              ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).hideRedactedMessages,
-                subtitle: L10n.of(context).hideRedactedMessagesBody,
-                setting: AppSettings.hideRedactedEvents,
-              ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).hideRoomsInSpaces,
-                setting: AppSettings.hideRoomsInSpaces,
-              ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).hideInvalidOrUnknownMessageFormats,
-                setting: AppSettings.hideUnknownEvents,
-              ),
-              if (PlatformInfos.isMobile)
-                SettingsSwitchListTile.adaptive(
-                  title: L10n.of(context).autoplayImages,
-                  setting: AppSettings.autoplayImages,
+              ListTile(
+                title: const Text('Смахивание влево в списке чатов'),
+                subtitle: Text(
+                  _swipeOptions[AppSettings.chatSwipeAction.value] ??
+                      _swipeOptions['archive']!,
                 ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).sendOnEnter,
-                setting: AppSettings.sendOnEnter,
-              ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).swipeRightToLeftToReply,
-                setting: AppSettings.swipeRightToLeftToReply,
-              ),
-              SettingsSwitchListTile.adaptive(
-                title: L10n.of(context).showThumbnailsInTimeline,
-                setting: AppSettings.showThumbnailsInTimeline,
+                onTap: () async {
+                  final current = AppSettings.chatSwipeAction.value;
+                  final value = await showDialog<String>(
+                    context: context,
+                    builder: (context) => SimpleDialog(
+                      title: const Text('Смахивание влево в списке чатов'),
+                      children: [
+                        for (final e in _swipeOptions.entries)
+                          ListTile(
+                            leading: Icon(
+                              e.key == current
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                            ),
+                            title: Text(e.value),
+                            onTap: () => Navigator.pop(context, e.key),
+                          ),
+                      ],
+                    ),
+                  );
+                  if (value == null) return;
+                  await AppSettings.chatSwipeAction.setItem(value);
+                  controller.updateState();
+                },
               ),
               SettingsSwitchListTile.adaptive(
                 title: L10n.of(context).doubleTapToReact,
-                subtitle: L10n.of(context).doubleTapToReactDescription,
+                subtitle: 'Дважды кликни на сообщение',
                 setting: AppSettings.doubleTapToReact,
                 onChanged: (_) => controller.updateState(),
               ),
               if (AppSettings.doubleTapToReact.value)
                 ListTile(
-                  title: Text(L10n.of(context).doubleTapReaction),
+                  title: const Text('Выбрать смайлик по умолчанию'),
                   trailing: Text(
                     AppSettings.doubleTapReaction.value,
                     style: const TextStyle(fontSize: 24),
@@ -87,8 +94,8 @@ class SettingsChatView extends StatelessWidget {
                     final emoji = await showAdaptiveBottomSheet<String>(
                       context: context,
                       builder: (context) => Scaffold(
-                        appBar: AppBar(
-                          title: Text(L10n.of(context).doubleTapReaction),
+                        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
+                          title: const Text('Выбрать смайлик по умолчанию'),
                           leading: CloseButton(
                             onPressed: () => Navigator.of(context).pop(null),
                           ),
@@ -134,25 +141,6 @@ class SettingsChatView extends StatelessWidget {
                     }
                   },
                 ),
-              Divider(color: theme.dividerColor),
-              ListTile(
-                title: Text(
-                  L10n.of(context).customEmojisAndStickers,
-                  style: TextStyle(
-                    color: theme.colorScheme.secondary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                title: Text(L10n.of(context).customEmojisAndStickers),
-                subtitle: Text(L10n.of(context).customEmojisAndStickersBody),
-                onTap: () => context.go('/rooms/settings/chat/emotes'),
-                trailing: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Icon(Icons.chevron_right_outlined),
-                ),
-              ),
             ],
           ),
         ),

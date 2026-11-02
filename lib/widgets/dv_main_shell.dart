@@ -1,0 +1,568 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// DVChat: нижняя панель вкладок на телефоне: «Чаты», «Друзья», «Игры», «Лиза».
+// Панель видна только на этих четырёх экранах и прячется внутри чата, настроек и игр.
+// На широком экране (планшет, веб) ничего не меняется: там боковая панель.
+// Вид панели следует оформлению списков: обычный (без заливки, в цвет страницы),
+// плашки (парящая «таблетка» с лёгкой тенью) и рамки (то же с тонкой обводкой).
+
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show ValueListenable;
+
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat_list/chat_list.dart';
+import 'package:dvchat/pages/friends/friends_page.dart';
+import 'package:dvchat/pages/games/games_page.dart';
+import 'package:dvchat/pages/liza/liza_page.dart';
+import 'package:dvchat/utils/dv_badges.dart';
+import 'package:dvchat/utils/dv_clear.dart';
+import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_resend.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/matrix.dart';
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:matrix/matrix.dart';
+
+/// Каркас телефона: четыре вкладки в общем PageView (листаются свайпом за пальцем)
+/// и нижняя панель. Маршруты вкладок в роутере пустые, сами экраны живут здесь,
+/// поэтому прокрутка и состояние вкладок сохраняются. Остальные экраны (чат,
+/// настройки, архив) открываются поверх через [child].
+class DvMainShell extends StatefulWidget {
+  const DvMainShell({required this.path, required this.child, super.key});
+
+  /// Текущий адрес (например /rooms/friends)
+  final String path;
+
+  /// Страница текущего маршрута (на вкладках пустая)
+  final Widget child;
+
+  static const List<String> _paths = [
+    '/rooms',
+    '/rooms/friends',
+    '/rooms/games',
+    '/rooms/liza',
+  ];
+
+  static int? indexFor(String path) {
+    final clean = path.length > 1 && path.endsWith('/')
+        ? path.substring(0, path.length - 1)
+        : path;
+    final i = _paths.indexOf(clean);
+    return i < 0 ? null : i;
+  }
+
+  @override
+  State<DvMainShell> createState() => _DvMainShellState();
+}
+
+class _DvMainShellState extends State<DvMainShell> {
+  late final PageController _controller;
+  int _page = 0;
+
+  /// Идёт прокрутка от нажатия на панель: промежуточные страницы адрес не меняют
+  bool _animating = false;
+  int _animToken = 0;
+
+  /// Адреса вкладок, которые мы сами поставили после свайпа (номер вкладки и время).
+  /// Когда такой адрес доходит до виджета, страница уже на месте: трогать её не надо.
+  /// Иначе запоздавший адрес прежней вкладки возвращал страницу назад, пока человек
+  /// листал несколько вкладок подряд.
+  final List<(int, DateTime)> _swipeGo = [];
+
+  void _pruneSwipeGo() {
+    final old = DateTime.now().subtract(const Duration(seconds: 3));
+    _swipeGo.removeWhere((e) => e.$2.isBefore(old));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _page = DvMainShell.indexFor(widget.path) ?? 0;
+    _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // DVChat: не ушедшие сообщения отправляются сами, когда появляется связь
+    DvResend.attach(Matrix.of(context).client);
+    DvBadges.attach(Matrix.of(context).client);
+    DvClear.attach(Matrix.of(context).client);
+  }
+
+  @override
+  void didUpdateWidget(DvMainShell old) {
+    super.didUpdateWidget(old);
+    final i = DvMainShell.indexFor(widget.path);
+    if (i != null) {
+      _pruneSwipeGo();
+      final k = _swipeGo.indexWhere((e) => e.$1 == i);
+      if (k >= 0) {
+        // Этот адрес мы поставили сами после свайпа. Он и всё, что поставлено раньше него,
+        // уже учтено: страницу не двигаем
+        _swipeGo.removeRange(0, k + 1);
+        return;
+      }
+    }
+    if (i == null || i == _page) return;
+    // Пока вкладки листают пальцем, запоздавший адрес не должен возвращать страницу:
+    // после остановки адрес подтянется сам (см. _onScroll)
+    if (!_animating &&
+        _controller.hasClients &&
+        _controller.position.isScrollingNotifier.value) {
+      return;
+    }
+    final cameFromTab = DvMainShell.indexFor(old.path) != null;
+    _page = i;
+    _showPage(i, animate: cameFromTab);
+  }
+
+  void _showPage(int i, {required bool animate}) {
+    if (!_controller.hasClients) return;
+    if (!animate) {
+      _controller.jumpToPage(i);
+      return;
+    }
+    final token = ++_animToken;
+    _animating = true;
+    unawaited(
+      _controller
+          .animateToPage(
+            i,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(() {
+            if (token == _animToken) _animating = false;
+          }),
+    );
+  }
+
+  /// Страница сменилась свайпом: подтягиваем адрес
+  void _onPageChanged(int i) {
+    if (_animating || i == _page) return;
+    setState(() => _page = i);
+  }
+
+  /// Лист остановился: подтягиваем адрес к странице, на которой он встал
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n is! ScrollEndNotification || _animating) return false;
+    if (!_controller.hasClients) return false;
+    if (DvMainShell.indexFor(widget.path) == null) return false;
+    final p = (_controller.page ?? _page.toDouble()).round().clamp(0, 3);
+    if (p != _page) setState(() => _page = p);
+    _pruneSwipeGo();
+    // Сравниваем с последним адресом, который мы уже поставили (он может ещё не дойти до виджета)
+    final current = _swipeGo.isNotEmpty
+        ? _swipeGo.last.$1
+        : DvMainShell.indexFor(widget.path);
+    if (current != p) {
+      _swipeGo.add((p, DateTime.now()));
+      context.go(DvMainShell._paths[p]);
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (DvThemes.isColumnMode(context)) return widget.child;
+    final onTab = DvMainShell.indexFor(widget.path) != null;
+    // Пока открыта клавиатура, панель прячется (как в Telegram), иначе экран сжимается лишний раз
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return Scaffold(
+      // Клавиатуру обрабатывают сами экраны внутри
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onScroll,
+              child: PageView(
+                controller: _controller,
+                allowImplicitScrolling: true,
+                onPageChanged: _onPageChanged,
+                // Когда сверху открыт чат или настройки, листать вкладки нельзя
+                physics: onTab ? null : const NeverScrollableScrollPhysics(),
+                children: [
+                  _TabFx(
+                    controller: _controller,
+                    index: 0,
+                    child: const _KeepAlive(child: ChatList(activeChat: null)),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 1,
+                    child: const _KeepAlive(child: FriendsPage()),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 2,
+                    child: const _KeepAlive(child: GamesPage()),
+                  ),
+                  _TabFx(
+                    controller: _controller,
+                    index: 3,
+                    child: const _KeepAlive(child: LizaPage()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Слой роутера на вкладках пустой, но его Navigator (ModalBarrier) глотает
+          // все касания и не пускает их к вкладкам под ним. Поэтому на вкладках он глухой
+          Positioned.fill(
+            child: IgnorePointer(ignoring: onTab, child: widget.child),
+          ),
+        ],
+      ),
+      bottomNavigationBar: !onTab || keyboardOpen
+          ? null
+          : _DvTabBar(
+              index: _page,
+              onSelect: (i) {
+                if (i != _page) context.go(DvMainShell._paths[i]);
+              },
+            ),
+    );
+  }
+}
+
+/// Не даёт PageView выгружать вкладку, когда её не видно (сохраняет прокрутку)
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+class _DvTabBar extends StatelessWidget {
+  const _DvTabBar({required this.index, required this.onSelect});
+
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  static const double _height = 54;
+  static const List<String> _labels = ['Чаты', 'Друзья', 'Игры', 'Лиза'];
+
+  Widget _icon(int i, bool selected) => switch (i) {
+    0 => _ChatsIcon(selected: selected),
+    1 => _PulseDot(
+      count: DvBadges.friendRequests,
+      child: Icon(selected ? Icons.people : Icons.people_outline),
+    ),
+    2 => _Dot(
+      count: DvBadges.gameTurns,
+      child: Icon(
+        selected ? Icons.sports_esports : Icons.sports_esports_outlined,
+      ),
+    ),
+    _ => Icon(selected ? Icons.auto_awesome : Icons.auto_awesome_outlined),
+  };
+
+  Widget _tab(ThemeData theme, int i) {
+    final selected = i == index;
+    final color = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    return InkResponse(
+      onTap: () => onSelect(i),
+      radius: 36,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconTheme(
+            data: IconThemeData(color: color, size: 22),
+            child: _icon(i, selected),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _labels[i],
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.1,
+              color: color,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: DvListStyle.revision,
+    builder: (context, _, _) => _bar(context),
+  );
+
+  Widget _bar(BuildContext context) {
+    final theme = Theme.of(context);
+    final row = SizedBox(
+      height: _height,
+      child: Row(
+        children: [
+          for (var i = 0; i < _labels.length; i++)
+            Expanded(child: _tab(theme, i)),
+        ],
+      ),
+    );
+
+    // Обычный вид: без заливки, линии и тени, в цвет страницы
+    if (DvListStyle.isPlain) {
+      return Material(
+        color: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        child: SafeArea(top: false, child: row),
+      );
+    }
+
+    // Плашки и рамки: отдельная «таблетка», висящая над нижним краем
+    final base = DvListStyle.shape(context);
+    final side = base is RoundedRectangleBorder ? base.side : BorderSide.none;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: DvListStyle.fill(context),
+        elevation: DvListStyle.mode == DvListStyle.plates
+            ? 0.5 + 3 * DvListStyle.contrast
+            : 0,
+        shadowColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_height / 2),
+          side: side,
+        ),
+        child: row,
+      ),
+    );
+  }
+}
+
+/// Красная точка в углу значка вкладки (как в Android), пока счётчик больше нуля
+class _Dot extends StatelessWidget {
+  const _Dot({required this.count, required this.child});
+
+  final ValueListenable<int> count;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: count,
+    builder: (context, n, _) => n > 0
+        ? Badge(
+            smallSize: 10,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            child: child,
+          )
+        : child,
+  );
+}
+
+/// Значок с «зовущей» точкой: красная точка в центре и кольцо, которое сужается
+/// к ней и гаснет, затем снова и снова. Так привлекают внимание к тому, на что
+/// ещё не ответили (непринятая заявка в друзья). Анимация идёт, только пока есть
+/// что принимать, и сама останавливается на нуле, чтобы не тратить батарею.
+class _PulseDot extends StatefulWidget {
+  const _PulseDot({required this.count, required this.child});
+
+  final ValueListenable<int> count;
+  final Widget child;
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    widget.count.addListener(_sync);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.count.value > 0) {
+      if (!_ctrl.isAnimating) _ctrl.repeat();
+    } else {
+      _ctrl.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.count.removeListener(_sync);
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: widget.count,
+    builder: (context, n, _) {
+      if (n <= 0) return widget.child;
+      final color = Theme.of(context).colorScheme.error;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          widget.child,
+          Positioned(
+            right: -5,
+            top: -4,
+            child: IgnorePointer(
+              child: SizedBox(
+                width: 26,
+                height: 26,
+                child: AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (context, _) => CustomPaint(
+                    painter: _PulsePainter(_ctrl.value, color),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _PulsePainter extends CustomPainter {
+  _PulsePainter(this.t, this.color);
+
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    // Кольцо сужается от края к точке (t: 0 → 1) и по пути гаснет
+    final ease = Curves.easeIn.transform(t);
+    final r = 13 - 8 * ease;
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = color.withValues(alpha: (1 - ease) * 0.75),
+    );
+    // Сама точка слегка «дышит» вместе с кольцом
+    final dot = 4.5 + 1.2 * (1 - (2 * t - 1).abs());
+    canvas.drawCircle(c, dot, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_PulsePainter old) => old.t != t || old.color != color;
+}
+
+/// Значок «Чаты» с числом чатов, где есть непрочитанные
+class _ChatsIcon extends StatelessWidget {
+  const _ChatsIcon({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final client = Matrix.of(context).client;
+    final icon = Icon(
+      selected ? CupertinoIcons.chat_bubble_fill : CupertinoIcons.chat_bubble,
+    );
+    return StreamBuilder(
+      stream: client.onSync.stream.where((s) => s.hasRoomUpdate),
+      builder: (context, _) {
+        final unread = client.rooms
+            .where(
+              (r) =>
+                  r.membership == Membership.join &&
+                  r.notificationCount > 0 &&
+                  !r.isInArchive &&
+                  !r.isHiddenByUser &&
+                  !r.isClosedChat &&
+                  !r.isNewcomerPlaceholder,
+            )
+            .length;
+        if (unread == 0) return icon;
+        return Badge(label: Text('$unread'), child: icon);
+      },
+    );
+  }
+}
+
+/// Эффект листания вкладок: уходящая вкладка плавно гаснет, приходящая проявляется.
+/// Содержимое при этом не перестраивается.
+class _TabFx extends StatelessWidget {
+  const _TabFx({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final PageController controller;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    child: child,
+    builder: (context, child) {
+      final page = controller.hasClients && controller.position.haveDimensions
+          ? (controller.page ?? index)
+          : controller.initialPage;
+      final d = (page - index).abs().clamp(0.0, 1.0);
+      // Раньше вся вкладка гасла через Opacity и Transform.scale: на каждый кадр листания
+      // видеочип рисовал две вкладки в отдельный слой. Теперь поверх вкладки ложится плашка
+      // цвета фона с нужной прозрачностью: на глаз то же затухание, но без слоёв.
+      // Структура дерева всегда одна и та же, чтобы вкладка не пересоздавалась.
+      final fade = (d * 1.15).clamp(0.0, 1.0);
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          child!,
+          if (fade > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: Theme.of(
+                    context,
+                  ).scaffoldBackgroundColor.withAlpha((255 * fade).round()),
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}

@@ -1,138 +1,95 @@
 <!--
-SPDX-FileCopyrightText: 2019-Present Christian Kußowski
-SPDX-FileCopyrightText: 2019-Present Contributors to FluffyChat
+SPDX-FileCopyrightText: 2026-Present DVB Studio
 
 SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
-[FluffyChat](https://fluffy.chat) is an open source, nonprofit and cute [[matrix](https://matrix.org)] client written in [Flutter](https://flutter.dev). The goal of the app is to create an easy to use instant messenger which is open source and accessible for everyone.
+# DVChat
 
-### Links:
+Закрытый семейный мессенджер на протоколе [Matrix](https://matrix.org). Клиент написан на
+[Flutter](https://flutter.dev) и работает на Android и в браузере (веб-версия).
+Регистрации в приложении нет: аккаунты выдаёт администратор сервера, вход выполняется
+по одноразовой ссылке или QR-коду.
 
-- 🌐 [[Weblate] Translate FluffyChat into your language](https://hosted.weblate.org/projects/fluffychat/)
-- 🌍 [[m] Join the community](https://matrix.to/#/#fluffy-space:matrix.org)
-- 📰 [[Mastodon] Get updates on social media](https://troet.cafe/@krille)
-- 💝 [[Liberapay] Support FluffyChat development](https://de.liberapay.com/KrilleChritzelius)
+DVChat это изменённая версия [FluffyChat](https://github.com/krille-chan/fluffychat) 2.10.0
+(см. [NOTICE.md](NOTICE.md)). Исходный код открыт по лицензии AGPL-3.0-or-later.
+Автор изменений: DVB Studio.
 
-<a href='https://ko-fi.com/krille' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+## Возможности
 
-### Screenshots:
+Из FluffyChat:
 
-<img src="https://github.com/krille-chan/fluffychat-website/blob/main/public/img/screenshot_mobile.png?raw=true" height="300">
-<img src="https://github.com/krille-chan/fluffychat-website/blob/main/public/img/screenshot_desktop.png?raw=true" height="300">
+- личные и групповые чаты, фото, файлы, голосовые сообщения;
+- сквозное шифрование и резервная копия ключей;
+- push-уведомления через Firebase, в том числе при закрытом приложении.
 
-# Features
+Добавлено в DVChat:
 
-- 📩 Send all kinds of messages, images and files
-- 🤙 Video calls with Matrix RTC
-- 🎙️ Voice messages
-- 📍 Location sharing
-- 🔔 Push notifications
-- 💬 Unlimited private and public group chats
-- 📣 Public channels with thousands of participants
-- 🛠️ Feature rich group moderation including all matrix features
-- 🔍 Discover and join public groups
-- 🎨 Material You design
-- 😄 Custom emotes and stickers
-- 🌌 Spaces
-- 🔐 End to end encryption
-- 🔒 Encrypted chat backup
-- 😀 Emoji verification & cross signing
-... and much more.
+- вход по приглашению: ссылка `dvchat://login#...` или QR-код от администратора;
+- друзья: свой ID, добавление по ID или QR-коду, заявки;
+- чат с администратором и форма обратной связи;
+- архив чатов: ушедшие собеседники и скрытые чаты;
+- истории (сторис) на сутки, с просмотрами и реакциями;
+- игры: шахматы, русские шашки, нарды, домино, «Дурак», морской бой, «Четыре в ряд»,
+  крестики-нолики; можно играть с другом в личном чате или против компьютера без интернета,
+  есть счёт побед;
+- вкладка «Лиза»: помощник на основе ИИ (работает только при подключённом серверном
+  сервисе, см. ниже);
+- обновления из собственного канала, без магазинов приложений;
+- интерфейс только на русском языке.
 
+## Как устроено
 
-# Installation
+Система состоит из нескольких независимых частей. Этот репозиторий содержит клиент
+и серверные модули для Synapse.
 
-Please visit the website for installation instructions:
+- **Клиент** (этот репозиторий): приложение для Android и веб-версия.
+- **Synapse**: сервер Matrix. К нему подключаются модули из каталога `server/`
+  (вход по коду, друзья, комнаты поддержки, истории, запрет самостоятельного создания чатов).
+- **Шлюз уведомлений** (по желанию): принимает уведомления от Synapse и передаёт их
+  в Firebase. Подойдёт любой шлюз Matrix с поддержкой FCM, например Sygnal.
+- **Канал обновлений** (по желанию): любой веб-сервер, отдающий `version.json` и APK.
+- **Сервис «Лиза»** (по желанию): не входит в репозиторий. Клиент обращается к нему по
+  адресу `/lisa/v1/` вашего сервера. Если сервиса нет, вкладка просто недоступна,
+  остальное приложение работает как обычно.
 
-- https://fluffy.chat
+Приложение привязано к одному серверу, адрес которого задан при сборке
+(`DVCHAT_HOMESERVER` в файле `dvchat.env`). Это сделано намеренно: оно рассчитано на закрытый круг людей.
+Скачав исходный код, вы получаете возможность развернуть **собственный** мессенджер
+на своём сервере; к чужим серверам и к чужим сервисам (в том числе к «Лизе») это доступа не даёт.
 
-# Configuration and Mobile Device Management (MDM)
+## Развёртывание
 
-FluffyChat supports configuration via MDM on Android&iOS (since v2.10.0) and via a config.json file on web. You can see the populated configuration for MDM on Android in this file under `/android/app/src/main/res/xml/app_restrictions.xml`.
-An example configuration can be found in the `config.sample.json` file.
+Подробная инструкция: [docs/DEPLOY.md](docs/DEPLOY.md). Карта кода: [docs/MAP.md](docs/MAP.md).
 
-# How to build
+## Быстрая сборка для проверки
 
-1. To build FluffyChat you need [Flutter](https://flutter.dev) and [Rust](https://www.rust-lang.org/tools/install)
+Нужны [Flutter](https://flutter.dev) версии 3.47.4, [Rust](https://www.rust-lang.org/tools/install)
+(для библиотеки шифрования) и Android SDK.
 
-2. Clone the repo:
-```
-git clone https://github.com/krille-chan/fluffychat.git
-cd fluffychat
-```
-3. Choose your target platform below and enable support for it.
-3.1 If you want, enable Googles Firebase Cloud Messaging:
+    git clone https://github.com/Godween69/DVChat.git
+    cd DVChat
+    flutter pub get
+    flutter gen-l10n
+    flutter analyze
+    cp dvchat.env.example dvchat.env
+    flutter run --dart-define-from-file=dvchat.env
 
-`./scripts/add-firebase-messaging.sh`
+В `dvchat.env` укажите адрес своего сервера Matrix. Подробности: [docs/DEPLOY.md](docs/DEPLOY.md).
 
-4. Debug with: `flutter run`
+В репозитории намеренно нет секретов: ключей подписи, `google-services.json`,
+адресов серверов и служебных сервисов (они лежат в вашем `dvchat.env`).
 
-### Android
+## Лицензия
 
-* Build with: `flutter build apk`
+AGPL-3.0-or-later, текст в [LICENSE](LICENSE) и [LICENSES/](LICENSES/).
+Авторские права на исходный код FluffyChat принадлежат Christian Kußowski и участникам FluffyChat,
+заголовки файлов сохранены. Сведения о сторонних материалах (звук уведомления, логотипы,
+эмодзи для проверки устройств) лежат в [REUSE.toml](REUSE.toml), общий список зависимостей
+в `licenses.yaml`.
 
-### iOS / iPadOS
+## Благодарности
 
-* Have a Mac with Xcode installed, and set up for Xcode-managed app signing
-* If you want automatic app installation to connected devices, make sure you have Apple Configurator installed, with the Automation Tools (`cfgutil`) enabled
-* Set a few environment variables
-    * FLUFFYCHAT_NEW_TEAM: the Apple Developer team that your certificates should live under
-    * FLUFFYCHAT_NEW_GROUP: the group you want App IDs and such to live under (ie: com.example.fluffychat)
-    * FLUFFYCHAT_INSTALL_IPA: set to `1` if you want the IPA to be deployed to connected devices after building, otherwise unset
-* Run `./scripts/build-ios.sh`
-
-### Web
-
-* Build with:
-```bash
-./scripts/prepare-web.sh # To install Vodozemac
-flutter build web --release
-```
-
-* Optionally configure by serving a `config.json` at the same path as fluffychat.
-  An example can be found at `config.sample.json`. All values there are optional.
-  **Please only the values, you really need**. If you e.g. only want
-  to change the default homeserver, then only modify the `defaultHomeserver` key.
-
-### Desktop (Linux, Windows, macOS)
-
-* Enable Desktop support in Flutter: https://flutter.dev/desktop
-
-#### Install custom dependencies (Linux)
-
-```bash
-sudo apt install libjsoncpp1 libsecret-1-dev libsecret-1-0 librhash0 libwebkit2gtk-4.0-dev lld
-```
-
-* Build with one of these:
-```bash
-flutter build linux --release
-flutter build windows --release
-flutter build macos --release
-```
-
-## How to run integration tests
-
-You need to have docker installed locally! Run the preparation script before every test run:
-
-```sh
-./scripts/prepare_integration_test.sh
-```
-
-Then run all tests with:
-
-```sh
-flutter test integration_test/mobile_test.dart
-```
-
-
-# Special thanks
-
-* <a href="https://github.com/fabiyamada">Fabiyamada</a> is a graphics designer and has made the fluffychat logo and the banner. Big thanks for her great designs.
-
-* Also thanks to all translators and testers! With your help, fluffychat is now available in more than 12 languages.
-
-* The Matrix Foundation for making and maintaining the [emoji translations](https://github.com/matrix-org/matrix-spec/blob/main/data-definitions/sas-emoji.json) used for emoji verification, licensed Apache 2.0
-
-* Special thanks to MTRNord, Sorunome and Advocatux.
+- Команде FluffyChat и Christian Kußowski за основу этого приложения.
+- Matrix Foundation за перевод эмодзи для проверки устройств (Apache-2.0).
+- Разработчикам Matrix и Synapse.

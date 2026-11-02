@@ -3,21 +3,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// DVChat: Точка входа приложения. Переносит старые данные (legacy_migration), создаёт клиенты Matrix,
+// запускает DvChatApp. Здесь же фоновая обработка ошибок и запуск при открытии из уведомления.
+
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/notification_background_handler.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/start_push_foreground_service.dart';
+import 'package:dvchat/config/app_config.dart';
+import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/error_reporter.dart';
+import 'package:dvchat/utils/legacy_migration.dart';
+import 'package:dvchat/utils/notification_background_handler.dart';
+import 'package:dvchat/utils/platform_infos.dart';
+import 'package:dvchat/utils/start_push_foreground_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
-import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,22 +28,19 @@ import 'package:universal_html/universal_html.dart' as web;
 
 import 'config/setting_keys.dart';
 import 'utils/background_push.dart';
-import 'widgets/fluffy_chat_app.dart';
+import 'widgets/dvchat_app.dart';
 
 ReceivePort? mainIsolateReceivePort;
 
 bool _vodozemacInitialized = false;
 
-bool isIntegrationTest = false;
-
-void main(List<String> args) => runZonedGuarded(() async {
+void main() => runZonedGuarded(() async {
   // Forward Flutter errors to global error reporter
   FlutterError.onError = (details) => Zone.current.handleUncaughtError(
     details.exception,
     details.stack ?? StackTrace.current,
   );
 
-  isIntegrationTest = args.singleOrNull == 'integration_test';
   if (PlatformInfos.isAndroid) {
     final port = mainIsolateReceivePort = ReceivePort();
     IsolateNameServer.removePortNameMapping(AppConfig.mainIsolatePortName);
@@ -76,7 +76,7 @@ void main(List<String> args) => runZonedGuarded(() async {
     _vodozemacInitialized = true;
   }
 
-  Logs().nativeColors = !PlatformInfos.isIOS;
+  Logs().nativeColors = true;
 
   // If the app starts in detached mode, we assume that it is in
   // background fetch mode for processing push notifications. This is
@@ -115,26 +115,23 @@ void main(List<String> args) => runZonedGuarded(() async {
 
 /// Fetch the pincode for the applock and start the flutter engine.
 Future<void> startGui(List<Client> clients, SharedPreferences store) async {
+  // DVChat: перенос пин-кода и каналов уведомлений со старых имён (один раз, до чтения пина)
+  await migrateLegacyPlatformData(store);
+
   // Fetch the pin for the applock if existing for mobile applications.
   String? pin;
   var useBiometrics = false;
   if (PlatformInfos.supportsAppLock) {
     try {
-      pin = await const FlutterSecureStorage().read(
-        key: 'chat.fluffy.app_lock',
-      );
+      pin = await const FlutterSecureStorage().read(key: 'dvchat.app_lock');
       useBiometrics =
           (await const FlutterSecureStorage().read(
-            key: 'chat.fluffy.use_biometrics',
+            key: 'dvchat.use_biometrics',
           )) ==
           'true';
     } catch (e, s) {
       Logs().d('Unable to read PIN from Secure storage', e, s);
     }
-  }
-
-  if (PlatformInfos.isLinux || PlatformInfos.isWindows) {
-    JustAudioMediaKit.ensureInitialized();
   }
 
   // Preload first client
@@ -143,7 +140,7 @@ Future<void> startGui(List<Client> clients, SharedPreferences store) async {
   await firstClient?.accountDataLoading;
 
   runApp(
-    FluffyChatApp(
+    DvChatApp(
       clients: clients,
       appLockSettings: (pincode: pin, useBiometrics: useBiometrics),
       store: store,

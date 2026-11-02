@@ -3,10 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+// DVChat: Окно сведений о публичной комнате с кнопкой входа.
+
+import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_share.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:go_router/go_router.dart';
@@ -67,13 +69,7 @@ class PublicRoomDialog extends StatelessWidget {
     if (result.error != null) return;
     if (!context.mounted) return;
     Navigator.of(context).pop<bool>(true);
-    // don't open the room if the joined room is a space
-    if (chunk?.roomType != 'm.space' &&
-        !client.getRoomById(result.result!)!.isSpace) {
-      context.go('/rooms/$roomId');
-    } else {
-      context.go('/rooms?spaceId=$roomId');
-    }
+    context.go('/rooms/$roomId');
     return;
   }
 
@@ -166,10 +162,10 @@ class PublicRoomDialog extends StatelessWidget {
                                                   right: 4.0,
                                                 ),
                                                 child: AnimatedScale(
-                                                  duration: FluffyThemes
+                                                  duration: DvThemes
                                                       .animationDuration,
-                                                  curve: FluffyThemes
-                                                      .animationCurve,
+                                                  curve:
+                                                      DvThemes.animationCurve,
                                                   scale: hovered
                                                       ? 1.33
                                                       : copied
@@ -278,7 +274,7 @@ class PublicRoomDialog extends StatelessWidget {
                       AdaptiveIconTextButton(
                         label: L10n.of(context).share,
                         icon: Icons.adaptive.share,
-                        onTap: () => FluffyShare.share(
+                        onTap: () => DvShare.share(
                           'https://matrix.to/#/$roomLink',
                           context,
                         ),
@@ -294,8 +290,6 @@ class PublicRoomDialog extends StatelessWidget {
                                   ).client.getRoomById(chunk!.roomId) ==
                                   null
                           ? L10n.of(context).knock
-                          : chunk?.roomType == 'm.space'
-                          ? L10n.of(context).joinSpace
                           : L10n.of(context).joinRoom,
                       style: TextStyle(color: theme.colorScheme.secondary),
                     ),
