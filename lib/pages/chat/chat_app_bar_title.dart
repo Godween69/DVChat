@@ -51,6 +51,7 @@ class ChatAppBarTitle extends StatelessWidget {
             child: Avatar(
               mxContent: room.avatar,
               name: room.dvDisplayname(MatrixLocals(L10n.of(context))),
+              userId: room.directChatMatrixID,
               size: 32,
             ),
           ),

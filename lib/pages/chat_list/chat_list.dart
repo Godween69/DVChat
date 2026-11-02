@@ -21,6 +21,7 @@ import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/utils/update_checker.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_modal_action_popup.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
@@ -374,131 +375,63 @@ class ChatListController extends State<ChatList>
   }
 
   Future<void> chatContextAction(Room room, BuildContext posContext) async {
-    final overlay =
-        Overlay.of(posContext).context.findRenderObject() as RenderBox;
-
-    final button = posContext.findRenderObject() as RenderBox;
-
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(const Offset(0, -65), ancestor: overlay),
-        button.localToGlobal(
-          button.size.bottomRight(Offset.zero) + const Offset(-50, 0),
-          ancestor: overlay,
-        ),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    // DVChat: меню чата упрощено (закрепить, в архив, уведомления)
-    final action = await showMenu<ChatContextAction>(
-      context: posContext,
-      position: position,
+    // DVChat: стеклянное меню с цветными значками (вместо серого выпадающего списка)
+    final joined = room.membership == Membership.join;
+    final notifying = room.pushRuleState == PushRuleState.notify;
+    final action = await showDvGlassMenu<ChatContextAction>(
+      posContext,
+      place: DvGlassMenuPlace.auto,
       items: [
-        if (room.membership == Membership.join) ...[
-          PopupMenuItem(
+        if (joined) ...[
+          DvGlassMenuItem(
             value: ChatContextAction.mute,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  room.pushRuleState == PushRuleState.notify
-                      ? Icons.notifications_off_outlined
-                      : Icons.notifications_off,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  room.pushRuleState == PushRuleState.notify
-                      ? L10n.of(context).muteChat
-                      : L10n.of(context).unmuteChat,
-                ),
-              ],
-            ),
+            icon: notifying
+                ? Icons.notifications_off_rounded
+                : Icons.notifications_active_rounded,
+            title: notifying
+                ? L10n.of(context).muteChat
+                : L10n.of(context).unmuteChat,
+            color: DvMenuColors.purple,
           ),
           if (!room.isLowPriority)
-            PopupMenuItem(
+            DvGlassMenuItem(
               value: ChatContextAction.favorite,
-              child: Row(
-                mainAxisSize: .min,
-                children: [
-                  Icon(
-                    room.isFavourite ? Icons.push_pin : Icons.push_pin_outlined,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    room.isFavourite
-                        ? L10n.of(context).unpin
-                        : L10n.of(context).pin,
-                  ),
-                ],
-              ),
+              icon: room.isFavourite
+                  ? Icons.push_pin_rounded
+                  : Icons.push_pin_outlined,
+              title: room.isFavourite
+                  ? L10n.of(context).unpin
+                  : L10n.of(context).pin,
+              color: DvMenuColors.amber,
             ),
         ],
-        PopupMenuItem(
+        DvGlassMenuItem(
           value: ChatContextAction.leave,
-          child: Row(
-            mainAxisSize: .min,
-            children: [
-              Icon(
-                room.isDirectChat
-                    ? Icons.archive_outlined
-                    : Icons.delete_outlined,
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                room.membership == Membership.invite
-                    ? L10n.of(context).delete
-                    : room.isDirectChat
-                    ? 'В архив'
-                    : L10n.of(context).leave,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-              ),
-            ],
-          ),
+          icon: room.isDirectChat
+              ? Icons.archive_rounded
+              : Icons.logout_rounded,
+          title: room.membership == Membership.invite
+              ? L10n.of(context).delete
+              : room.isDirectChat
+              ? 'В архив'
+              : L10n.of(context).leave,
+          color: DvMenuColors.orange,
+          dividerBefore: true,
         ),
         // DVChat: полное удаление чата мимо архива (с подтверждением)
-        if (room.membership == Membership.join)
-          PopupMenuItem(
+        if (joined)
+          const DvGlassMenuItem(
             value: ChatContextAction.delete,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Удалить',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ],
-            ),
+            icon: Icons.delete_rounded,
+            title: 'Удалить',
+            destructive: true,
           ),
         if (room.membership == Membership.invite)
-          PopupMenuItem(
+          DvGlassMenuItem(
             value: ChatContextAction.block,
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                Icon(
-                  Icons.block_outlined,
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).block,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ],
-            ),
+            icon: Icons.block_rounded,
+            title: L10n.of(context).block,
+            destructive: true,
           ),
       ],
     );

@@ -144,7 +144,7 @@ class SendFileDialogState extends State<SendFileDialog> {
     final result = await showScaffoldDialog<Uint8List?>(
       context: context,
       builder: (_) =>
-          _ImageEditPage(bytes: bytes, maxSide: compress ? 1600 : 3072),
+          _ImageEditPage(bytes: bytes, maxSide: compress ? 1280 : 3072),
     );
     if (!mounted || result == null) return;
     final original = _files[index];
@@ -276,7 +276,7 @@ class SendFileDialogState extends State<SendFileDialog> {
           await widget.room.sendFileEvent(
             file,
             thumbnail: thumbnail,
-            shrinkImageMaxDimension: compress ? 1600 : null,
+            shrinkImageMaxDimension: compress ? 1280 : null,
             extraContent: extra.isEmpty ? null : extra,
             threadRootEventId: widget.threadRootEventId,
             threadLastEventId: widget.threadLastEventId,
@@ -295,7 +295,7 @@ class SendFileDialogState extends State<SendFileDialog> {
           await widget.room.sendFileEvent(
             file,
             thumbnail: thumbnail,
-            shrinkImageMaxDimension: compress ? 1600 : null,
+            shrinkImageMaxDimension: compress ? 1280 : null,
             extraContent: extra.isEmpty ? null : extra,
           );
         }
@@ -677,19 +677,30 @@ class _ImageEditPageState extends State<_ImageEditPage> {
   Future<void> _decode() async {
     try {
       // Узнаём размер, не раскрывая картинку целиком, и раскрываем сразу в нужном размере
+      // Буфер, описание и кодек освобождаем только ПОСЛЕ получения кадра: движок раскрывает
+      // картинку лениво, и раннее освобождение роняло приложение (сбой в libflutter.so)
       final buffer = await ui.ImmutableBuffer.fromUint8List(widget.bytes);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final longSide = descriptor.width > descriptor.height
-          ? descriptor.width
-          : descriptor.height;
-      final scale = longSide > widget.maxSide ? widget.maxSide / longSide : 1.0;
-      final codec = await descriptor.instantiateCodec(
-        targetWidth: (descriptor.width * scale).round(),
-        targetHeight: (descriptor.height * scale).round(),
-      );
-      descriptor.dispose();
-      buffer.dispose();
-      final frame = await codec.getNextFrame();
+      ui.ImageDescriptor? descriptor;
+      ui.Codec? codec;
+      final ui.FrameInfo frame;
+      try {
+        descriptor = await ui.ImageDescriptor.encoded(buffer);
+        final longSide = descriptor.width > descriptor.height
+            ? descriptor.width
+            : descriptor.height;
+        final scale = longSide > widget.maxSide
+            ? widget.maxSide / longSide
+            : 1.0;
+        codec = await descriptor.instantiateCodec(
+          targetWidth: (descriptor.width * scale).round(),
+          targetHeight: (descriptor.height * scale).round(),
+        );
+        frame = await codec.getNextFrame();
+      } finally {
+        codec?.dispose();
+        descriptor?.dispose();
+        buffer.dispose();
+      }
       if (!mounted) {
         frame.image.dispose();
         return;

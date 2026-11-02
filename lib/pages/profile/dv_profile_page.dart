@@ -11,6 +11,7 @@ import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoPicker;
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_service.dart';
 import 'package:dvchat/utils/dv_profile_api.dart';
 import 'package:dvchat/utils/file_selector.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -288,6 +289,7 @@ class _DvProfilePageState extends State<DvProfilePage> {
                       Avatar(
                         mxContent: avatar,
                         name: name,
+                        userId: widget.userId,
                         client: _client,
                         size: _profileAvatarSize,
                         onTap: avatar == null
@@ -330,6 +332,24 @@ class _DvProfilePageState extends State<DvProfilePage> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (dvIsServiceUser(widget.userId)) ...[
+                Center(
+                  child: Text(
+                    dvServiceName,
+                    style: const TextStyle(fontSize: 22),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const ListTile(
+                  leading: Icon(Icons.smart_toy_outlined),
+                  title: Text('Служебный аккаунт'),
+                  subtitle: Text(
+                    'Внутренний аккаунт DVChat. Присылает уведомления: заявки в '
+                    'друзья, приглашения в игру, сообщения от администратора. '
+                    'Это не человек, ему нельзя написать.',
+                  ),
+                ),
+              ] else ...[
               Center(
                 child: _mine
                     ? TextButton.icon(
@@ -404,6 +424,7 @@ class _DvProfilePageState extends State<DvProfilePage> {
                   ),
                 ),
                 const DvBirthdayNotifyTile(),
+              ],
               ],
             ],
           );

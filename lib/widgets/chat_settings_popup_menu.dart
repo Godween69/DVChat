@@ -44,11 +44,13 @@ class ChatSettingsPopupMenu extends StatelessWidget {
         DvGlassMenuItem(
           value: ChatPopupMenuActions.details,
           icon: Icons.info_outline_rounded,
+          color: DvMenuColors.blue,
           title: l10n.chatDetails,
         ),
       DvGlassMenuItem(
         value: ChatPopupMenuActions.search,
         icon: Icons.search_outlined,
+        color: DvMenuColors.teal,
         title: l10n.search,
       ),
       // Личный чат нельзя покинуть, его отправляют в архив
@@ -57,12 +59,14 @@ class ChatSettingsPopupMenu extends StatelessWidget {
           const DvGlassMenuItem(
             value: ChatPopupMenuActions.restore,
             icon: Icons.unarchive_outlined,
+            color: DvMenuColors.green,
             title: 'Вернуть из архива',
           )
         else
           const DvGlassMenuItem(
             value: ChatPopupMenuActions.archive,
             icon: Icons.archive_outlined,
+            color: DvMenuColors.orange,
             title: 'В архив',
           )
       else
@@ -79,6 +83,7 @@ class ChatSettingsPopupMenu extends StatelessWidget {
         DvGlassMenuItem(
           value: ChatPopupMenuActions.clearChat,
           icon: Icons.cleaning_services_outlined,
+          color: DvMenuColors.purple,
           title: DvClear.stateOf(room) == DvClearState.waiting
               ? 'Просьба об очистке отправлена'
               : 'Очистить чат…',
@@ -89,6 +94,8 @@ class ChatSettingsPopupMenu extends StatelessWidget {
           const DvGlassMenuItem(
             value: ChatPopupMenuActions.unblock,
             icon: Icons.lock_open_outlined,
+            color: DvMenuColors.green,
+            dividerBefore: true,
             title: 'Разблокировать',
           )
         else
@@ -97,6 +104,7 @@ class ChatSettingsPopupMenu extends StatelessWidget {
             icon: Icons.block_outlined,
             title: 'Заблокировать',
             destructive: true,
+            dividerBefore: true,
           ),
     ];
   }

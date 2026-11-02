@@ -6,6 +6,7 @@
 // DVChat: Кнопка переключения между аккаунтами.
 
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -17,27 +18,37 @@ class ClientChooserButton extends StatelessWidget {
 
   const ClientChooserButton(this.controller, {super.key});
 
-  PopupMenuItem<SettingsAction> _item(
-    SettingsAction action,
-    IconData icon,
-    String title,
-  ) => PopupMenuItem(
-    value: action,
-    child: Row(children: [Icon(icon), const SizedBox(width: 18), Text(title)]),
-  );
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
-    return PopupMenuButton<SettingsAction>(
-      key: const Key('accounts_and_settings_buttons'),
-      tooltip: l10n.settings,
-      icon: const Icon(Icons.settings_outlined),
-      onSelected: (action) => _selected(action, context),
-      itemBuilder: (context) => [
-        _item(SettingsAction.archive, Icons.archive_outlined, l10n.archive),
-        _item(SettingsAction.settings, Icons.settings_outlined, l10n.settings),
-      ],
+    // DVChat: стеклянное меню с цветными значками
+    return Builder(
+      builder: (anchor) => IconButton(
+        key: const Key('accounts_and_settings_buttons'),
+        tooltip: l10n.settings,
+        icon: const Icon(Icons.settings_outlined),
+        onPressed: () async {
+          final action = await showDvGlassMenu<SettingsAction>(
+            anchor,
+            items: [
+              DvGlassMenuItem(
+                value: SettingsAction.archive,
+                icon: Icons.archive_rounded,
+                title: l10n.archive,
+                color: DvMenuColors.orange,
+              ),
+              DvGlassMenuItem(
+                value: SettingsAction.settings,
+                icon: Icons.settings_rounded,
+                title: l10n.settings,
+                color: DvMenuColors.blue,
+              ),
+            ],
+          );
+          if (action == null || !anchor.mounted) return;
+          _selected(action, anchor);
+        },
+      ),
     );
   }
 

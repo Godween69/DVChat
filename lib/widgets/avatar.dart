@@ -6,6 +6,7 @@
 // DVChat: Аватар пользователя или чата: картинка либо цветная плашка с первой буквой.
 
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_service.dart';
 import 'package:dvchat/utils/string_color.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
 import 'package:dvchat/widgets/presence_builder.dart';
@@ -20,6 +21,9 @@ class Avatar extends StatelessWidget {
   static const double defaultSize = 48;
   final Client? client;
   final String? presenceUserId;
+
+  /// DVChat: чей это аватар (нужен только чтобы узнать служебный аккаунт «DVChat»)
+  final String? userId;
   final Color? presenceBackgroundColor;
   final BorderRadius? borderRadius;
   final IconData? icon;
@@ -34,6 +38,7 @@ class Avatar extends StatelessWidget {
     this.onTap,
     this.client,
     this.presenceUserId,
+    this.userId,
     this.presenceBackgroundColor,
     this.borderRadius,
     this.shapeBorder,
@@ -51,6 +56,34 @@ class Avatar extends StatelessWidget {
     return '${words.first.substring(0, 1)}${words.last.substring(0, 1)}';
   }
 
+  /// Иконка служебного аккаунта: робот на цветной плашке (рисуется кодом, без картинок)
+  Widget _serviceAvatar(ThemeData theme, BorderRadius borderRadius) {
+    final scheme = theme.colorScheme;
+    final shape = shapeBorder ??
+        RoundedSuperellipseBorder(borderRadius: borderRadius);
+    final child = SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          shape: shape,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [scheme.primary, scheme.tertiary],
+          ),
+        ),
+        child: Icon(
+          Icons.smart_toy_rounded,
+          size: size * 0.56,
+          color: scheme.onPrimary,
+        ),
+      ),
+    );
+    final tap = onTap;
+    return tap == null ? child : GestureDetector(onTap: tap, child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -63,6 +96,10 @@ class Avatar extends StatelessWidget {
         mxContent.toString() == 'null';
     final borderRadius = this.borderRadius ?? BorderRadius.circular(size / 2);
     final presenceUserId = this.presenceUserId;
+    // DVChat: служебный аккаунт «DVChat» — не человек, у него своя иконка вместо буквы
+    if (dvIsServiceUser(presenceUserId ?? userId)) {
+      return _serviceAvatar(theme, borderRadius);
+    }
     final container = Stack(
       children: [
         SizedBox(

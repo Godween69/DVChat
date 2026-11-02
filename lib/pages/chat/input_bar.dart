@@ -424,7 +424,7 @@ class InputBar extends StatelessWidget {
                 bytes: data,
                 name: content.uri.split('/').last,
               );
-              room.sendFileEvent(file, shrinkImageMaxDimension: 1600);
+              room.sendFileEvent(file, shrinkImageMaxDimension: 1280);
             },
           ),
           minLines: minLines,

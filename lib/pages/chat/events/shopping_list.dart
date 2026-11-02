@@ -764,29 +764,19 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
     );
   }
 
-  /// Подсказка про правило «каждый меняет и убирает только свои пункты»
+  /// Подсказка про правило «каждый меняет и убирает только свои пункты»:
+  /// светло-серый служебный текст без фона, лежит внизу списка
   Widget _rulesHint() {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DvGlass(
-        radius: 18,
-        tint: theme.colorScheme.primaryContainer,
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.info_outline, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Менять и убирать можно только свои пункты. Чужие видны только '
-                'для чтения (рядом значок замка). Свой пункт убирается сразу, '
-                'даже если он уже зачёркнут.',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ),
-          ],
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 0),
+      child: Text(
+        'Менять и убирать можно только свои пункты. Чужие видны только '
+        'для чтения (рядом значок замка). Свой пункт убирается сразу, '
+        'даже если он уже зачёркнут.',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface.withAlpha(110),
         ),
       ),
     );
@@ -873,7 +863,6 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
           32,
         ),
         children: [
-          _rulesHint(),
           for (final it in _all)
             if (_deleted.any((d) => d.id == it.id))
               const SizedBox.shrink()
@@ -892,6 +881,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
               label: const Text('Добавить пункт'),
             ),
           ),
+          _rulesHint(),
         ],
       ),
       ),
