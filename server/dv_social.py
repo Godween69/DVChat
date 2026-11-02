@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # DVChat: ID, друзья, заявки и одноразовые коды входа (модуль Synapse).
-# Адреса: /_synapse/client/dv/{me,friends,friends/add,requests,requests/answer,issue,login}
+# Адреса: /_synapse/client/dv/{me,friends,friends/add,requests,requests/answer,issue,login,
+#   chat/clear/{request,answer,cancel}, admin/{clear,befriend,unfriend,notify}}
 import calendar
 import hashlib
 import json
@@ -268,6 +269,12 @@ NOTICE_NAME = "DVChat"
 NOTICE_GAME_REPEAT_S = 15  # приглашения в игру одному человеку от одного не чаще, чем раз в 15 секунд
 LIMIT_GAME_NOTICE = 12     # запросов на уведомление об игре за 60 секунд от одного человека
 NOTICE_REPEAT_S = 300  # повторную заявку тому же человеку напоминаем не чаще, чем раз в 5 минут
+CLEARED_TYPE = "online.dvbstudio.dvchat.cleared"          # состояние комнаты: «переписку стёрли» (ts, by)
+CLEAR_REQ_TYPE = "online.dvbstudio.dvchat.clear_request"  # состояние комнаты: запрос на очистку (status, by, ts)
+LIMIT_CLEAR = 8              # запросов очистки за 60 секунд от одного человека
+CLEAR_NOTICE_REPEAT_S = 60   # напоминание о запросе очистки тому же человеку не чаще раза в минуту
+MAX_NOTICE_TEXT = 500        # длина текста уведомления из панели администратора
+MAX_NOTICE_PEOPLE = 50       # получателей за один раз
 SUPPORT_MARK_TYPE = "online.dvbstudio.dvchat.support"  # метка «чат с администратором»
 MAX_SUBJECT = 100
 MAX_MESSAGE = 2000
@@ -441,6 +448,55 @@ def _find_dm(txn, a, b):
     )
     row = txn.fetchone()
     return row[0] if row else None
+
+
+def _is_service(user_id):
+    """Служебные пользователи («DVChat», обратная связь): людьми не считаются."""
+    local = user_id[1:].split(":")[0]
+    return local in (RELAY_LOCALPART, NOTICE_LOCALPART)
+
+
+def _joined_members(txn, room_id):
+    txn.execute(
+        "SELECT user_id FROM local_current_membership WHERE room_id = ? AND membership = 'join'",
+        (room_id,),
+    )
+    return [r[0] for r in txn.fetchall()]
+
+
+def _dm_peer(txn, room_id, user_id):
+    """Собеседник в личном чате: в комнате ровно двое, и один из них вы (иначе None)."""
+    members = _joined_members(txn, room_id)
+    if len(members) != 2 or user_id not in members:
+        return None
+    return members[0] if members[1] == user_id else members[1]
+
+
+def _is_active(txn, user_id):
+    txn.execute("SELECT deactivated FROM users WHERE name = ?", (user_id,))
+    row = txn.fetchone()
+    return bool(row) and not row[0]
+
+
+def _befriend(txn, a, b):
+    """Администратор подружил двоих: дружба сразу в обе стороны. Возвращает 'added' или 'already'."""
+    _get_or_create_id(txn, a)
+    _get_or_create_id(txn, b)
+    had = _is_friend(txn, a, b) and _is_friend(txn, b, a)
+    _make_friends(txn, a, b)
+    return "already" if had else "added"
+
+
+def _unfriend(txn, a, b):
+    """Администратор убрал дружбу с обеих сторон. Возвращает True, если дружба была."""
+    had = _is_friend(txn, a, b) or _is_friend(txn, b, a)
+    _remove_friend(txn, a, b)
+    return had
+
+
+def _room_exists(txn, room_id):
+    txn.execute("SELECT 1 FROM rooms WHERE room_id = ?", (room_id,))
+    return txn.fetchone() is not None
 
 
 class _Root(DirectServeJsonResource):
@@ -756,6 +812,88 @@ class DvSocial:
         except Exception:
             self._log.exception("dv_social: не удалось сообщить о приглашении в игру")
 
+    async def _state_sender(self, room_id):
+        """Кто может записать состояние в комнату. В комнатах версии 12 у создателя бесконечные
+        права, а у второго человека личного чата их нет, поэтому пишем от имени создателя.
+        Если создателя в комнате уже нет, берём участника с правом на состояние."""
+        run = self._api.run_db_interaction
+        members = await run("dv_joined", _joined_members, room_id)
+        if not members:
+            return None
+        st = await self._api.get_room_state(
+            room_id, [("m.room.create", ""), ("m.room.power_levels", "")]
+        )
+        create = st.get(("m.room.create", ""))
+        if create is not None and create.sender in members:
+            return create.sender
+        pl = st.get(("m.room.power_levels", ""))
+        content = pl.content if pl is not None else {}
+        users = content.get("users") or {}
+        need = content.get("state_default", 50)
+        best = None
+        for m in members:
+            lvl = users.get(m, content.get("users_default", 0))
+            if lvl >= need and (best is None or lvl > best[0]):
+                best = (lvl, m)
+        return best[1] if best else None
+
+    async def _room_state_event(self, room_id, etype):
+        st = await self._api.get_room_state(room_id, [(etype, "")])
+        return st.get((etype, ""))
+
+    async def _put_state(self, room_id, etype, content):
+        """Записать состояние комнаты. Возвращает событие или None, если писать некому."""
+        sender = await self._state_sender(room_id)
+        if not sender:
+            return None
+        return await self._api.create_and_send_event_into_room(
+            {
+                "type": etype,
+                "state_key": "",
+                "room_id": room_id,
+                "sender": sender,
+                "content": content,
+            }
+        )
+
+    async def _wipe_room(self, room_id, by):
+        """Стереть всю переписку комнаты на сервере и сообщить об этом телефонам.
+
+        Сначала в комнату пишется метка «переписку стёрли» (состояние комнаты: его доставят и
+        телефонам, которые долго были без связи), потом сервер стирает всё, что было до метки.
+        Синапс всегда оставляет самое последнее событие: теперь это метка, а не чужое сообщение,
+        поэтому прежнего повторного удаления сообщения не нужно. Возвращает False, если в комнате
+        некому записать метку (тогда ничего не стирается)."""
+        ev = await self._put_state(room_id, CLEARED_TYPE, {"ts": _now_ms(), "by": by})
+        if ev is None:
+            return False
+        token = "t%d-%d" % (ev.depth, ev.internal_metadata.stream_ordering)
+        handler = self._api._hs.get_pagination_handler()
+        err = await handler.purge_history(room_id, token, True)
+        if err:
+            self._log.error("dv_social: очистка комнаты не удалась: %s", err)
+            raise RuntimeError("очистка не удалась")
+        return True
+
+    async def _notify_clear(self, sender, person):
+        """Сообщить собеседнику, что у него просят очистить личный чат (даёт обычное уведомление)."""
+        try:
+            key = (sender, person, "clear")
+            now = time.time()
+            if now - self._last_notice.get(key, 0) < CLEAR_NOTICE_REPEAT_S:
+                return
+            self._last_notice[key] = now
+            name, _ = await self._who(sender)
+            bot, room_id = await self._notice_room(person)
+            await self._send_text(
+                room_id,
+                bot,
+                "🧹 %s просит очистить вашу личную переписку. Откройте чат с этим человеком: "
+                "там можно согласиться или отказаться." % name,
+            )
+        except Exception:
+            self._log.exception("dv_social: не удалось сообщить о запросе очистки")
+
     async def _on_member(self, event):
         """Человек сменил общее имя, и Synapse затёр подпись с ID: возвращаем её."""
         if event.state_key != event.sender or event.content.get("membership") != "join":
@@ -988,6 +1126,118 @@ class DvSocial:
                 return 403, {"errcode": "M_FORBIDDEN", "error": "Только другу"}
             await self._notify_game(user_id, other, title)
             return 200, {}
+
+        # Очистка личного чата по согласию двоих: просьба, ответ, отмена
+        if sub in ("chat/clear/request", "chat/clear/answer", "chat/clear/cancel") and method == "POST":
+            if self._limited((user_id, "clear"), LIMIT_CLEAR):
+                return 429, {"errcode": "M_LIMIT_EXCEEDED", "error": "Слишком часто"}
+            body = self._body(request)
+            room_id = str(body.get("room_id", "")).strip()
+            if not room_id.startswith("!") or len(room_id) > 255:
+                return 400, {"errcode": "M_BAD_JSON", "error": "Неверная комната"}
+            peer = await run("dv_dmpeer", _dm_peer, room_id, user_id)
+            if not peer or _is_service(peer):
+                return 400, {"errcode": "DV_NOT_DM", "error": "Очистить можно только личный чат с человеком"}
+            cur = await self._room_state_event(room_id, CLEAR_REQ_TYPE)
+            cc = dict(cur.content) if cur is not None else {}
+            pending = cc.get("status") == "pending"
+            asked_by = cc.get("by")
+
+            async def cleared():
+                if not await self._wipe_room(room_id, user_id):
+                    return 409, {"errcode": "DV_NO_SENDER", "error": "Не удалось очистить чат"}
+                await self._put_state(room_id, CLEAR_REQ_TYPE, {"status": "none"})
+                return 200, {"status": "cleared"}
+
+            if sub == "chat/clear/request":
+                if pending and asked_by == peer:
+                    return await cleared()   # встречная просьба равна согласию
+                if await self._put_state(
+                    room_id, CLEAR_REQ_TYPE, {"status": "pending", "by": user_id, "ts": _now_ms()}
+                ) is None:
+                    return 409, {"errcode": "DV_NO_SENDER", "error": "Не удалось отправить просьбу"}
+                await self._notify_clear(user_id, peer)
+                return 200, {"status": "pending"}
+            if sub == "chat/clear/answer":
+                if not (pending and asked_by == peer):
+                    return 404, {"errcode": "DV_NOT_FOUND", "error": "Просьбы об очистке нет"}
+                if bool(body.get("accept")):
+                    return await cleared()
+                await self._put_state(
+                    room_id, CLEAR_REQ_TYPE, {"status": "declined", "by": peer, "ts": _now_ms()}
+                )
+                return 200, {"status": "declined"}
+            # cancel: свою просьбу забираем обратно
+            if pending and asked_by == user_id:
+                await self._put_state(room_id, CLEAR_REQ_TYPE, {"status": "none"})
+            return 200, {"status": "none"}
+
+        # Действия администратора из панели: стереть переписку, подружить, убрать из друзей, уведомить
+        if sub.startswith("admin/") and method == "POST":
+            if not await self._api.is_user_admin(user_id):
+                return 403, {"errcode": "M_FORBIDDEN", "error": "Только администратор"}
+            body = self._body(request)
+
+            if sub == "admin/clear":
+                room_id = str(body.get("room_id", "")).strip()
+                if not room_id.startswith("!") or not await run("dv_roomex", _room_exists, room_id):
+                    return 404, {"errcode": "DV_NOT_FOUND", "error": "Нет такой комнаты"}
+                if not await self._wipe_room(room_id, user_id):
+                    return 409, {"errcode": "DV_NO_SENDER", "error": "В комнате некому поставить метку очистки"}
+                try:
+                    await self._put_state(room_id, CLEAR_REQ_TYPE, {"status": "none"})
+                except Exception:
+                    self._log.exception("dv_social: не удалось сбросить просьбу об очистке")
+                return 200, {"cleared": True}
+
+            if sub in ("admin/befriend", "admin/unfriend"):
+                a = str(body.get("a", "")).strip()
+                b = str(body.get("b", "")).strip()
+                if not (a.startswith("@") and b.startswith("@")) or a == b:
+                    return 400, {"errcode": "M_BAD_JSON", "error": "Нужны два разных человека"}
+                for x in (a, b):
+                    if _is_service(x) or not await self._api.check_user_exists(x) or not await run("dv_active", _is_active, x):
+                        return 404, {"errcode": "DV_NOT_FOUND", "error": "Нет такого пользователя: " + x}
+                if sub == "admin/unfriend":
+                    had = await run("dv_unfriend_adm", _unfriend, a, b)
+                    return 200, {"status": "removed" if had else "not_friends"}
+                status = await run("dv_befriend", _befriend, a, b)
+                room_id = None
+                existed = False
+                if body.get("chat", True):
+                    room_id = await run("dv_finddm", _find_dm, a, b)
+                    existed = bool(room_id)
+                    if not room_id:
+                        room_id = await self._create_dm(a, b)
+                return 200, {"status": status, "room_id": room_id, "chat_existed": existed}
+
+            if sub == "admin/notify":
+                text = str(body.get("text", "")).strip()
+                people = body.get("user_ids")
+                if not text or len(text) > MAX_NOTICE_TEXT:
+                    return 400, {"errcode": "M_BAD_JSON", "error": "Текст от 1 до %d знаков" % MAX_NOTICE_TEXT}
+                if not isinstance(people, list) or not people or len(people) > MAX_NOTICE_PEOPLE:
+                    return 400, {"errcode": "M_BAD_JSON", "error": "Нужен от 1 до %d получателей" % MAX_NOTICE_PEOPLE}
+                sent = []
+                failed = []
+                for person in dict.fromkeys(str(x).strip() for x in people):
+                    try:
+                        if (
+                            not person.startswith("@")
+                            or _is_service(person)
+                            or not await self._api.check_user_exists(person)
+                            or not await run("dv_active", _is_active, person)
+                        ):
+                            raise ValueError("нет такого пользователя")
+                        bot, room_id = await self._notice_room(person)
+                        await self._send_text(room_id, bot, text)
+                        sent.append(person)
+                    except Exception:
+                        self._log.exception("dv_social: уведомление не доставлено: %s", person)
+                        failed.append(person)
+                return 200, {"sent": sent, "failed": failed}
+
+            return 404, {"errcode": "M_NOT_FOUND", "error": "Нет такого адреса"}
 
         # Выдача одноразового кода: только администратор (вызывает dvuser.sh)
         if sub == "issue" and method == "POST":

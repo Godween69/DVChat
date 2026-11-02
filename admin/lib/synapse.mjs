@@ -61,6 +61,8 @@ export class Synapse {
   dvFriends() { return this.req('GET', '/_synapse/client/dv/friends'); }
   dvKeysPhrase() { return this.req('POST', '/_synapse/client/dv/keys/phrase', {}); }
   dvMe() { return this.req('GET', '/_synapse/client/dv/me'); }
+  // Действия администратора в модуле dv_social (очистка комнаты, дружба, уведомление): токен админа
+  dvAdmin(action, body) { return this.req('POST', `/_synapse/client/dv/admin/${action}`, body); }
 }
 
 // Временный вход от имени человека (Admin API): токен живёт минуты и сразу гасится

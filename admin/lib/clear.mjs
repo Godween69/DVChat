@@ -14,7 +14,22 @@ async function purge(syn, roomId) {
   throw Object.assign(new Error('Очистка идёт слишком долго, проверьте комнату позже'), { status: 504 });
 }
 
+// Сначала просим модуль dv_social: он ставит в комнате метку очистки, по ней телефоны стирают свою копию переписки.
+// Если модуля нет (404) или он не смог, работает прежний путь через Admin API (телефоны тогда не оповещаются).
 export async function clearRoom(syn, roomId) {
+  try {
+    await syn.dvAdmin('clear', { room_id: roomId });
+    return { redacted: 0, remaining: 0, notified: true };
+  } catch (e) {
+    if (e.status === 403 || e.status === 404 && e.errcode === 'DV_NOT_FOUND') throw e;
+    if (e.status === 502 && e.errcode === 'DVADMIN_UNREACHABLE') throw e;
+    // 404 без кода (модуля нет), 409 (некому поставить метку), 5xx: запасной путь
+  }
+  const r = await clearRoomPlain(syn, roomId);
+  return { ...r, notified: false };
+}
+
+async function clearRoomPlain(syn, roomId) {
   await purge(syn, roomId);
   const members = (await syn.roomMembers(roomId)).members || [];
   let viewer = null;

@@ -17,6 +17,7 @@ import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/pages/liza/liza_page.dart';
 import 'package:dvchat/utils/dv_badges.dart';
+import 'package:dvchat/utils/dv_clear.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_resend.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
@@ -89,6 +90,7 @@ class _DvMainShellState extends State<DvMainShell> {
     // DVChat: не ушедшие сообщения отправляются сами, когда появляется связь
     DvResend.attach(Matrix.of(context).client);
     DvBadges.attach(Matrix.of(context).client);
+    DvClear.attach(Matrix.of(context).client);
   }
 
   @override

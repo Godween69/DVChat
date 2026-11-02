@@ -179,6 +179,75 @@
   }
 
   // ---------- Люди ----------
+  // Выбор людей из списка: один или несколько (флажки)
+  function peoplePick(users, multi, name) {
+    var box = h('div', { class: 'pick' });
+    users.forEach(function (u) {
+      var inp = h('input', { type: multi ? 'checkbox' : 'radio', name: name, value: u.user_id });
+      box.appendChild(h('label', { class: 'row mt6' }, inp, h('span', { class: 'grow' }, ' ' + (u.displayname || u.user_id.slice(1).split(':')[0])), h('span', { class: 'muted small' }, u.user_id)));
+    });
+    box.values = function () { return Array.prototype.map.call(box.querySelectorAll('input:checked'), function (i) { return i.value; }); };
+    return box;
+  }
+  function activeUsers() {
+    return get('/api/users?q=').then(function (r) { return r.users.filter(function (u) { return !u.deactivated && !u.admin; }); });
+  }
+
+  // Подружить двух людей и создать их личный чат (бабушке не нужно искать вкладку «Друзья»)
+  function befriendDialog() {
+    activeUsers().then(function (users) {
+      var pick = peoplePick(users, true, 'bf');
+      var chat = h('input', { type: 'checkbox', checked: 'checked' });
+      var btn = h('button', { class: 'primary', onclick: function () {
+        var ids = pick.values();
+        if (ids.length !== 2) { toast('Отметьте ровно двух людей'); return; }
+        btn.disabled = true;
+        post('/api/people/befriend', { a: ids[0], b: ids[1], chat: chat.checked }).then(function (r) {
+          closeModal();
+          toast((r.status === 'already' ? 'Уже были друзьями' : 'Теперь друзья') + (r.room_id ? (r.chat_existed ? ', чат уже был' : ', чат создан') : ''));
+        }).catch(function (e) { fail(e); btn.disabled = false; });
+      } }, 'Подружить');
+      modal(h('div', null, h('h2', null, 'Подружить людей'),
+        h('p', { class: 'muted' }, 'Отметьте двух человек. Дружба взаимная и сразу, без заявок и подтверждений.'),
+        pick, h('label', { class: 'row mt14' }, chat, ' Создать личный чат (если его ещё нет)'),
+        h('div', { class: 'row mt14' }, btn, h('button', { onclick: closeModal }, 'Отмена'))));
+    }).catch(fail);
+  }
+
+  // Убрать из друзей у обоих; чат и переписка остаются
+  function unfriendDialog(u, f) {
+    var btn = h('button', { class: 'danger', onclick: function () {
+      btn.disabled = true;
+      post('/api/people/unfriend', { a: u.user_id, b: f.user_id }).then(function (r) {
+        closeModal(); toast(r.status === 'removed' ? 'Убраны из друзей' : 'Они и не были друзьями');
+      }).catch(function (e) { fail(e); btn.disabled = false; });
+    } }, 'Убрать из друзей');
+    modal(h('div', null, h('h2', null, 'Убрать из друзей?'),
+      h('p', null, (u.displayname || u.user_id) + ' и ' + f.label + ' перестанут быть друзьями друг у друга. Личный чат и переписка останутся. Вернуть дружбу можно кнопкой «Подружить людей…».'),
+      h('div', { class: 'row mt14' }, btn, h('button', { onclick: closeModal }, 'Отмена'))));
+  }
+
+  // Служебный пуш: текст приходит обычным уведомлением от «DVChat»
+  function pushDialog() {
+    activeUsers().then(function (users) {
+      var pick = peoplePick(users, true, 'pu');
+      var txt = h('textarea', { rows: 4, maxlength: 500, placeholder: 'Текст уведомления (до 500 знаков)' });
+      var btn = h('button', { class: 'primary', onclick: function () {
+        var ids = pick.values();
+        if (!ids.length) { toast('Выберите получателей'); return; }
+        if (!txt.value.trim()) { toast('Введите текст'); return; }
+        btn.disabled = true;
+        post('/api/people/push', { user_ids: ids, text: txt.value }).then(function (r) {
+          closeModal(); toast('Отправлено: ' + r.sent.length + (r.failed.length ? ', не удалось: ' + r.failed.length : ''));
+        }).catch(function (e) { fail(e); btn.disabled = false; });
+      } }, 'Отправить пуш');
+      modal(h('div', null, h('h2', null, 'Отправить пуш'),
+        h('p', { class: 'muted' }, 'Человек получит уведомление от «DVChat». Само сообщение останется в его чате «DVChat».'),
+        pick, h('div', { class: 'mt14' }, txt),
+        h('div', { class: 'row mt14' }, btn, h('button', { onclick: closeModal }, 'Отмена'))));
+    }).catch(fail);
+  }
+
   function viewPeople(v) {
     var q = h('input', { placeholder: 'Поиск по имени' });
     var deact = h('input', { type: 'checkbox' });
@@ -197,7 +266,7 @@
     }
     q.addEventListener('input', function () { clearTimeout(q.t); q.t = setTimeout(load, 300); });
     deact.addEventListener('change', load);
-    v.appendChild(h('div', { class: 'row' }, h('h1', { class: 'grow' }, 'Люди'), h('button', { class: 'primary', onclick: function () { createUser(load); } }, 'Создать человека')));
+    v.appendChild(h('div', { class: 'row' }, h('h1', { class: 'grow' }, 'Люди'), h('button', { onclick: befriendDialog }, 'Подружить людей…'), h('button', { onclick: pushDialog }, 'Отправить пуш…'), h('button', { class: 'primary', onclick: function () { createUser(load); } }, 'Создать человека')));
     v.appendChild(h('div', { class: 'row mt12',  }, h('div', { class: 'grow' }, q), h('label', { class: 'muted' }, deact, ' удалённые')));
     v.appendChild(h('table', null, h('thead', null, h('tr', null, h('th', null, 'Имя'), h('th', null, 'Учётная запись'), h('th', null, 'ID'), h('th', null, 'Статус'), h('th', null, 'Создан'))), tbody));
     load();
@@ -249,7 +318,7 @@
         if (r.error) { box.appendChild(h('p', { class: 'err' }, 'Не удалось получить: ' + r.error)); return; }
         if (r.all_users) { box.appendChild(h('p', { class: 'muted' }, 'Это администратор: ему видны все люди сервера, отдельного списка друзей нет.')); return; }
         box.appendChild(h('p', { class: 'muted' }, 'Друзей: ' + r.friends.length + (r.requests.length ? ', ждут ответа: ' + r.requests.length : '')));
-        r.friends.forEach(function (f) { box.appendChild(h('div', { class: 'row mt6' }, h('b', { class: 'grow' }, f.label), f.best ? h('span', { class: 'tag ok' }, 'лучший') : null, f.dv_id ? h('span', { class: 'tag' }, 'ID ' + f.dv_id) : null)); });
+        r.friends.forEach(function (f) { box.appendChild(h('div', { class: 'row mt6' }, h('b', { class: 'grow' }, f.label), f.best ? h('span', { class: 'tag ok' }, 'лучший') : null, f.dv_id ? h('span', { class: 'tag' }, 'ID ' + f.dv_id) : null, h('button', { onclick: function () { unfriendDialog(u, f); } }, 'Убрать из друзей…'))); });
         if (r.requests.length) box.appendChild(h('h3', null, 'Заявки, ожидающие ответа'));
         r.requests.forEach(function (f) { box.appendChild(h('div', { class: 'row mt6' }, h('b', { class: 'grow' }, f.label), f.dv_id ? h('span', { class: 'tag' }, 'ID ' + f.dv_id) : null)); });
         if (!r.friends.length && !r.requests.length) box.appendChild(h('p', { class: 'muted' }, 'Пока никого.'));
@@ -319,7 +388,7 @@
             h('td', { class: 'nw' }, x.encrypted ? h('span', { class: 'tag ok' }, 'шифр.') : h('span', { class: 'tag' }, 'без шифр.')),
             h('td', { class: 'act' }, x.kind === 'service' ? '' : menuButton([
               { label: 'Очистить переписку…', onclick: function () {
-                confirmDanger('Очистить переписку?', 'Все сообщения комнаты «' + x.label + '» будут стёрты на сервере. Комната, участники, друзья и группы останутся. Это нельзя отменить. Файлы и картинки из зашифрованных чатов этой кнопкой с сервера не удаляются. На телефонах, где чат уже открыт, старые сообщения могут оставаться в памяти приложения до его обновления.', 'очистить',
+                confirmDanger('Очистить переписку?', 'Все сообщения комнаты «' + x.label + '» будут стёрты на сервере. Комната, участники, друзья и группы останутся. Это нельзя отменить. Файлы и картинки из зашифрованных чатов этой кнопкой с сервера не удаляются. На телефонах с новой версией приложения чат очистится сам при следующем открытии связи; на старых версиях старые сообщения могут оставаться в памяти приложения.', 'очистить',
                   function (c) { return post('/api/rooms/clear', { room_id: x.room_id, confirm: c }).then(function () { toast('Переписка очищена'); setTimeout(load, 1000); }); }, 'Очистить');
               } },
               { label: 'Удалить комнату…', danger: true, onclick: function () { confirmDanger('Удалить комнату?', 'Комната «' + x.label + '» будет удалена с сервера у всех участников. Это нельзя отменить.', expected, function (c) { return post('/api/rooms/delete', { room_id: x.room_id, confirm: c }).then(function () { toast('Удаление запущено'); setTimeout(load, 1500); }); }); } }]))));

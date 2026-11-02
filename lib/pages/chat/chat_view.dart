@@ -22,6 +22,7 @@ import 'package:dvchat/utils/dv_wallpaper_presets.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
+import 'package:dvchat/widgets/dv_clear_banner.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
@@ -377,6 +378,8 @@ class ChatView extends StatelessWidget {
                                       child: Column(
                                         mainAxisSize: .min,
                                         children: [
+                                          if (controller.room.isDirectChat)
+                                            DvClearBanner(controller.room),
                                           ReplyDisplay(controller),
                                           ChatInputRow(controller),
                                           ChatEmojiPicker(controller),

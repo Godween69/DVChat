@@ -103,6 +103,12 @@ export function maskedEnvText(text) {
   }).join('\n');
 }
 
+// Ошибка модуля dv_social: 404 без кода значит, что модуль на сервере старый
+const dvFail = (e) => {
+  if (e.status === 404 && e.errcode !== 'DV_NOT_FOUND') throw new HttpError(502, 'Модуль dv_social на сервере без этих действий: обновите серверный модуль (скрипт dvserver-deploy.sh)', 'DV_OLD');
+  throw new HttpError(e.status === 403 ? 403 : e.status === 404 ? 404 : 502, e.message, e.errcode || 'ERROR');
+};
+
 export function createApi({ cfg, syn, audit }) {
   let adminId = '';
   const me = async () => (adminId ||= (await syn.whoami()).user_id);
@@ -379,6 +385,36 @@ export function createApi({ cfg, syn, audit }) {
       const r = await clearRoom(syn, id);
       audit('room.clear', { room: id, ...r });
       return { ok: true, ...r };
+    },
+
+    // Подружить двух людей сразу и создать их личный чат (для тех, кому трудно с интерфейсом)
+    'POST /api/people/befriend': async ({ body }) => {
+      const a = await fullId(body.a), b = await fullId(body.b);
+      if (a === b) throw bad('Нужны два разных человека');
+      const r = await syn.dvAdmin('befriend', { a, b, chat: body.chat !== false }).catch(dvFail);
+      audit('people.befriend', { a, b, status: r.status, chat: Boolean(r.room_id), chat_existed: Boolean(r.chat_existed) });
+      return r;
+    },
+
+    // Убрать двоих из друзей друг у друга (чат и история остаются)
+    'POST /api/people/unfriend': async ({ body }) => {
+      const a = await fullId(body.a), b = await fullId(body.b);
+      if (a === b) throw bad('Нужны два разных человека');
+      const r = await syn.dvAdmin('unfriend', { a, b }).catch(dvFail);
+      audit('people.unfriend', { a, b, status: r.status });
+      return r;
+    },
+
+    // Служебный пуш: сообщение от «DVChat» в личном чате получателя, приходит обычным уведомлением
+    'POST /api/people/push': async ({ body }) => {
+      const text = String(body.text || '').trim();
+      if (!text || text.length > 500) throw bad('Текст от 1 до 500 знаков');
+      if (!Array.isArray(body.user_ids) || !body.user_ids.length || body.user_ids.length > 50) throw bad('Выберите от 1 до 50 получателей');
+      const ids = [];
+      for (const u of body.user_ids) ids.push(await fullId(u));
+      const r = await syn.dvAdmin('notify', { user_ids: ids, text }).catch(dvFail);
+      audit('people.push', { sent: r.sent.length, failed: r.failed.length, length: text.length });
+      return r;
     },
 
     'POST /api/rooms/delete-empty': async ({ body }) => {

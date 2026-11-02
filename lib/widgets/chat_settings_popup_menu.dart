@@ -7,6 +7,7 @@
 
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/blocked_periods.dart';
+import 'package:dvchat/utils/dv_clear.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/dv_glass.dart';
@@ -23,6 +24,7 @@ enum ChatPopupMenuActions {
   leave,
   block,
   unblock,
+  clearChat,
 }
 
 class ChatSettingsPopupMenu extends StatelessWidget {
@@ -69,6 +71,17 @@ class ChatSettingsPopupMenu extends StatelessWidget {
           icon: Icons.delete_outlined,
           title: l10n.leave,
           destructive: true,
+        ),
+      // DVChat: очистка личного чата только с согласия собеседника (служебные чаты не очищаются)
+      if (_partnerId != null &&
+          _partnerId!.localpart != 'dvnotice' &&
+          DvClear.stateOf(room) != DvClearState.incoming)
+        DvGlassMenuItem(
+          value: ChatPopupMenuActions.clearChat,
+          icon: Icons.cleaning_services_outlined,
+          title: DvClear.stateOf(room) == DvClearState.waiting
+              ? 'Просьба об очистке отправлена'
+              : 'Очистить чат…',
         ),
       // DVChat: блокировка собеседника в личном чате (администратора заблокировать нельзя)
       if (_partnerId != null && _partnerId!.localpart != 'dima')
@@ -183,6 +196,33 @@ class ChatSettingsPopupMenu extends StatelessWidget {
             context: context,
             future: () => room.client.unblockUser(partnerId),
           );
+          break;
+        }
+      case ChatPopupMenuActions.clearChat:
+        {
+          if (DvClear.stateOf(room) == DvClearState.waiting) return;
+          final ok = await showOkCancelAlertDialog(
+            context: context,
+            title: 'Попросить очистить чат?',
+            message:
+                '${DvClear.peerName(room)} получит уведомление и сможет согласиться или отказаться. '
+                'Если согласится, все сообщения в этом чате сотрутся у вас обоих без возврата. '
+                'Пока ответа нет, ничего не стирается.',
+            okLabel: 'Попросить',
+            cancelLabel: L10n.of(context).cancel,
+            isDestructive: true,
+          );
+          if (ok != OkCancelResult.ok) return;
+          if (!context.mounted) return;
+          final result = await showFutureLoadingDialog(
+            context: context,
+            future: () => DvClear.request(room),
+          );
+          if (result.error == null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Просьба отправлена, ждём ответа')),
+            );
+          }
           break;
         }
       case ChatPopupMenuActions.details:

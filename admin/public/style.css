@@ -93,3 +93,5 @@ table.matrix td.dim{opacity:.35}
 .gline { margin: 10px 0; }
 .gbar { height: 8px; border-radius: 4px; background: var(--accent); margin: 4px 0; }
 table th.c, table td.c { text-align: center; }
+.pick{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+input[type=radio]{width:auto}

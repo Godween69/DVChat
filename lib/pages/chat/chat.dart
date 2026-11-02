@@ -23,6 +23,7 @@ import 'package:dvchat/pages/chat/utils/web_file_to_x_file.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/dv_clear.dart';
 import 'package:dvchat/utils/dv_confirm.dart';
 import 'package:dvchat/utils/dv_pins.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
@@ -444,7 +445,15 @@ class ChatController extends State<ChatPageWithRoom>
         ? lastEventThreadId ?? _localReadUpTo[room.id] ?? room.fullyRead
         : '';
     WidgetsBinding.instance.addObserver(this);
+    DvClear.wiped.addListener(_onDvWiped);
     _tryLoadTimeline();
+  }
+
+  /// DVChat: переписка этой комнаты очищена (метка сервера): лента перечитывается из уже очищенной базы
+  void _onDvWiped() {
+    if (!mounted || !DvClear.wiped.value.startsWith('${room.id}|')) return;
+    loadTimelineFuture = _getTimeline();
+    setState(() {});
   }
 
   final Set<String> expandedEventIds = {};
@@ -703,6 +712,7 @@ class ChatController extends State<ChatPageWithRoom>
 
   @override
   void dispose() {
+    DvClear.wiped.removeListener(_onDvWiped);
     timeline?.cancelSubscriptions();
     timeline = null;
     _storeInputTimeoutTimer?.cancel();
