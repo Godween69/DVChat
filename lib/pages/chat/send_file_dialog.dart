@@ -6,6 +6,10 @@
 // DVChat: Окно отправки файлов и картинок: предпросмотр, подпись, сжатие.
 
 import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/widgets/dv_loader.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show File;
+import 'package:flutter/painting.dart' as painting;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -70,6 +74,67 @@ class SendFileDialogState extends State<SendFileDialog> {
   Future<Uint8List> _previewOf(int i) =>
       _previewBytes.putIfAbsent(i, () => _files[i].readAsBytes());
 
+  /// DVChat: готовые картинки для превью (одна на файл, чтобы показ и подготовка
+  /// использовали один и тот же ключ в кэше) и список уже подготовленных
+  final Map<int, ImageProvider> _providers = {};
+  final Set<int> _ready = {};
+
+  /// Номера картинок, которые человек уже правил (их показываем из памяти)
+  final Map<int, Uint8List> _editedBytes = {};
+  bool _warming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _warmUp());
+  }
+
+  /// Картинка для превью. Исходный файл берём прямо с диска и раскрываем сразу в малом
+  /// размере (512 пикселей по высоте): так 12-мегапиксельные снимки не забивают память.
+  Future<ImageProvider> _providerOf(int i) async {
+    final known = _providers[i];
+    if (known != null) return known;
+    final edited = _editedBytes[i];
+    final ImageProvider base;
+    if (edited != null) {
+      base = MemoryImage(edited);
+    } else if (!kIsWeb && _files[i].path.isNotEmpty) {
+      base = FileImage(File(_files[i].path));
+    } else {
+      base = MemoryImage(await _previewOf(i));
+    }
+    return _providers[i] = painting.ResizeImage(base, height: 512);
+  }
+
+  /// Готовит превью по одному, с паузой между ними, чтобы окно не замирало.
+  /// Пока не готовы все, показывается крутилка со счётчиком, а картинки
+  /// появляются по мере готовности.
+  Future<void> _warmUp() async {
+    if (_warming) return;
+    _warming = true;
+    try {
+      for (var i = 0; i < _files.length; i++) {
+        if (!mounted) return;
+        if (_ready.contains(i)) continue;
+        final mime = _files[i].mimeType ?? lookupMimeType(_files[i].name) ?? '';
+        if (mime.startsWith('image/')) {
+          try {
+            final provider = await _providerOf(i);
+            if (!mounted) return;
+            await precacheImage(provider, context);
+          } catch (e, st) {
+            Logs().w('Unable to prepare preview', e, st);
+          }
+        }
+        if (!mounted) return;
+        setState(() => _ready.add(i));
+        await Future<void>.delayed(const Duration(milliseconds: 70));
+      }
+    } finally {
+      _warming = false;
+    }
+  }
+
   /// DVChat: общий размер считается один раз (и после правки картинки)
   late Future<String> _sizeFuture = _calcCombinedFileSize();
 
@@ -93,8 +158,12 @@ class SendFileDialogState extends State<SendFileDialog> {
         length: result.length,
       );
       _previewBytes.remove(index);
+      _editedBytes[index] = result;
+      _providers.remove(index);
+      _ready.remove(index);
       _sizeFuture = _calcCombinedFileSize();
     });
+    _warmUp();
   }
 
   Future<void> _send(String? uniqueFileType) async {
@@ -168,16 +237,18 @@ class SendFileDialogState extends State<SendFileDialog> {
             mimeType.startsWith('video')) {
           final lengthResult = await Result.capture(xfile.length());
           final length = lengthResult.asValue?.value;
-          scaffoldMessenger.clearSnackBars();
-          scaffoldMessenger.showLoadingSnackBar(l10n.compressingVideo);
-          file = await xfile.getVideoInfo(
-            compress: length != null && length > minSizeToCompress && compress,
+          // DVChat: по центру экрана красивая крутилка вместо белой полосы снизу
+          final busy = DvBusyOverlay.show(
+            widget.outerContext,
+            'Идёт сжатие видео, подождите немного',
           );
-          scaffoldMessenger.clearSnackBars();
-          if (!ForegroundServices.platformSupported) {
-            scaffoldMessenger.showLoadingSnackBar(
-              l10n.sendingFilesDoNotExit(widget.files.length),
+          try {
+            file = await xfile.getVideoInfo(
+              compress:
+                  length != null && length > minSizeToCompress && compress,
             );
+          } finally {
+            busy?.close();
           }
         } else {
           // Else we just create a MatrixFile
@@ -250,6 +321,41 @@ class SendFileDialogState extends State<SendFileDialog> {
     super.dispose();
   }
 
+  /// Плитка превью: пока картинка не готова, на её месте маленькая крутилка;
+  /// готовая проявляется плавно.
+  Widget _previewTile(int i) {
+    final provider = _ready.contains(i) ? _providers[i] : null;
+    final broken = const Center(
+      child: SizedBox(
+        width: 160,
+        height: 256,
+        child: Icon(Icons.broken_image_outlined, size: 64),
+      ),
+    );
+    if (provider == null) {
+      return SizedBox(
+        width: _files.length == 1 ? 256 - 36 : 150,
+        height: 256,
+        child: _ready.contains(i) ? broken : const Center(child: DvLoader(size: 36)),
+      );
+    }
+    return Image(
+      image: provider,
+      height: 256,
+      width: _files.length == 1 ? 256 - 36 : null,
+      fit: BoxFit.contain,
+      frameBuilder: (context, child, frame, sync) => AnimatedOpacity(
+        opacity: frame == null && !sync ? 0 : 1,
+        duration: const Duration(milliseconds: 250),
+        child: child,
+      ),
+      errorBuilder: (context, e, st) {
+        Logs().w('Unable to preview image', e, st);
+        return broken;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -271,11 +377,10 @@ class SendFileDialogState extends State<SendFileDialog> {
         .toUpperCase();
 
     if (uniqueFileType == 'image') {
-      if (_files.length == 1) {
-        sendStr = L10n.of(context).sendImage;
-      } else {
-        sendStr = L10n.of(context).sendImages(_files.length);
-      }
+      // DVChat: «фото» не склоняется, поэтому одна форма на любое число
+      sendStr = _files.length == 1
+          ? 'Отправить фото'
+          : 'Отправить ${_files.length} фото';
     } else if (uniqueFileType == 'audio') {
       sendStr = L10n.of(context).sendAudio;
     } else if (uniqueFileType == 'video') {
@@ -300,6 +405,24 @@ class SendFileDialogState extends State<SendFileDialog> {
                 mainAxisSize: .min,
                 children: [
                   const SizedBox(height: 12),
+                  if (uniqueFileType == 'image' && _ready.length < _files.length)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const DvLoader(size: 28),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              'Идёт сжатие, подождите немного'
+                              '${_files.length > 1 ? ' (${_ready.length} из ${_files.length})' : ''}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (uniqueFileType == 'image')
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
@@ -322,62 +445,7 @@ class SendFileDialogState extends State<SendFileDialog> {
                                     ),
                                     color: Colors.black,
                                     clipBehavior: Clip.hardEdge,
-                                    child: FutureBuilder(
-                                      future: _previewOf(i),
-                                      builder: (context, snapshot) {
-                                        final bytes = snapshot.data;
-                                        if (bytes == null) {
-                                          return const Center(
-                                            child:
-                                                CircularProgressIndicator.adaptive(),
-                                          );
-                                        }
-                                        if (snapshot.error != null) {
-                                          Logs().w(
-                                            'Unable to preview image',
-                                            snapshot.error,
-                                            snapshot.stackTrace,
-                                          );
-                                          return const Center(
-                                            child: SizedBox(
-                                              width: 256,
-                                              height: 256,
-                                              child: Icon(
-                                                Icons.broken_image_outlined,
-                                                size: 64,
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                        // DVChat: картинка раскрывается сразу в малом размере, не в полном
-                                        return Image.memory(
-                                          bytes,
-                                          cacheHeight: 512,
-                                          height: 256,
-                                          width: _files.length == 1
-                                              ? 256 - 36
-                                              : null,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (context, e, s) {
-                                            Logs().w(
-                                              'Unable to preview image',
-                                              e,
-                                              s,
-                                            );
-                                            return const Center(
-                                              child: SizedBox(
-                                                width: 256,
-                                                height: 256,
-                                                child: Icon(
-                                                  Icons.broken_image_outlined,
-                                                  size: 64,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
+                                    child: _previewTile(i),
                                   ),
                                   Positioned(
                                     top: 4,
@@ -514,11 +582,11 @@ class SendFileDialogState extends State<SendFileDialog> {
             AdaptiveDialogAction(
               onPressed: () =>
                   Navigator.of(context, rootNavigator: false).pop(),
-              child: Text(L10n.of(context).cancel),
+              child: const Text('Отмена'),
             ),
             AdaptiveDialogAction(
               onPressed: () => _send(uniqueFileType),
-              child: Text(L10n.of(context).send),
+              child: const Text('Отправить'),
             ),
           ],
         );
@@ -847,7 +915,16 @@ class _ImageEditPageState extends State<_ImageEditPage> {
                                 // its Image widget disposes the underlying
                                 // ui.Image — which would be our [_image],
                                 // breaking draw mode and save.
-                                image: Image.memory(widget.bytes),
+                                image: Image.memory(
+                                  widget.bytes,
+                                  // DVChat: в полном размере 12 Мп роняли приложение
+                                  cacheWidth: image.width >= image.height
+                                      ? 1280
+                                      : null,
+                                  cacheHeight: image.height > image.width
+                                      ? 1280
+                                      : null,
+                                ),
                                 overlayPainter: _strokes.isEmpty
                                     ? null
                                     : _StrokePainter(

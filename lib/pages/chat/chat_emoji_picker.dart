@@ -35,6 +35,9 @@ class ChatEmojiPicker extends StatelessWidget {
                 locale: Localizations.localeOf(context),
                 emojiViewConfig: EmojiViewConfig(
                   noRecents: const NoRecent(),
+                  // DVChat: смайлики покрупнее (было 8 колонок по 32)
+                  columns: 6,
+                  emojiSizeMax: 42,
                   backgroundColor: theme.colorScheme.onInverseSurface,
                 ),
                 bottomActionBarConfig: const BottomActionBarConfig(

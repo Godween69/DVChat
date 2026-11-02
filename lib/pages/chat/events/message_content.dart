@@ -63,6 +63,7 @@ class MessageContent extends StatelessWidget {
     // Всё, кроме текста (голосовые, файлы, опросы), получает свободную строку под метку
     if (metaWidth > 0 &&
         core is! _InlineMeta &&
+        core is! ImageBubble &&
         !(core is AudioPlayerWidget && !core.hasCaption)) {
       return Padding(padding: const EdgeInsets.only(bottom: 16), child: core);
     }
@@ -122,6 +123,7 @@ class MessageContent extends StatelessWidget {
               borderRadius: borderRadius,
               timeline: timeline,
               textColor: textColor,
+              metaWidth: metaWidth,
               onTap: () => showDialog(
                 context: context,
                 builder: (_) => ImageViewer(

@@ -25,7 +25,7 @@ class ImageViewerView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconButtonStyle = IconButton.styleFrom(
-      backgroundColor: Colors.black.withAlpha(200),
+      backgroundColor: Colors.black.withAlpha(120),
       foregroundColor: Colors.white,
     );
     return GestureDetector(
@@ -64,7 +64,7 @@ class ImageViewerView extends StatelessWidget {
                   const SizedBox(width: 8),
                   // DVChat: у фото из альбома рядом есть «Сохранить все» (с числом фото)
                   AnimatedBuilder(
-                    animation: controller.pageController,
+                    animation: controller.pageIndex,
                     builder: (context, _) {
                       final members = controller.albumMembers;
                       if (members.length < 2) return const SizedBox.shrink();
@@ -141,6 +141,9 @@ class ImageViewerView extends StatelessWidget {
                         : NeverScrollableScrollPhysics(),
                     scrollDirection: Axis.horizontal,
                     controller: controller.pageController,
+                    onPageChanged: controller.onPageChanged,
+                    // DVChat: соседний кадр готовится заранее, листание без «провалов»
+                    allowImplicitScrolling: true,
                     itemCount: controller.allEvents.length,
                     itemBuilder: (context, i) {
                       final event = controller.allEvents[i];
@@ -176,6 +179,11 @@ class ImageViewerView extends StatelessWidget {
                                     fit: BoxFit.contain,
                                     isThumbnail: false,
                                     animated: true,
+                                    // DVChat: не раскрываем 12 Мп в полный размер (тормоза)
+                                    decodeMaxWidth: (MediaQuery.sizeOf(context).width *
+                                            MediaQuery.devicePixelRatioOf(context) *
+                                            2)
+                                        .round(),
                                   ),
                                 ),
                               ),
@@ -188,6 +196,10 @@ class ImageViewerView extends StatelessWidget {
                 ),
               ),
               if (hovered) ...[
+                // стрелки обновляются при смене страницы
+                ValueListenableBuilder<int>(
+                  valueListenable: controller.pageIndex,
+                  builder: (context, _, _) => Stack(children: [
                 if (controller.canGoBack)
                   Align(
                     alignment: .centerLeft,
@@ -214,6 +226,8 @@ class ImageViewerView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ]),
+                ),
               ],
             ],
           ),

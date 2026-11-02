@@ -212,12 +212,17 @@ def _add_friend(txn, me, target_dv_id, via_qr):
     if txn.fetchone():
         _make_friends(txn, me, other)
         return "added", other
+    # Новая это заявка или такая уже лежит: о новой сообщаем получателю всегда
+    txn.execute(
+        "SELECT 1 FROM dv_requests WHERE from_user = ? AND to_user = ?", (me, other)
+    )
+    fresh = txn.fetchone() is None
     txn.execute(
         "INSERT INTO dv_requests (from_user, to_user, created_ts) VALUES (?, ?, ?) "
         "ON CONFLICT DO NOTHING",
         (me, other, _now_ms()),
     )
-    return "requested", other
+    return ("requested" if fresh else "requested_again"), other
 
 
 def _remove_friend(txn, a, b):
@@ -258,6 +263,11 @@ def _answer_request(txn, me, from_user, accept):
 
 RELAY_KEY = "online.dvbstudio.dvchat.relay"  # метка служебных сообщений формы обратной связи
 RELAY_LOCALPART = "dvsupport"  # служебный пользователь: пишет письма формы админу
+NOTICE_LOCALPART = "dvnotice"  # служебный пользователь «DVChat»: пишет людям о заявках в друзья
+NOTICE_NAME = "DVChat"
+NOTICE_GAME_REPEAT_S = 15  # приглашения в игру одному человеку от одного не чаще, чем раз в 15 секунд
+LIMIT_GAME_NOTICE = 12     # запросов на уведомление об игре за 60 секунд от одного человека
+NOTICE_REPEAT_S = 300  # повторную заявку тому же человеку напоминаем не чаще, чем раз в 5 минут
 SUPPORT_MARK_TYPE = "online.dvbstudio.dvchat.support"  # метка «чат с администратором»
 MAX_SUBJECT = 100
 MAX_MESSAGE = 2000
@@ -319,8 +329,8 @@ def _room_name_now(txn, room_id):
 def _plain_users(txn):
     txn.execute(
         "SELECT name FROM users WHERE admin = 0 AND deactivated = 0 AND is_guest = 0 "
-        "AND name NOT LIKE ? ORDER BY name",
-        ("@" + RELAY_LOCALPART + ":%",),
+        "AND name NOT LIKE ? AND name NOT LIKE ? ORDER BY name",
+        ("@" + RELAY_LOCALPART + ":%", "@" + NOTICE_LOCALPART + ":%"),
     )
     return [r[0] for r in txn.fetchall()]
 
@@ -452,6 +462,7 @@ class DvSocial:
         self._api = api
         self._ready = False
         self._hits = defaultdict(deque)
+        self._last_notice = {}  # (от кого, кому) -> время последнего сообщения о заявке
         api.register_web_resource(PREFIX, _Root(self))
         self._log = logging.getLogger(__name__)
         api.register_third_party_rules_callbacks(on_new_event=self._on_new_event)
@@ -677,6 +688,74 @@ class DvSocial:
         await self._api.update_room_membership(person, person, room_id, "join", content=content)
         return True
 
+    async def _notice_room(self, person):
+        """Личная комната служебного пользователя «DVChat» с человеком (создаётся при первой
+        заявке). Без шифрования: служебному пользователю нечем шифровать, а обычный пуш
+        Synapse срабатывает на любое сообщение в личной комнате."""
+        run = self._api.run_db_interaction
+        bot = "@%s:%s" % (NOTICE_LOCALPART, self._api.server_name)
+        if not await self._api.check_user_exists(bot):
+            await self._api.register_user(NOTICE_LOCALPART, displayname=NOTICE_NAME)
+        room_id = await run("dv_notice_find", _find_dm, bot, person)
+        if room_id:
+            return bot, room_id
+        config = {
+            "visibility": "private",
+            "preset": "trusted_private_chat",
+            "is_direct": True,
+            "dv_nonce": dv_shared.new_nonce(),
+        }
+        room_id, _ = await self._api.create_room(bot, config, ratelimit=False)
+        dv_shared.allow_invite(bot, person, room_id)
+        await self._api.update_room_membership(
+            bot, person, room_id, "invite", content={"is_direct": True}
+        )
+        await self._api.update_room_membership(person, person, room_id, "join")
+        await self._add_direct(bot, person, room_id)
+        await self._add_direct(person, bot, room_id)
+        return bot, room_id
+
+    async def _notify_request(self, sender, person, fresh):
+        """Сообщить получателю о заявке в друзья: сообщение в его комнате с «DVChat» даёт
+        обычное уведомление на телефон. Любой сбой только пишется в журнал, заявку не ломает."""
+        try:
+            key = (sender, person)
+            now = time.time()
+            if not fresh and now - self._last_notice.get(key, 0) < NOTICE_REPEAT_S:
+                return
+            self._last_notice[key] = now
+            name, _ = await self._who(sender)
+            bot, room_id = await self._notice_room(person)
+            await self._send_text(
+                room_id,
+                bot,
+                "👋 %s хочет добавить вас в друзья. Откройте вкладку «Друзья»: "
+                "там заявку можно принять или отклонить." % name,
+            )
+        except Exception:
+            self._log.exception("dv_social: не удалось сообщить о заявке в друзья")
+
+    async def _notify_game(self, sender, person, title):
+        """Сообщить, что друг зовёт в игру: сообщение от «DVChat» даёт обычное уведомление.
+        Приглашение само идёт скрытым событием, а такие уведомлений не вызывают."""
+        try:
+            key = (sender, person, "game")
+            now = time.time()
+            if now - self._last_notice.get(key, 0) < NOTICE_GAME_REPEAT_S:
+                return
+            self._last_notice[key] = now
+            name, _ = await self._who(sender)
+            bot, room_id = await self._notice_room(person)
+            what = (" в «%s»" % title) if title else ""
+            await self._send_text(
+                room_id,
+                bot,
+                "🎮 %s зовёт вас сыграть%s. Откройте вкладку «Игры»: приглашение ждёт там."
+                % (name, what),
+            )
+        except Exception:
+            self._log.exception("dv_social: не удалось сообщить о приглашении в игру")
+
     async def _on_member(self, event):
         """Человек сменил общее имя, и Synapse затёр подпись с ID: возвращаем её."""
         if event.state_key != event.sender or event.content.get("membership") != "join":
@@ -803,6 +882,9 @@ class DvSocial:
                 return 404, {"errcode": "DV_NOT_FOUND", "error": "Такого ID нет"}
             if status == "self":
                 return 400, {"errcode": "DV_SELF", "error": "Это ваш собственный ID"}
+            if status in ("requested", "requested_again"):
+                await self._notify_request(user_id, other, fresh=status == "requested")
+                status = "requested"
             return 200, {"status": status, "user_id": other}
 
         # Профили (день рождения): читать можно у себя и у друзей
@@ -889,6 +971,22 @@ class DvSocial:
             )
             if not ok:
                 return 404, {"errcode": "DV_NOT_FOUND", "error": "Заявки нет"}
+            return 200, {}
+
+        # Приглашение в игру: приложение просит сообщить другу уведомлением
+        if sub == "games/invite" and method == "POST":
+            if self._limited((user_id, "game_notice"), LIMIT_GAME_NOTICE):
+                return 429, {"errcode": "M_LIMIT_EXCEEDED", "error": "Слишком часто"}
+            body = self._body(request)
+            other = str(body.get("user_id", "")).strip()
+            title = str(body.get("title", "")).strip()[:40]
+            if not other.startswith("@") or other == user_id:
+                return 400, {"errcode": "M_BAD_JSON", "error": "Неверный пользователь"}
+            if not await self._api.is_user_admin(user_id) and not await run(
+                "dv_isfriend", _is_friend, user_id, other
+            ):
+                return 403, {"errcode": "M_FORBIDDEN", "error": "Только другу"}
+            await self._notify_game(user_id, other, title)
             return 200, {}
 
         # Выдача одноразового кода: только администратор (вызывает dvuser.sh)

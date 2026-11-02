@@ -6,7 +6,11 @@
 // сообщение, чтобы другу пришло уведомление. История партий хранится в самом чате
 // и очистке не подлежит.
 
+import 'dart:async';
+
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/dv_api.dart';
+import 'package:dvchat/utils/dv_badges.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:matrix/matrix.dart';
 
@@ -17,6 +21,7 @@ class DvGameInvite {
     required this.game,
     required this.hostId,
     required this.time,
+    this.myTurn = false,
   });
 
   final Room room;
@@ -24,6 +29,9 @@ class DvGameInvite {
   final String game;
   final String hostId;
   final DateTime time;
+
+  /// Последнее событие партии прислал соперник: ответ ждут от вас
+  final bool myTurn;
 }
 
 /// Итоги всех партий в одну игру с одним другом
@@ -123,6 +131,17 @@ class DvGameNet {
       if (!announce) 'silent': true,
       ...?extra,
     }, type: eventType);
+    // Само приглашение скрытое и уведомления не вызывает (в том числе реванш), поэтому просим
+    // сервер написать другу от «DVChat». Не вышло: приглашение всё равно дойдёт, просто без звонка.
+    final other = room.directChatMatrixID;
+    if (other != null) {
+      unawaited(
+        DvApi(room.client)
+            .post('games/invite', {'user_id': other, 'title': gameTitle})
+            .then<void>((_) {})
+            .catchError((Object _) {}),
+      );
+    }
     return id;
   }
 
@@ -199,6 +218,14 @@ class DvGameNet {
           final id = '${e.content['id']}';
           if (ended.contains(id)) continue;
           if (now.difference(e.originServerTs) > inviteLifetime) continue;
+          // Последнее событие этой партии: если оно чужое, ход за мной
+          Event? last;
+          for (final x in events) {
+            if ('${x.content['id']}' != id) continue;
+            if (last == null || x.originServerTs.isAfter(last.originServerTs)) {
+              last = x;
+            }
+          }
           result.add(
             DvGameInvite(
               room: room,
@@ -206,6 +233,7 @@ class DvGameNet {
               game: '${e.content['game']}',
               hostId: e.senderId,
               time: e.originServerTs,
+              myTurn: last != null && last.senderId != client.userID,
             ),
           );
         }
@@ -214,6 +242,7 @@ class DvGameNet {
       }
     }
     result.sort((a, b) => b.time.compareTo(a.time));
+    DvBadges.gameTurns.value = result.where((i) => i.myTurn).length;
     return result;
   }
 

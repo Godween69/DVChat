@@ -37,6 +37,10 @@ class MxcImage extends StatefulWidget {
   final Client? client;
   final BorderRadius borderRadius;
 
+  /// DVChat: потолок ширины раскрытия полной картинки в пикселях (null: без потолка).
+  /// Нужен просмотру фото: 12-мегапиксельный кадр в полном размере занимает ~48 МБ.
+  final int? decodeMaxWidth;
+
   static void clearCache(String cacheName) =>
       _MxcImageState._imageDataCaches.remove(cacheName);
 
@@ -80,6 +84,7 @@ class MxcImage extends StatefulWidget {
     this.cacheKey,
     this.client,
     this.borderRadius = BorderRadius.zero,
+    this.decodeMaxWidth,
     this.cacheName,
     super.key,
   });
@@ -182,6 +187,9 @@ class _MxcImageState extends State<MxcImage> {
   /// размере (с запасом в полтора раза), а не в полном: иначе чат с десятками фото тормозит.
   int? _decodeWidth(BuildContext context) {
     final w = widget.width;
+    if (!widget.isThumbnail && widget.decodeMaxWidth != null) {
+      return widget.decodeMaxWidth;
+    }
     if (!widget.isThumbnail || widget.animated || w == null || !w.isFinite || w <= 0) {
       return null;
     }

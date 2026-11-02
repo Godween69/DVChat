@@ -8,12 +8,15 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
+
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/pages/chat_list/chat_list.dart';
 import 'package:dvchat/pages/friends/friends_page.dart';
 import 'package:dvchat/pages/games/games_page.dart';
 import 'package:dvchat/pages/liza/liza_page.dart';
+import 'package:dvchat/utils/dv_badges.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_resend.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
@@ -85,6 +88,7 @@ class _DvMainShellState extends State<DvMainShell> {
     super.didChangeDependencies();
     // DVChat: не ушедшие сообщения отправляются сами, когда появляется связь
     DvResend.attach(Matrix.of(context).client);
+    DvBadges.attach(Matrix.of(context).client);
   }
 
   @override
@@ -263,8 +267,16 @@ class _DvTabBar extends StatelessWidget {
 
   Widget _icon(int i, bool selected) => switch (i) {
     0 => _ChatsIcon(selected: selected),
-    1 => Icon(selected ? Icons.people : Icons.people_outline),
-    2 => Icon(selected ? Icons.sports_esports : Icons.sports_esports_outlined),
+    1 => _PulseDot(
+      count: DvBadges.friendRequests,
+      child: Icon(selected ? Icons.people : Icons.people_outline),
+    ),
+    2 => _Dot(
+      count: DvBadges.gameTurns,
+      child: Icon(
+        selected ? Icons.sports_esports : Icons.sports_esports_outlined,
+      ),
+    ),
     _ => Icon(selected ? Icons.auto_awesome : Icons.auto_awesome_outlined),
   };
 
@@ -347,6 +359,130 @@ class _DvTabBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Красная точка в углу значка вкладки (как в Android), пока счётчик больше нуля
+class _Dot extends StatelessWidget {
+  const _Dot({required this.count, required this.child});
+
+  final ValueListenable<int> count;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: count,
+    builder: (context, n, _) => n > 0
+        ? Badge(
+            smallSize: 10,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            child: child,
+          )
+        : child,
+  );
+}
+
+/// Значок с «зовущей» точкой: красная точка в центре и кольцо, которое сужается
+/// к ней и гаснет, затем снова и снова. Так привлекают внимание к тому, на что
+/// ещё не ответили (непринятая заявка в друзья). Анимация идёт, только пока есть
+/// что принимать, и сама останавливается на нуле, чтобы не тратить батарею.
+class _PulseDot extends StatefulWidget {
+  const _PulseDot({required this.count, required this.child});
+
+  final ValueListenable<int> count;
+  final Widget child;
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    widget.count.addListener(_sync);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.count.value > 0) {
+      if (!_ctrl.isAnimating) _ctrl.repeat();
+    } else {
+      _ctrl.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.count.removeListener(_sync);
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: widget.count,
+    builder: (context, n, _) {
+      if (n <= 0) return widget.child;
+      final color = Theme.of(context).colorScheme.error;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          widget.child,
+          Positioned(
+            right: -5,
+            top: -4,
+            child: IgnorePointer(
+              child: SizedBox(
+                width: 26,
+                height: 26,
+                child: AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (context, _) => CustomPaint(
+                    painter: _PulsePainter(_ctrl.value, color),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _PulsePainter extends CustomPainter {
+  _PulsePainter(this.t, this.color);
+
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    // Кольцо сужается от края к точке (t: 0 → 1) и по пути гаснет
+    final ease = Curves.easeIn.transform(t);
+    final r = 13 - 8 * ease;
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = color.withValues(alpha: (1 - ease) * 0.75),
+    );
+    // Сама точка слегка «дышит» вместе с кольцом
+    final dot = 4.5 + 1.2 * (1 - (2 * t - 1).abs());
+    canvas.drawCircle(c, dot, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_PulsePainter old) => old.t != t || old.color != color;
 }
 
 /// Значок «Чаты» с числом чатов, где есть непрочитанные

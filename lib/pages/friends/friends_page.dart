@@ -1,5 +1,6 @@
 // DVChat: экран «Друзья»: список, заявки, добавление по ID или QR, открытие чата
 
+import 'package:dvchat/utils/dv_badges.dart';
 import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
@@ -175,6 +176,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
       friends['all_users'] == true,
     );
     _friendsCache = data;
+    DvBadges.friendRequests.value = data.requests.length;
     return data;
   }
 

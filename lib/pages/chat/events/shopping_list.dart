@@ -5,6 +5,7 @@
 // Запасной вариант для чужих клиентов: обычный текст с «☐ пункт».
 
 import 'package:dvchat/widgets/dv_blur_bar.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
@@ -442,18 +443,16 @@ class ShoppingListCard extends StatelessWidget {
                 child: Text(text),
               ),
             ),
-            // DVChat: убрать пункт может тот, кто его добавил, и автор списка (любой пункт)
-            if (!checked &&
-                canTap &&
-                (item.senderId == room.client.userID ||
-                    event.senderId == room.client.userID) &&
+            // DVChat: каждый убирает только свои пункты (в том числе уже зачёркнутые)
+            if (canTap &&
+                item.senderId == room.client.userID &&
                 event.eventId.isNotEmpty)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () async {
                   try {
-                    if (item.initial || item.senderId != room.client.userID) {
-                      // автор списка убирает пункт записью в самом списке
+                    if (item.initial) {
+                      // свой начальный пункт: запись в самом списке
                       await removeShoppingItem(event, index);
                     } else {
                       await removeShoppingAdded(room, item);
@@ -678,10 +677,9 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
       final items = [...data.items];
       final removed = {...data.removed};
       var baseChanged = false;
-      final me = widget.room.client.userID;
       for (final it in deleted) {
-        if (it.initial || it.senderId != me) {
-          // начальный пункт или чужой (убирает автор списка): запись в самом списке
+        if (it.initial) {
+          // начальный пункт (он всегда ваш): запись в самом списке
           removed.add(it.id);
           baseChanged = true;
         } else {
@@ -715,25 +713,82 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
   }
 
   Widget _field(_EditRow r, String hint, VoidCallback onRemove) {
-    return Row(
+    return Padding(
       key: ObjectKey(r),
-      children: [
-        Expanded(
-          child: TextField(
-            controller: r.c,
-            focusNode: r.n,
-            maxLength: 80,
-            textInputAction: TextInputAction.next,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              hintText: hint,
-              counter: const SizedBox.shrink(),
-              prefixIcon: const Icon(Icons.radio_button_unchecked),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _glassField(
+        controller: r.c,
+        focusNode: r.n,
+        hint: hint,
+        onRemove: onRemove,
+      ),
+    );
+  }
+
+  /// Стеклянное поле ввода пункта с крестиком справа
+  Widget _glassField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hint,
+    required VoidCallback onRemove,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+  }) {
+    return DvGlass(
+      radius: 18,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              maxLength: 80,
+              textInputAction: TextInputAction.next,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: onChanged,
+              onSubmitted: onSubmitted,
+              decoration: InputDecoration(
+                hintText: hint,
+                counter: const SizedBox.shrink(),
+                prefixIcon: const Icon(Icons.radio_button_unchecked),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
             ),
           ),
+          IconButton(icon: const Icon(Icons.close), onPressed: onRemove),
+        ],
+      ),
+    );
+  }
+
+  /// Подсказка про правило «каждый меняет и убирает только свои пункты»
+  Widget _rulesHint() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DvGlass(
+        radius: 18,
+        tint: theme.colorScheme.primaryContainer,
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Менять и убирать можно только свои пункты. Чужие видны только '
+                'для чтения (рядом значок замка). Свой пункт убирается сразу, '
+                'даже если он уже зачёркнут.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ],
         ),
-        IconButton(icon: const Icon(Icons.close), onPressed: onRemove),
-      ],
+      ),
     );
   }
 
@@ -744,8 +799,11 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
         ? 'Вы'
         : widget.room.unsafeGetUserFromMemoryOrFallback(it.senderId).dvName();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DvGlass(
+        radius: 18,
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Row(
         children: [
           Icon(
             done ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -768,14 +826,24 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
               ],
             ),
           ),
-          // DVChat: автор списка может убрать и чужой неотмеченный пункт
-          if (!done && widget.list!.senderId == me && it.senderId != me)
+          // DVChat: свой пункт можно убрать сразу, даже если он уже зачёркнут
+          if (it.senderId == me)
             IconButton(
               icon: const Icon(Icons.close),
               tooltip: 'Убрать пункт',
               onPressed: () => setState(() => _deleted.add(it)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(
+                Icons.lock_outline,
+                size: 16,
+                color: Theme.of(context).hintColor,
+              ),
             ),
         ],
+      ),
       ),
     );
   }
@@ -784,6 +852,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
     final data = dvShoppingOf(widget.list!);
     final total = _all.length - _deleted.length + _fresh.length;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: Text(data?.title ?? 'Список покупок'),
@@ -795,9 +864,16 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      body: DvGlassBackdrop(
+        child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          MediaQuery.paddingOf(context).top + kToolbarHeight + 12,
+          20,
+          32,
+        ),
         children: [
+          _rulesHint(),
           for (final it in _all)
             if (_deleted.any((d) => d.id == it.id))
               const SizedBox.shrink()
@@ -818,6 +894,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -825,6 +902,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
   Widget build(BuildContext context) {
     if (_editing) return _buildEdit(context);
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: const Text('Список покупок'),
@@ -836,59 +914,66 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        children: [
-          TextField(
-            controller: _title,
-            maxLength: 60,
-            decoration: const InputDecoration(
-              labelText: 'Название',
-              counter: SizedBox.shrink(),
-            ),
+      body: DvGlassBackdrop(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.paddingOf(context).top + kToolbarHeight + 12,
+            20,
+            32,
           ),
-          const SizedBox(height: 8),
-          for (var i = 0; i < _items.length; i++)
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _items[i],
-                    focusNode: _nodes[i],
-                    maxLength: 80,
-                    textInputAction: TextInputAction.next,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) {
-                      if (_items[i].text.trim().isNotEmpty) {
-                        i == _items.length - 1
-                            ? _add()
-                            : _nodes[i + 1].requestFocus();
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Пункт ${i + 1}',
-                      counter: const SizedBox.shrink(),
-                      prefixIcon: const Icon(Icons.radio_button_unchecked),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: DvGlass(
+                radius: 18,
+                child: TextField(
+                  controller: _title,
+                  maxLength: 60,
+                  decoration: const InputDecoration(
+                    labelText: 'Название',
+                    counter: SizedBox.shrink(),
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _remove(i),
+              ),
+            ),
+            for (var i = 0; i < _items.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _glassField(
+                  controller: _items[i],
+                  focusNode: _nodes[i],
+                  hint: 'Пункт ${i + 1}',
+                  onRemove: () => _remove(i),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (_items[i].text.trim().isNotEmpty) {
+                      i == _items.length - 1
+                          ? _add()
+                          : _nodes[i + 1].requestFocus();
+                    }
+                  },
                 ),
-              ],
+              ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _items.length >= _max ? null : _add,
+                icon: const Icon(Icons.add),
+                label: const Text('Добавить пункт'),
+              ),
             ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _items.length >= _max ? null : _add,
-              icon: const Icon(Icons.add),
-              label: const Text('Добавить пункт'),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

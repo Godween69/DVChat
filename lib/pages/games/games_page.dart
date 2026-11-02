@@ -4,7 +4,6 @@
 // списком, как чаты. У партии есть меню (три точки или долгое нажатие): информация и счёт,
 // уведомления по этой партии, закрыть партию (засчитывается как сдача).
 
-import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/pages/games/bs_page.dart';
@@ -18,7 +17,10 @@ import 'package:dvchat/pages/games/game_rules.dart';
 import 'package:dvchat/pages/games/stats_page.dart';
 import 'package:dvchat/pages/games/nardy_page.dart';
 import 'package:dvchat/pages/games/ttt_page.dart';
+import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
+import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/dv_list_card.dart';
@@ -263,24 +265,29 @@ class _GamesPageState extends State<GamesPage> {
       _open(_pageFor(g.id, level: 2, mode: variant));
       return;
     }
-    final rooms = DvGameNet.directRooms(_client);
-    if (rooms.isEmpty) {
+    // DVChat: играть можно с любым другом, даже если личного чата с ним ещё нет
+    // (заявка только что принята): список берём у сервера, а чат создаём при выборе
+    final friends = await _friendChoices();
+    if (!mounted) return;
+    if (friends.isEmpty) {
       _snack('Сначала добавьте друзей');
       return;
     }
-    final room = await showDialog<Room>(
+    final friendId = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('С кем играем?'),
         children: [
-          for (final r in rooms)
+          for (final f in friends.entries)
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, r),
-              child: Text(r.dvDisplayname()),
+              onPressed: () => Navigator.pop(context, f.key),
+              child: Text(f.value),
             ),
         ],
       ),
     );
+    if (friendId == null || !mounted) return;
+    final room = await _chatWith(friendId);
     if (room == null || !mounted) return;
     // Партия с этим другом в эту игру уже идёт: открываем её, а не шлём новое приглашение
     final current = await DvGameNet.scan(_client);
@@ -320,6 +327,69 @@ class _GamesPageState extends State<GamesPage> {
     } catch (_) {
       _snack('Не удалось отправить приглашение');
     }
+  }
+
+  /// Друзья для выбора соперника: номер -> имя. Берётся у сервера; без сети остаются
+  /// те, с кем уже есть личный чат.
+  Future<Map<String, String>> _friendChoices() async {
+    final out = <String, String>{};
+    try {
+      final answer = await DvApi(_client).get('friends');
+      final list = answer['friends'];
+      if (list is List) {
+        for (final m in list.whereType<Map<String, Object?>>()) {
+          final id = m['user_id'];
+          if (id is! String) continue;
+          final live = _client.dvLiveDirectChat(id);
+          if (live != null) {
+            out[id] = live.dvDisplayname();
+            continue;
+          }
+          var name = id.localpart ?? id;
+          try {
+            name = (await _client.getProfileFromUserId(id)).displayName ?? name;
+          } catch (_) {}
+          out[id] = name;
+        }
+        return out;
+      }
+    } catch (_) {}
+    for (final r in DvGameNet.directRooms(_client)) {
+      final id = r.directChatMatrixID;
+      if (id != null) out[id] = r.dvDisplayname();
+    }
+    return out;
+  }
+
+  /// Личный чат с другом: готовый или (если его ещё нет) созданный сервером. Игровые
+  /// события идут в этот чат, но человеку открывать его не нужно.
+  Future<Room?> _chatWith(String userId) async {
+    final existing = _client.dvLiveDirectChat(userId);
+    if (existing != null) return existing;
+    final result = await showFutureLoadingDialog(
+      context: context,
+      future: () async {
+        final res = await DvApi(_client).post('chat', {'user_id': userId});
+        final roomId = res['room_id'];
+        if (roomId is! String) {
+          throw const DvApiException(500, '', 'Сервер не вернул чат');
+        }
+        try {
+          return await _client
+              .waitForRoomInSync(roomId, join: true)
+              .timeout(const Duration(seconds: 60))
+              .then((_) => roomId);
+        } on TimeoutException {
+          throw const DvApiException(
+            504,
+            '',
+            'Чат создан, но ещё не дошёл до телефона. Попробуйте через минуту.',
+          );
+        }
+      },
+    );
+    final roomId = result.result;
+    return roomId == null ? null : _client.getRoomById(roomId);
   }
 
   void _snack(String text) {
@@ -573,217 +643,224 @@ class _GamesPageState extends State<GamesPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.15,
-                  fontWeight: FontWeight.w600,
-                  color: soon
-                      ? theme.colorScheme.outline
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
-              if (soon)
                 Text(
-                  'скоро',
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9,
-                    color: theme.colorScheme.outline,
+                    fontSize: 11,
+                    height: 1.15,
+                    fontWeight: FontWeight.w600,
+                    color: soon
+                        ? theme.colorScheme.outline
+                        : theme.colorScheme.onSurface,
                   ),
                 ),
+                if (soon)
+                  Text(
+                    'скоро',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    /// Партия с другом: строка, как в списке чатов; три строки, чтобы ничего не обрезалось
+    Widget _party(ThemeData theme, DvGameInvite inv, String? me) {
+      final def = _def(inv.game)!;
+      final name = inv.room.dvDisplayname();
+      final muted = DvGameNet.isMuted(inv.gameId);
+      final small = theme.textTheme.bodySmall;
+      return DvListCard(
+        child: ListTile(
+          isThreeLine: true,
+          contentPadding: DvListStyle.isPlain
+              ? const EdgeInsets.only(left: 16, right: 4)
+              : const EdgeInsets.fromLTRB(18, 8, 4, 8),
+          leading: Avatar(
+            mxContent: inv.room.avatar,
+            name: name,
+            client: _client,
+          ),
+          title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(def.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(
+                inv.hostId == me ? 'Вы пригласили' : 'Приглашает вас',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: small?.copyWith(color: theme.colorScheme.outline),
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Партия с другом: строка, как в списке чатов; три строки, чтобы ничего не обрезалось
-  Widget _party(ThemeData theme, DvGameInvite inv, String? me) {
-    final def = _def(inv.game)!;
-    final name = inv.room.dvDisplayname();
-    final muted = DvGameNet.isMuted(inv.gameId);
-    final small = theme.textTheme.bodySmall;
-    return DvListCard(
-      child: ListTile(
-        isThreeLine: true,
-        contentPadding: DvListStyle.isPlain
-            ? const EdgeInsets.only(left: 16, right: 4)
-            : const EdgeInsets.fromLTRB(18, 8, 4, 8),
-        leading: Avatar(
-          mxContent: inv.room.avatar,
-          name: name,
-          client: _client,
-        ),
-        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(def.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(
-              inv.hostId == me ? 'Вы пригласили' : 'Приглашает вас',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: small?.copyWith(color: theme.colorScheme.outline),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (muted)
-              Icon(
-                Icons.notifications_off_outlined,
-                size: 18,
-                color: theme.colorScheme.outline,
-              ),
-            IconButton(
-              tooltip: 'Меню',
-              icon: const Icon(Icons.more_vert),
-              onPressed: () => _partyMenu(inv),
-            ),
-          ],
-        ),
-        onTap: () => _open(
-          _pageFor(
-            inv.game,
-            room: inv.room,
-            gameId: inv.gameId,
-            hostId: inv.hostId,
-          ),
-        ),
-        onLongPress: () => _partyMenu(inv),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final me = _client.userID;
-    final invites = [
-      for (final i in _invites)
-        if (_def(i.game) != null) i,
-    ];
-    return Scaffold(extendBodyBehindAppBar: true, 
-      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: const Text('Игры'),
-        actions: [
-          IconButton(
-            tooltip: 'Статистика',
-            icon: const Icon(Icons.bar_chart_rounded),
-            onPressed: () => Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(builder: (_) => const DvStatsPage()),
-            ),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _reload,
-        child: ListView(
-          padding: EdgeInsets.only(
-            top: MediaQuery.paddingOf(context).top,
-            bottom: 24,
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Играйте с друзьями или с компьютером. С компьютером интернет не нужен.',
-                style: theme.textTheme.bodyMedium?.copyWith(
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (muted)
+                Icon(
+                  Icons.notifications_off_outlined,
+                  size: 18,
                   color: theme.colorScheme.outline,
                 ),
+              IconButton(
+                tooltip: 'Меню',
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => _partyMenu(inv),
               ),
+            ],
+          ),
+          onTap: () => _open(
+            _pageFor(
+              inv.game,
+              room: inv.room,
+              gameId: inv.gameId,
+              hostId: inv.hostId,
             ),
-            _heading(theme, 'Игры'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: GridView.count(
-                crossAxisCount: 3,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _tile(
-                    theme,
-                    icon: _ttt.icon,
-                    title: _ttt.title,
-                    onTap: () => _start(_ttt),
-                    rulesId: _ttt.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _bs.icon,
-                    title: _bs.title,
-                    onTap: () => _start(_bs),
-                    rulesId: _bs.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _ckr.icon,
-                    title: _ckr.title,
-                    onTap: () => _start(_ckr),
-                    rulesId: _ckr.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _c4.icon,
-                    title: _c4.title,
-                    onTap: () => _start(_c4),
-                    rulesId: _c4.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _chess.icon,
-                    title: _chess.title,
-                    onTap: () => _start(_chess),
-                    rulesId: _chess.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _durak.icon,
-                    title: _durak.title,
-                    onTap: () => _start(_durak),
-                    rulesId: _durak.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _nardy.icon,
-                    title: _nardy.title,
-                    onTap: () => _start(_nardy),
-                    rulesId: _nardy.id,
-                  ),
-                  _tile(
-                    theme,
-                    icon: _domino.icon,
-                    title: _domino.title,
-                    onTap: () => _start(_domino),
-                    rulesId: _domino.id,
-                  ),
-                ],
-              ),
-            ),
-            _heading(theme, 'Партии с друзьями'),
-            if (invites.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Пока нет партий. Выберите игру и пригласите друга.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.outline,
+          ),
+          onLongPress: () => _partyMenu(inv),
+        ),
+      );
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      final theme = Theme.of(context);
+      final me = _client.userID;
+      final invites = [
+        for (final i in _invites)
+          if (_def(i.game) != null) i,
+      ];
+      // DVChat: у вкладки нет шапки с заголовком «Игры»: сверху одна подпись, а справа
+      // крупный значок статистики
+      return Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Играйте с друзьями или с компьютером, интернет не нужен',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        tooltip: 'Статистика',
+                        iconSize: 30,
+                        icon: const Icon(Icons.bar_chart_rounded),
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute(
+                                builder: (_) => const DvStatsPage(),
+                              ),
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-              )
-            else
-              for (final inv in invites) _party(theme, inv, me),
-          ],
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: GridView.count(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _tile(
+                      theme,
+                      icon: _ttt.icon,
+                      title: _ttt.title,
+                      onTap: () => _start(_ttt),
+                      rulesId: _ttt.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _bs.icon,
+                      title: _bs.title,
+                      onTap: () => _start(_bs),
+                      rulesId: _bs.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _ckr.icon,
+                      title: _ckr.title,
+                      onTap: () => _start(_ckr),
+                      rulesId: _ckr.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _c4.icon,
+                      title: _c4.title,
+                      onTap: () => _start(_c4),
+                      rulesId: _c4.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _chess.icon,
+                      title: _chess.title,
+                      onTap: () => _start(_chess),
+                      rulesId: _chess.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _durak.icon,
+                      title: _durak.title,
+                      onTap: () => _start(_durak),
+                      rulesId: _durak.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _nardy.icon,
+                      title: _nardy.title,
+                      onTap: () => _start(_nardy),
+                      rulesId: _nardy.id,
+                    ),
+                    _tile(
+                      theme,
+                      icon: _domino.icon,
+                      title: _domino.title,
+                      onTap: () => _start(_domino),
+                      rulesId: _domino.id,
+                    ),
+                  ],
+                ),
+              ),
+              _heading(theme, 'Партии с друзьями'),
+              if (invites.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Пока нет партий. Выберите игру и пригласите друга.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                )
+              else
+                for (final inv in invites) _party(theme, inv, me),
+            ],
+          ),
         ),
       ),
     );

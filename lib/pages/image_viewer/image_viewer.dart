@@ -58,7 +58,20 @@ class ImageViewerController extends State<ImageViewer> {
     );
     if (index < 0) index = 0;
     pageController = PageController(initialPage: index);
+    pageIndex = ValueNotifier<int>(index);
   }
+
+  /// Номер открытой страницы. Раньше брали pageController.page, но до первой отрисовки
+  /// ленты оно недоступно: в «боевой» сборке шапка падала и рисовала белый квадрат,
+  /// пока человек не листнёт. Теперь номер известен с самого начала.
+  late final ValueNotifier<int> pageIndex;
+
+  void onPageChanged(int i) {
+    if (i == pageIndex.value) return;
+    pageIndex.value = i;
+  }
+
+  final Map<String, List<Event>> _albumCache = {};
 
   late final PageController pageController;
 
@@ -96,8 +109,6 @@ class ImageViewerController extends State<ImageViewer> {
       duration: DvThemes.animationDuration,
       curve: DvThemes.animationCurve,
     );
-    if (!mounted) return;
-    setState(() {});
   }
 
   Future<void> nextImage() async {
@@ -105,11 +116,9 @@ class ImageViewerController extends State<ImageViewer> {
       duration: DvThemes.animationDuration,
       curve: DvThemes.animationCurve,
     );
-    if (!mounted) return;
-    setState(() {});
   }
 
-  int get _index => pageController.page?.toInt() ?? 0;
+  int get _index => pageIndex.value.clamp(0, allEvents.length - 1);
 
   Event get currentEvent => allEvents[_index];
 
@@ -119,6 +128,9 @@ class ImageViewerController extends State<ImageViewer> {
     final current = currentEvent;
     final id = dvAlbumOf(current)?.id;
     if (id == null) return const [];
+    final key = '${current.senderId}|$id';
+    final cached = _albumCache[key];
+    if (cached != null) return cached;
     final list = allEvents
         .where(
           (e) =>
@@ -130,7 +142,7 @@ class ImageViewerController extends State<ImageViewer> {
     list.sort(
       (a, b) => dvAlbumOf(a)!.index.compareTo(dvAlbumOf(b)!.index),
     );
-    return list;
+    return _albumCache[key] = list;
   }
 
   /// Сохранить все фото этого альбома
@@ -170,6 +182,7 @@ class ImageViewerController extends State<ImageViewer> {
   void dispose() {
     focusNode.dispose();
     pageController.dispose();
+    pageIndex.dispose();
     for (final c in _zoomControllers.values) {
       c.dispose();
     }

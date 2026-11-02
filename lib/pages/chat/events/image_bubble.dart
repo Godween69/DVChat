@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/pages/chat/events/dv_meta_pad.dart';
 import 'package:dvchat/utils/file_description.dart';
 import 'package:dvchat/utils/url_launcher.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
@@ -31,6 +32,9 @@ class ImageBubble extends StatelessWidget {
   final BorderRadius? borderRadius;
   final Timeline? timeline;
 
+  /// Место под время и галочки внутри пузыря (0: метки нет). Нужно для подписи под фото
+  final double metaWidth;
+
   const ImageBubble(
     this.event, {
     this.tapToView = true,
@@ -45,6 +49,7 @@ class ImageBubble extends StatelessWidget {
     this.timeline,
     this.textColor,
     this.linkColor,
+    this.metaWidth = 0,
     super.key,
   });
 
@@ -58,16 +63,15 @@ class ImageBubble extends StatelessWidget {
     final fileDescription = event.fileDescription;
     final textColor = this.textColor;
 
-    if (fileDescription != null) {
-      borderRadius = borderRadius.copyWith(
-        bottomLeft: Radius.zero,
-        bottomRight: Radius.zero,
-      );
-    }
+    // DVChat: фото с подписью: снимок лежит внутри пузыря с небольшим полем и своими
+    // скруглениями, подпись под ним без отдельной широкой полосы, время садится в её строку
+    final captioned = fileDescription != null && textColor != null;
+    if (captioned) borderRadius = BorderRadius.circular(14);
 
-    return Column(
+    final column = Column(
       mainAxisSize: .min,
-      spacing: 8,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: captioned ? 0 : 8,
       children: [
         Material(
           color: Colors.transparent,
@@ -121,8 +125,7 @@ class ImageBubble extends StatelessWidget {
         if (fileDescription != null && textColor != null)
           SizedBox(
             width: width,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: _captionPad(
               child: Linkify(
                 text: fileDescription,
                 textScaleFactor: MediaQuery.textScalerOf(context).scale(1),
@@ -143,7 +146,18 @@ class ImageBubble extends StatelessWidget {
           ),
       ],
     );
+    return captioned
+        ? Padding(padding: const EdgeInsets.all(4), child: column)
+        : column;
   }
+
+  /// Поля подписи: при наличии метки их ведёт DvMetaPad (оставляет место под время)
+  Widget _captionPad({required Widget child}) => metaWidth > 0
+      ? DvMetaPad(metaWidth: metaWidth, child: child)
+      : Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: child,
+        );
 }
 
 class _ImageBubblePlaceholder extends StatelessWidget {

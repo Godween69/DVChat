@@ -36,8 +36,22 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
   String? mimeType;
 
   try {
-    // for the other platforms
-    final dartCodec = await instantiateImageCodec(arguments.bytes);
+    // DVChat: размер узнаём, не раскрывая картинку, и раскрываем сразу в нужном размере.
+    // Раньше оригинал (12 Мп) раскрывался целиком: около 48 МБ памяти и секунды работы
+    // главного потока на каждое фото, из-за чего окно отправки висело, а приложение вылетало.
+    final buffer = await ImmutableBuffer.fromUint8List(arguments.bytes);
+    final descriptor = await ImageDescriptor.encoded(buffer);
+    var srcW = descriptor.width;
+    var srcH = descriptor.height;
+    final longSide = srcW > srcH ? srcW : srcH;
+    final limit = arguments.maxDimension;
+    final scale = longSide > limit ? limit / longSide : 1.0;
+    final dartCodec = await descriptor.instantiateCodec(
+      targetWidth: (srcW * scale).round(),
+      targetHeight: (srcH * scale).round(),
+    );
+    descriptor.dispose();
+    buffer.dispose();
     final frameCount = dartCodec.frameCount;
     final dartFrame = await dartCodec.getNextFrame();
     final rgbaData = await dartFrame.image.toByteData();
@@ -50,8 +64,16 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
       rgbaData.lengthInBytes,
     );
 
-    width = originalWidth = dartFrame.image.width;
-    height = originalHeight = dartFrame.image.height;
+    width = dartFrame.image.width;
+    height = dartFrame.image.height;
+    // если сторона повернулась при раскрытии, размеры оригинала меняем местами
+    if (srcW != srcH && (srcW > srcH) != (width > height)) {
+      final t = srcW;
+      srcW = srcH;
+      srcH = t;
+    }
+    originalWidth = srcW;
+    originalHeight = srcH;
 
     var nativeImg = native.Image.fromRGBA(width, height, rgba);
 
@@ -75,6 +97,8 @@ Future<MatrixImageFileResizedResponse?> customImageResizer(
 
     if (frameCount > 1) {
       // Don't scale down animated images, since those would lose frames.
+      width = originalWidth;
+      height = originalHeight;
       nativeImg.free();
     } else {
       final max = arguments.maxDimension;

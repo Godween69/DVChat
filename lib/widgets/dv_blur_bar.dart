@@ -18,9 +18,9 @@ class DvBlurBar extends StatelessWidget {
     if (!enabled) return const SizedBox.shrink();
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: ColoredBox(
-          color: Theme.of(context).colorScheme.surface.withAlpha(150),
+          color: Theme.of(context).colorScheme.surface.withAlpha(110),
         ),
       ),
     );

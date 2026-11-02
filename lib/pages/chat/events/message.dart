@@ -160,9 +160,19 @@ class Message extends StatelessWidget {
         }.contains(event.messageType) &&
         event.fileDescription == null &&
         !event.redacted);
+    // DVChat: одинокий смайлик (без текста, ответа и правки) уходит крупно и без пузыря,
+    // как стикер. Время и галочки остаются рядом, цветом страницы
+    final bareEmoji =
+        event.type == EventTypes.Message &&
+        event.messageType == MessageTypes.Text &&
+        !event.isRichMessage &&
+        !event.redacted &&
+        bigEmojis.contains(event.body) &&
+        event.inReplyToEventId(includingFallback: false) == null;
+    final noFill = noBubble || bareEmoji;
     // DVChat: форма пузыря как в WhatsApp: ровные скругления; «носик» вверху у первого
     // сообщения серии с внешней стороны, у остальных сообщений серии носика нет
-    final hasTail = !noBubble && !nextEventSameSender;
+    final hasTail = !noFill && !nextEventSameSender;
     final borderRadius = BorderRadius.only(
       topLeft: !ownMessage && hasTail ? Radius.zero : roundedCorner,
       topRight: ownMessage && hasTail ? Radius.zero : roundedCorner,
@@ -239,7 +249,11 @@ class Message extends StatelessWidget {
       timeline: timeline,
       ownMessage: ownMessage,
       edited: isEdited,
-      color: noBubble ? Colors.white : textColor.withAlpha(170),
+      color: noBubble
+          ? Colors.white
+          : bareEmoji
+          ? theme.colorScheme.onSurface.withAlpha(150)
+          : textColor.withAlpha(170),
       onMedia: noBubble,
     );
     final metaWidth =
@@ -491,7 +505,7 @@ class Message extends StatelessWidget {
                                               _forwardOne(context, displayEvent)
                                         : null,
                                     child: Container(
-                                      decoration: noBubble
+                                      decoration: noFill
                                           ? BoxDecoration(
                                               borderRadius: borderRadius,
                                             )
