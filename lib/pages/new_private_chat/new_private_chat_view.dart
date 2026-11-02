@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Новый личный чат» (внешний вид): поиск пользователя по ID или QR.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -32,8 +33,8 @@ class NewPrivateChatView extends StatelessWidget {
 
     final searchResponse = controller.searchResponse;
     final userId = Matrix.of(context).client.userID!;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         scrolledUnderElevation: 0,
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).newChat),

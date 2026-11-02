@@ -4,6 +4,7 @@
 // поселится в приложении. Сам помощник подключается позже, ключи доступа к нему
 // будут храниться только на сервере DVChat, не в приложении.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:material_ui/material_ui.dart';
 
 class LizaAnnounce extends StatelessWidget {
@@ -28,7 +29,7 @@ class LizaAnnounce extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text('Лиза'),

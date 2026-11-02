@@ -1,5 +1,6 @@
 // DVChat: экран «Друзья»: список, заявки, добавление по ID или QR, открытие чата
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/config/app_config.dart';
@@ -504,8 +505,8 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: const Text('Друзья'),
         automaticallyImplyLeading: false,
         leading: DvThemes.isColumnMode(context)

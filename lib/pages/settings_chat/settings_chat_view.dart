@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Настройки чата» (внешний вид): поведение отправки и показа сообщений.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -34,8 +35,8 @@ class SettingsChatView extends StatelessWidget {
     final theme = Theme.of(context);
 
     // DVChat: в настройках чата только двойное касание для реакции и выбор реакции
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(L10n.of(context).chat),
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),
@@ -93,7 +94,7 @@ class SettingsChatView extends StatelessWidget {
                     final emoji = await showAdaptiveBottomSheet<String>(
                       context: context,
                       builder: (context) => Scaffold(
-                        appBar: AppBar(
+                        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
                           title: const Text('Выбрать смайлик по умолчанию'),
                           leading: CloseButton(
                             onPressed: () => Navigator.of(context).pop(null),

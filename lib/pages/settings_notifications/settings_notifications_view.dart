@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Уведомления» (внешний вид): правила уведомлений.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -23,8 +24,8 @@ class SettingsNotificationsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).notifications),

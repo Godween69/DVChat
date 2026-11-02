@@ -5,6 +5,7 @@
 
 // DVChat: Создание опроса.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
@@ -89,7 +90,7 @@ class _StartPollBottomSheetState extends State<StartPollBottomSheet> {
   Widget build(BuildContext context) {
     const maxAnswers = 10;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: Text(L10n.of(context).startPoll),
       ),

@@ -6,6 +6,7 @@
 // DVChat: Экран «Безопасность» (внешний вид): PIN-код, вход по биометрии и список устройств
 // с кнопкой «Выйти на всех устройствах, кроме этого». Остальные настройки скрыты.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -36,8 +37,8 @@ class SettingsSecurityView extends StatelessWidget {
     final theme = Theme.of(context);
     final lock = PlatformInfos.supportsAppLock ? AppLock.of(context) : null;
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(L10n.of(context).security),
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),

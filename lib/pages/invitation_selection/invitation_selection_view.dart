@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Приглашение» (внешний вид): выбор людей для приглашения в чат.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/invitation_selection/invitation_selection.dart';
 import 'package:dvchat/widgets/avatar.dart';
@@ -27,7 +28,7 @@ class InvitationSelectionView extends StatelessWidget {
     ).client.getRoomById(controller.widget.roomId);
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Text(L10n.of(context).youAreNoLongerParticipatingInThisChat),
         ),
@@ -36,8 +37,8 @@ class InvitationSelectionView extends StatelessWidget {
 
     final groupName = room.name.isEmpty ? L10n.of(context).group : room.name;
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         titleSpacing: 0,
         title: Text(L10n.of(context).inviteContact),

@@ -5,6 +5,7 @@
 
 // DVChat: Пузырь сообщения: внешний вид, ответы, реакции, жесты. Содержимое — message_content.dart.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
@@ -715,7 +716,7 @@ class Message extends StatelessWidget {
                                                     final emoji = await showAdaptiveBottomSheet<String>(
                                                       context: context,
                                                       builder: (context) => Scaffold(
-                                                        appBar: AppBar(
+                                                        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
                                                           title: Text(
                                                             L10n.of(
                                                               context,

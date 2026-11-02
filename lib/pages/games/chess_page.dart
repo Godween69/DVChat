@@ -6,6 +6,7 @@
 // Касаешься своей фигуры, подсвечиваются доступные клетки, касаешься клетки, и фигура плавно идёт.
 // Доска деревянная, фигуры нарисованы кодом. Мат, пат, ничья по правилам и повторению ходов.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 
@@ -520,8 +521,8 @@ class _ChessPageState extends State<ChessPage> {
     final playing = !_loading && !_finished;
     final oppName = _online ? widget.room!.dvDisplayname() : 'Компьютер';
     final sel = _selected;
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

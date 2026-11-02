@@ -408,7 +408,13 @@ def _is_friend(txn, a, b):
 
 
 def _find_dm(txn, a, b):
-    """Живой личный чат: оба в комнате и больше никого."""
+    """Живой личный чат: оба в комнате и больше никого, и комната записана как личная.
+
+    Раньше проверялось только «в комнате двое». Из-за этого группа из двух человек
+    принималась за личный чат: приложение получало её вместо нового чата и ждало его
+    бесконечно. Теперь комната обязана числиться личной (m.direct) хотя бы у одного
+    из двоих: так записывает и приложение, и _create_dm.
+    """
     txn.execute(
         "SELECT x.room_id FROM local_current_membership x "
         "JOIN local_current_membership y ON x.room_id = y.room_id "
@@ -416,6 +422,10 @@ def _find_dm(txn, a, b):
         "AND x.membership = 'join' AND y.membership = 'join' "
         "AND (SELECT count(*) FROM local_current_membership m "
         "     WHERE m.room_id = x.room_id AND m.membership = 'join') = 2 "
+        "AND EXISTS (SELECT 1 FROM account_data d "
+        "     WHERE d.user_id IN (x.user_id, y.user_id) "
+        "     AND d.account_data_type = 'm.direct' "
+        "     AND position(x.room_id in d.content) > 0) "
         "LIMIT 1",
         (a, b),
     )

@@ -3,6 +3,7 @@
 // DVChat: строка внизу списка чатов «Ваши личные сообщения защищены сквозным шифрованием»
 // и полноэкранная страница с понятным объяснением.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -78,8 +79,8 @@ class DvEncryptionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final body = theme.textTheme.bodyLarge?.copyWith(height: 1.45);
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text('Сквозное шифрование'),

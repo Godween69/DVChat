@@ -6,6 +6,7 @@
 //    хранится только на его телефоне, соперник получает её отпечаток, а в конце партии
 //    расстановка раскрывается и проверяется.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -695,8 +696,8 @@ class _BsPageState extends State<BsPage> {
           ? theme.colorScheme.primary
           : theme.colorScheme.onSurface,
     );
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, box) {

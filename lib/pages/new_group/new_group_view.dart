@@ -5,6 +5,7 @@
 
 // DVChat: внешний вид экрана «Новая группа» (аватар, имя, переключатели).
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/new_group/new_group.dart';
@@ -24,8 +25,8 @@ class NewGroupView extends StatelessWidget {
 
     final avatar = controller.avatar;
     final error = controller.error;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: Center(
           child: BackButton(
             onPressed: controller.loading ? null : Navigator.of(context).pop,

@@ -4,6 +4,7 @@
 // списком, как чаты. У партии есть меню (три точки или долгое нажатие): информация и счёт,
 // уведомления по этой партии, закрыть партию (засчитывается как сдача).
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/pages/games/bs_page.dart';
@@ -668,8 +669,8 @@ class _GamesPageState extends State<GamesPage> {
       for (final i in _invites)
         if (_def(i.game) != null) i,
     ];
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text('Игры'),
@@ -686,7 +687,10 @@ class _GamesPageState extends State<GamesPage> {
       body: RefreshIndicator(
         onRefresh: _reload,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: EdgeInsets.only(
+            top: MediaQuery.paddingOf(context).top,
+            bottom: 24,
+          ),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

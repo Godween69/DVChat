@@ -2,6 +2,7 @@
 
 // DVChat: чат с Лизой: ответ потоком, голосовой ввод, история на телефоне.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/config/themes.dart';
@@ -567,7 +568,7 @@ class _LizaChatState extends State<LizaChat> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: false,
         leading: IconButton(
           tooltip: 'История',

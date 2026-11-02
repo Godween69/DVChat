@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Оформление» (внешний вид): тема, цвета, шрифт, фон чата.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -210,8 +211,8 @@ class SettingsStyleView extends StatelessWidget {
 
     const colorPickerSize = 32.0;
     final client = Matrix.of(context).client;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).changeTheme),
@@ -392,6 +393,9 @@ class SettingsStyleView extends StatelessWidget {
                       child: AnimatedContainer(
                         duration: DvThemes.animationDuration,
                         curve: DvThemes.animationCurve,
+                        // Обрезка по краям требует decoration; без неё в готовой сборке
+                        // ошибка и вместо блока бесконечная белая пустота
+                        decoration: const BoxDecoration(),
                         clipBehavior: Clip.hardEdge,
                         child: Stack(
                           alignment: Alignment.center,

@@ -6,6 +6,7 @@
 // Касаешься нужного столбца, фишка падает вниз и подпрыгивает. Фишки лежат за синей доской
 // и видны через отверстия, выигрышная четвёрка подсвечивается кольцами.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -345,8 +346,8 @@ class _C4PageState extends State<C4Page> {
     final turn = C4Logic.turnOf(_board);
     final playing = !_loading && !_finished;
     final oppName = _online ? widget.room!.dvDisplayname() : 'Компьютер';
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

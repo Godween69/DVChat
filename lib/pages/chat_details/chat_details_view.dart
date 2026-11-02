@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Сведения о чате» (внешний вид): название, аватар, участники, настройки чата.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_details/chat_details.dart';
 import 'package:dvchat/pages/chat_details/participant_list_item.dart';
@@ -36,7 +37,7 @@ class ChatDetailsView extends StatelessWidget {
     final room = Matrix.of(context).client.getRoomById(controller.roomId!);
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Text(L10n.of(context).youAreNoLongerParticipatingInThisChat),
         ),
@@ -58,8 +59,8 @@ class ChatDetailsView extends StatelessWidget {
             (room.summary.mJoinedMemberCount ?? 0);
         final canRequestMoreMembers = members.length < actualMembersCount;
         final displayname = room.dvDisplayname(MatrixLocals(L10n.of(context)));
-        return Scaffold(
-          appBar: AppBar(
+        return Scaffold(extendBodyBehindAppBar: true, 
+          appBar: AppBar(flexibleSpace: const DvBlurBar(), 
             leading:
                 controller.widget.embeddedCloseButton ??
                 const Center(child: BackButton()),

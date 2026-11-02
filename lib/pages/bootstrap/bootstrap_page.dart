@@ -5,6 +5,7 @@
 
 // DVChat: Страница мастера резервной копии ключей: собирает шаги из view_model и widgets.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/bootstrap/view_model/bootstrap_view_model.dart';
 import 'package:dvchat/pages/bootstrap/widgets/new_passphrase_view.dart';
@@ -46,7 +47,7 @@ class BootstrapPage extends StatelessWidget {
             : L10n.of(context).setUpCryptoIdentity;
 
         return LoginScaffold(
-          appBar: AppBar(
+          appBar: AppBar(flexibleSpace: const DvBlurBar(), 
             automaticallyImplyLeading: false,
             leading: viewModel.value.recoveryKey != null
                 ? null

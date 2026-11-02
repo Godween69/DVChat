@@ -5,6 +5,7 @@
 
 // DVChat: Экран «О сервере» (внешний вид): сведения о домашнем сервере и его возможностях.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';
@@ -31,8 +32,8 @@ class SettingsHomeserverView extends StatelessWidget {
 
     final client = Matrix.of(context).client;
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),
         title: Text(

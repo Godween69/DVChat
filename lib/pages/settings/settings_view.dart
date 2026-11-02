@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Настройки» (внешний вид): главная страница настроек.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -52,8 +53,8 @@ class _SettingsViewState extends State<SettingsView> {
       context,
     ).routeInformationProvider.value.uri.path;
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(L10n.of(context).settings),
         leading: Center(
           child: BackButton(onPressed: () => context.go('/rooms')),

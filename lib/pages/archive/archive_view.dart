@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Архив» (внешний вид): скрытые личные чаты; возврат чата в список.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/archive/archive.dart';
 import 'package:dvchat/utils/stream_extension.dart';
@@ -29,8 +30,8 @@ class ArchiveView extends StatelessWidget {
           final archived = controller.archivedRooms;
           final left = snapshot.data ?? controller.leftRooms;
           final isEmpty = archived.isEmpty && left.isEmpty;
-          return Scaffold(
-            appBar: AppBar(
+          return Scaffold(extendBodyBehindAppBar: true, 
+            appBar: AppBar(flexibleSpace: const DvBlurBar(), 
               leading: const Center(child: BackButton()),
               title: Text(L10n.of(context).archive),
               actions: [

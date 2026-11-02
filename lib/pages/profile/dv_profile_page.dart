@@ -3,6 +3,7 @@
 // DVChat: профиль человека. Свой: фото, имя, день рождения, мой ID и QR.
 // Чужой (друг): фото, имя, день рождения, ID и QR, переключатель уведомлений.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/utils/dv_profile_cache.dart';
 import 'dart:async';
 
@@ -259,8 +260,8 @@ class _DvProfilePageState extends State<DvProfilePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Профиль')),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: const Text('Профиль')),
       body: FutureBuilder<Profile>(
         initialData: DvProfileCache.data[widget.userId],
         future: _profile,
@@ -274,7 +275,9 @@ class _DvProfilePageState extends State<DvProfilePage> {
           final birthday = DvProfiles.cachedBirthday(widget.userId);
           final friendId = DvProfiles.cachedDvId(widget.userId);
           return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(vertical: 16).copyWith(
+              top: 16 + MediaQuery.paddingOf(context).top,
+            ),
             children: [
               Center(
                 child: _FlyIn(

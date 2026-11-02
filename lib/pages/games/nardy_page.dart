@@ -6,6 +6,7 @@
 // Доска деревянная, шашки и кости нарисованы, шашки плавно ездят, кости кувыркаются.
 // Кости общие для двоих: считаются из номера партии, поэтому обоим телефонам выпадает одно и то же.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -476,8 +477,8 @@ class _NardyPageState extends State<NardyPage> with TickerProviderStateMixin {
         for (final m in legal)
           if (m.from == _sel) m.dest,
     };
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

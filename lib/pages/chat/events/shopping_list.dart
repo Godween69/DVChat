@@ -4,6 +4,7 @@
 // (общие отметки через те же события-чекбоксы, что и в обычных списках задач).
 // Запасной вариант для чужих клиентов: обычный текст с «☐ пункт».
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
@@ -783,7 +784,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
     final data = dvShoppingOf(widget.list!);
     final total = _all.length - _deleted.length + _fresh.length;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: Text(data?.title ?? 'Список покупок'),
         actions: [
@@ -824,7 +825,7 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
   Widget build(BuildContext context) {
     if (_editing) return _buildEdit(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: CloseButton(onPressed: Navigator.of(context).pop),
         title: const Text('Список покупок'),
         actions: [

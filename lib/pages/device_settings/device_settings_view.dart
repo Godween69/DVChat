@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Устройства» (внешний вид): список входов в аккаунт, переименование, удаление.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/device_settings/device_settings.dart';
@@ -20,8 +21,8 @@ class DevicesSettingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: !DvThemes.isColumnMode(context),
         centerTitle: DvThemes.isColumnMode(context),
         title: Text(L10n.of(context).devices),

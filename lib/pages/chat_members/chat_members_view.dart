@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Участники чата» (внешний вид): список участников, поиск, приглашённые.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:go_router/go_router.dart';
@@ -28,7 +29,7 @@ class ChatMembersView extends StatelessWidget {
     ).client.getRoomById(controller.widget.roomId);
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Text(L10n.of(context).youAreNoLongerParticipatingInThisChat),
         ),
@@ -44,8 +45,8 @@ class ChatMembersView extends StatelessWidget {
     final error = controller.error;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).countParticipants(roomCount)),
         actions: [

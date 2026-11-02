@@ -6,6 +6,7 @@
 //    партии, а через личный чат уходят только действия (выложил, побил, беру, бито, перевёл).
 // Карты нарисованы кодом. Внизу ваша рука, на сукне стол, сверху колода с козырем и бито.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -698,8 +699,8 @@ class _DurakPageState extends State<DurakPage> {
         : (_mode == 'perevod' ? 'Дурак переводной' : 'Дурак подкидной');
     final oppName = _online ? widget.room!.dvDisplayname() : 'Компьютер';
     final moves = _myTurn ? _s.legalMoves() : const <int>[];
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, c) {

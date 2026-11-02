@@ -6,7 +6,9 @@
 // DVChat: Экран «Просмотр медиа» (логика): картинки и видео на весь экран.
 
 import 'package:dvchat/config/themes.dart';
+import 'package:dvchat/pages/chat/events/album_save.dart';
 import 'package:dvchat/pages/image_viewer/image_viewer_view.dart';
+import 'package:dvchat/utils/dv_album.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/widgets/share_scaffold_dialog.dart';
@@ -110,6 +112,30 @@ class ImageViewerController extends State<ImageViewer> {
   int get _index => pageController.page?.toInt() ?? 0;
 
   Event get currentEvent => allEvents[_index];
+
+  /// Фото альбома, к которому относится открытая картинка (пусто, если она не из альбома)
+  List<Event> get albumMembers {
+    if (allEvents.isEmpty) return const [];
+    final current = currentEvent;
+    final id = dvAlbumOf(current)?.id;
+    if (id == null) return const [];
+    final list = allEvents
+        .where(
+          (e) =>
+              !e.redacted &&
+              e.senderId == current.senderId &&
+              dvAlbumOf(e)?.id == id,
+        )
+        .toList();
+    list.sort(
+      (a, b) => dvAlbumOf(a)!.index.compareTo(dvAlbumOf(b)!.index),
+    );
+    return list;
+  }
+
+  /// Сохранить все фото этого альбома
+  void saveAlbumAction(BuildContext context) =>
+      dvSaveAlbum(context, albumMembers);
 
   bool get canGoNext => _index < allEvents.length - 1;
 

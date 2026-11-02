@@ -6,6 +6,7 @@
 // Управление под большой палец: касаешься своей шашки, подсвечиваются клетки, куда она
 // может пойти, ведёшь палец и отпускаешь на нужной клетке. Бить обязательно.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -666,8 +667,8 @@ class _CkrPageState extends State<CkrPage> {
     final title = _online ? 'Шашки · ${widget.room!.dvDisplayname()}' : 'Шашки';
     final mineLeft = _count0(_mine);
     final oppLeft = _count0(-_mine);
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, box) {

@@ -5,6 +5,7 @@
 
 // DVChat: Окно «Поделиться»: выбор чата, куда переслать текст, файл или сообщение.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/config/themes.dart';
@@ -104,7 +105,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
         .toList();
     final filter = _filterController.text.trim().toLowerCase();
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: Center(child: CloseButton(onPressed: context.pop)),
         title: Text(L10n.of(context).share),
       ),

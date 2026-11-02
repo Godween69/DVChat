@@ -2,6 +2,7 @@
 
 // DVChat: экран «История» (все разговоры с Лизой на этом телефоне) и справка «О Лизе».
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/pages/liza/liza_store.dart';
@@ -76,7 +77,7 @@ class _LizaHistoryPageState extends State<LizaHistoryPage> {
     final theme = Theme.of(context);
     final chats = widget.chats;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: const Text('История'),
         actions: [
           IconButton(

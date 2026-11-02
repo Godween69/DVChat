@@ -1,6 +1,7 @@
 // DVChat: форма обратной связи. Письмо уходит администратору,
 // личный чат с ним появляется у человека после ответа.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
@@ -51,7 +52,7 @@ class _SettingsFeedbackState extends State<SettingsFeedback> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         automaticallyImplyLeading: false,
         leading: DvThemes.isColumnMode(context)
             ? null

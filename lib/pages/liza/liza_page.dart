@@ -3,6 +3,7 @@
 // DVChat: вкладка «Лиза». Кому она открыта, решает сервер: допущенные видят чат,
 // остальные пока видят анонс «Скоро в приложении».
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/liza/liza_announce.dart';
 import 'package:dvchat/pages/liza/liza_chat.dart';
 import 'package:dvchat/pages/liza/liza_client.dart';
@@ -40,7 +41,7 @@ class _LizaPageState extends State<LizaPage> {
     final status = _status;
     if (status == null) {
       return Scaffold(
-        appBar: AppBar(
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
           automaticallyImplyLeading: false,
           centerTitle: true,
           title: const Text('Лиза'),
@@ -60,7 +61,7 @@ class _LizaPageState extends State<LizaPage> {
         return const LizaAnnounce();
       case LizaAccess.error:
         return Scaffold(
-          appBar: AppBar(
+          appBar: AppBar(flexibleSpace: const DvBlurBar(), 
             automaticallyImplyLeading: false,
             centerTitle: true,
             title: const Text('Лиза'),

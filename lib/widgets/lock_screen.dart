@@ -5,6 +5,7 @@
 
 // DVChat: Экран блокировки: ввод PIN-кода.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/l10n/l10n.dart';
@@ -114,7 +115,7 @@ class _LockScreenState extends State<LockScreen> {
       initialEntries: [
         OverlayEntry(
           builder: (context) => Scaffold(
-            appBar: AppBar(
+            appBar: AppBar(flexibleSpace: const DvBlurBar(), 
               title: Text(L10n.of(context).pleaseEnterYourPin),
               centerTitle: true,
             ),

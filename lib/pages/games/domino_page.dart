@@ -5,6 +5,7 @@
 //  - с другом (room + gameId + hostId), ходы идут через личный чат.
 // Раздача общая: фишки тасуются по номеру партии, поэтому у обоих телефонов одинаковый расклад.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -410,8 +411,8 @@ class _DominoPageState extends State<DominoPage> with TickerProviderStateMixin {
     final selOpts = _selTile == null
         ? const <DOpt>[]
         : opts.where((o) => o.tile == _selTile).toList();
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

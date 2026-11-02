@@ -2,6 +2,7 @@
 
 // DVChat: общий экран статистики игр: против компьютера, против друзей, по каждому другу.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 
 import 'package:dvchat/pages/games/dv_game_net.dart';
@@ -115,10 +116,15 @@ class _DvStatsPageState extends State<DvStatsPage> {
       fl += v[1];
       fd += v[2];
     }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Статистика игр')),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: const Text('Статистика игр')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8 + MediaQuery.paddingOf(context).top,
+          16,
+          32,
+        ),
         children: [
           Card(
             elevation: 0,

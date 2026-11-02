@@ -5,6 +5,7 @@
 
 // DVChat: Окно со служебными сведениями о сообщении (видит администратор).
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';
@@ -39,8 +40,8 @@ class EventInfoDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final originalSource = event.originalSource;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(L10n.of(context).messageInfo),
         leading: CloseButton(
           onPressed: Navigator.of(context, rootNavigator: false).pop,

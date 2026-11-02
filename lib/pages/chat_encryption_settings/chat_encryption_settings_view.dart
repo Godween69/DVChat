@@ -5,6 +5,7 @@
 
 // DVChat: Шифрование чата (внешний вид).
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_encryption_settings/chat_encryption_settings.dart';
 import 'package:dvchat/utils/beautify_string_extension.dart';
@@ -27,8 +28,8 @@ class ChatEncryptionSettingsView extends StatelessWidget {
       stream: room.client.onSync.stream.where(
         (s) => s.rooms?.join?[room.id] != null || s.deviceLists != null,
       ),
-      builder: (context, _) => Scaffold(
-        appBar: AppBar(
+      builder: (context, _) => Scaffold(extendBodyBehindAppBar: true, 
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), 
           leading: IconButton(
             icon: const Icon(Icons.close_outlined),
             onPressed: () => context.go('/rooms/${controller.roomId!}'),

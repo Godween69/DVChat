@@ -9,6 +9,7 @@
 // QR-кода, либо вставкой ссылки из буфера обмена. Логики входа здесь нет,
 // она в utils/sign_in_flows/link_login.dart.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
@@ -62,7 +63,7 @@ class _IntroPageState extends State<IntroPage> {
   @override
   Widget build(BuildContext context) {
     return LoginScaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         centerTitle: true,
         title: Text(AppSettings.applicationName.value),
       ),

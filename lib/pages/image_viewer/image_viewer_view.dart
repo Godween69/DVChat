@@ -62,6 +62,53 @@ class ImageViewerView extends StatelessWidget {
                     tooltip: L10n.of(context).downloadFile,
                   ),
                   const SizedBox(width: 8),
+                  // DVChat: у фото из альбома рядом есть «Сохранить все» (с числом фото)
+                  AnimatedBuilder(
+                    animation: controller.pageController,
+                    builder: (context, _) {
+                      final members = controller.albumMembers;
+                      if (members.length < 2) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Tooltip(
+                          message:
+                              'Сохранить все фото альбома (${members.length})',
+                          child: Material(
+                            color: Colors.black54,
+                            shape: const StadiumBorder(),
+                            child: InkWell(
+                              customBorder: const StadiumBorder(),
+                              onTap: () => controller.saveAlbumAction(context),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.download_for_offline_outlined,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Все ${members.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (PlatformInfos.isMobile)
                     // Use builder context to correctly position the share dialog on iPad
                     Padding(

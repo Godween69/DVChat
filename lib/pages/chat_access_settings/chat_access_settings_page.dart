@@ -5,6 +5,7 @@
 
 // DVChat: Доступ к чату (внешний вид).
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_access_settings/chat_access_settings_controller.dart';
 import 'package:dvchat/utils/dv_share.dart';
@@ -22,8 +23,8 @@ class ChatAccessSettingsPageView extends StatelessWidget {
     final theme = Theme.of(context);
 
     final room = controller.room;
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).accessAndVisibility),
       ),

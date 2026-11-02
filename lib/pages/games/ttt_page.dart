@@ -7,6 +7,7 @@
 // Крестики (синяя ручка) и нолики (красная) рисуются от руки с лёгкой неровностью,
 // победная цепочка зачёркивается маркером. Поле можно приближать двумя пальцами.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'dart:async';
 import 'dart:math';
@@ -392,8 +393,8 @@ class _TttPageState extends State<TttPage> {
     final turn = TttLogic.turnOf(_board);
     final playing = !_loading && !_finished;
     final oppName = _online ? widget.room!.dvDisplayname() : 'Компьютер';
-    return Scaffold(
-      appBar: AppBar(title: Text(title), actions: const [DvSoundButton()]),
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(title), actions: const [DvSoundButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

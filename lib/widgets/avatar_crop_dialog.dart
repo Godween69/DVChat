@@ -2,6 +2,7 @@
 
 // DVChat: Экран обрезки аватара перед загрузкой.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -57,7 +58,7 @@ class _AvatarCropPageState extends State<_AvatarCropPage> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: const Text('Обрезка аватара'),

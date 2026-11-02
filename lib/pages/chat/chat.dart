@@ -6,6 +6,7 @@
 // DVChat: Экран переписки (логика): отправка сообщений, вложения, ответы, редактирование, прокрутка,
 // выбор сообщений. Самый большой модуль приложения. Внешний вид — chat_view.dart.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -80,7 +81,7 @@ class ChatPage extends StatelessWidget {
         timeline?.room ?? Matrix.of(context).client.getRoomById(roomId);
     if (room == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(L10n.of(context).oopsSomethingWentWrong)),
+        appBar: AppBar(flexibleSpace: const DvBlurBar(), title: Text(L10n.of(context).oopsSomethingWentWrong)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),

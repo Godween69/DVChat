@@ -5,6 +5,7 @@
 
 // DVChat: Окно отправки файлов и картинок: предпросмотр, подпись, сжатие.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -77,7 +78,8 @@ class SendFileDialogState extends State<SendFileDialog> {
     if (!mounted) return;
     final result = await showScaffoldDialog<Uint8List?>(
       context: context,
-      builder: (_) => _ImageEditPage(bytes: bytes),
+      builder: (_) =>
+          _ImageEditPage(bytes: bytes, maxSide: compress ? 1600 : 3072),
     );
     if (!mounted || result == null) return;
     final original = _files[index];
@@ -145,14 +147,9 @@ class SendFileDialogState extends State<SendFileDialog> {
       }
 
       for (var i = 0; i < _files.length; i++) {
-        // DVChat: короткая пауза между файлами и счётчик, чтобы интерфейс не замирал
+        // DVChat: короткая пауза между файлами, чтобы интерфейс не замирал. Ход отправки
+        // виден на самом альбоме в чате, отдельной полосы снизу нет
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        if (_files.length > 1) {
-          scaffoldMessenger.clearSnackBars();
-          scaffoldMessenger.showLoadingSnackBar(
-            'Отправляю ${i + 1} из ${_files.length}…',
-          );
-        }
         final xfile = _files[i];
         final MatrixFile file;
         MatrixImageFile? thumbnail;
@@ -309,8 +306,10 @@ class SendFileDialogState extends State<SendFileDialog> {
                       child: SizedBox(
                         height: 256,
                         child: Center(
+                          // DVChat: список ленивый: готовятся только видимые картинки, а не
+                          // все пятнадцать сразу (раньше телефон раскрывал их все разом)
                           child: ListView.builder(
-                            shrinkWrap: true,
+                            shrinkWrap: _files.length == 1,
                             itemCount: _files.length,
                             scrollDirection: Axis.horizontal,
                             itemBuilder: (context, i) => Padding(
@@ -539,7 +538,11 @@ enum _EditMode { crop, draw }
 class _ImageEditPage extends StatefulWidget {
   final Uint8List bytes;
 
-  const _ImageEditPage({required this.bytes});
+  /// DVChat: длинная сторона правки не больше этого числа пикселей (иначе снимок в 12 Мп
+  /// раскрывался и кодировался целиком, и сохранение правки занимало десятки секунд)
+  final int maxSide;
+
+  const _ImageEditPage({required this.bytes, required this.maxSide});
 
   @override
   State<_ImageEditPage> createState() => _ImageEditPageState();
@@ -605,7 +608,19 @@ class _ImageEditPageState extends State<_ImageEditPage> {
 
   Future<void> _decode() async {
     try {
-      final codec = await ui.instantiateImageCodec(widget.bytes);
+      // Узнаём размер, не раскрывая картинку целиком, и раскрываем сразу в нужном размере
+      final buffer = await ui.ImmutableBuffer.fromUint8List(widget.bytes);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final longSide = descriptor.width > descriptor.height
+          ? descriptor.width
+          : descriptor.height;
+      final scale = longSide > widget.maxSide ? widget.maxSide / longSide : 1.0;
+      final codec = await descriptor.instantiateCodec(
+        targetWidth: (descriptor.width * scale).round(),
+        targetHeight: (descriptor.height * scale).round(),
+      );
+      descriptor.dispose();
+      buffer.dispose();
       final frame = await codec.getNextFrame();
       if (!mounted) {
         frame.image.dispose();
@@ -735,7 +750,7 @@ class _ImageEditPageState extends State<_ImageEditPage> {
     final theme = Theme.of(context);
     final image = _image;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         title: Text(l10n.editImage),
         actions: [
           if (_saving)

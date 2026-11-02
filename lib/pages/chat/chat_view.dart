@@ -5,6 +5,7 @@
 
 // DVChat: Экран переписки (внешний вид): шапка, список сообщений, поле ввода. Логика — chat.dart.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
@@ -102,8 +103,14 @@ class ChatView extends StatelessWidget {
                 backgroundColor: controller.selectedEvents.isEmpty
                     ? controller.activeThreadId != null
                           ? theme.colorScheme.secondaryContainer
-                          : theme.colorScheme.surface.withAlpha(240)
+                          : Colors.transparent
                     : theme.colorScheme.tertiaryContainer,
+                // Размытие под шапкой, пока не выбраны сообщения и нет ветки
+                flexibleSpace: DvBlurBar(
+                  enabled:
+                      controller.selectedEvents.isEmpty &&
+                      controller.activeThreadId == null,
+                ),
                 automaticallyImplyLeading: false,
                 leading: controller.selectMode
                     ? IconButton(

@@ -5,6 +5,7 @@
 
 // DVChat: Экран «Права в чате» (внешний вид): кто что может делать в чате.
 
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_permissions_settings/chat_permissions_settings.dart';
 import 'package:dvchat/pages/chat_permissions_settings/permission_list_tile.dart';
@@ -22,8 +23,8 @@ class ChatPermissionsSettingsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
+    return Scaffold(extendBodyBehindAppBar: true, 
+      appBar: AppBar(flexibleSpace: const DvBlurBar(), 
         leading: const Center(child: BackButton()),
         title: Text(L10n.of(context).chatPermissions),
       ),
