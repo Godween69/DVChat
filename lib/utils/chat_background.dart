@@ -2,10 +2,7 @@
 
 import 'dart:ui';
 
-import 'package:dvchat/config/setting_keys.dart';
-
-/// DVChat: выбранный пользователем цвет фона чата (null — по умолчанию).
-Color? get dvChatBackground {
-  final value = AppSettings.chatBackgroundColorInt.value;
-  return value == 0 ? null : Color(value);
-}
+/// DVChat: отдельный цвет фона чата убран из настроек (его заменили готовые обои).
+/// Если у кого-то в телефоне остался старый выбранный цвет, он больше не применяется,
+/// иначе его нечем было бы сбросить. Всегда null: цвет берётся из темы.
+Color? get dvChatBackground => null;

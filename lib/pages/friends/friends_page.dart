@@ -90,7 +90,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
         .where((s) => s.hasRoomUpdate)
         .listen((_) => _scheduleSilentReload());
     _periodic = Timer.periodic(
-      const Duration(minutes: 1),
+      const Duration(seconds: 10),
       (_) => _silentReload(),
     );
   }
@@ -188,19 +188,24 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  /// Защита от двойного нажатия: два запроса подряд создали бы два чата
+  bool _opening = false;
+
   Future<void> _openChat(String userId) async {
+    if (_opening) return;
+    _opening = true;
+    try {
+      await _openChatNow(userId);
+    } finally {
+      _opening = false;
+    }
+  }
+
+  Future<void> _openChatNow(String userId) async {
     final client = _client;
     // Живой чат с этим человеком уже есть: открываем его, сервер не спрашиваем.
     // Закрытый чат (собеседник вышел) не считается: он только для чтения и лежит в Архиве
-    final existing = client.rooms
-        .where(
-          (r) =>
-              r.membership == Membership.join &&
-              r.isDirectChat &&
-              r.directChatMatrixID == userId &&
-              r.isAbandonedDMRoom != true,
-        )
-        .firstOrNull;
+    final existing = client.dvLiveDirectChat(userId);
     if (existing != null) {
       context.go('/rooms/${existing.id}');
       return;
@@ -214,9 +219,17 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
           throw const DvApiException(500, '', 'Сервер не вернул чат');
         }
         // Ожидание ограничено: вечная крутилка хуже понятной ошибки
-        await client
-            .waitForRoomInSync(roomId, join: true)
-            .timeout(const Duration(seconds: 30));
+        try {
+          await client
+              .waitForRoomInSync(roomId, join: true)
+              .timeout(const Duration(seconds: 60));
+        } on TimeoutException {
+          throw const DvApiException(
+            504,
+            '',
+            'Чат создан, но ещё не дошёл до телефона. Подождите минуту: он появится в списке чатов.',
+          );
+        }
         return roomId;
       },
     );
@@ -465,7 +478,7 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
                   r.membership == Membership.join &&
                   r.isDirectChat &&
                   r.directChatMatrixID == userId &&
-                  r.isAbandonedDMRoom != true &&
+                  !r.isClosedChat &&
                   !r.isSupportRoom,
             )
             .toList();

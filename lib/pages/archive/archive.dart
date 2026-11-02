@@ -35,7 +35,7 @@ class ArchiveController extends State<Archive> {
       .where(
         (room) =>
             room.isInArchive ||
-            (room.isAbandonedDMRoom == true && !room.isHiddenByUser),
+            (room.isClosedChat && !room.isHiddenByUser),
       )
       .toList();
 
@@ -181,7 +181,7 @@ class ArchiveController extends State<Archive> {
       for (final room in archived)
         _ArchiveEntry(
           date: room.lastEvent?.originServerTs ?? epoch,
-          closed: room.isAbandonedDMRoom == true,
+          closed: room.isClosedChat,
           item: ChatListItem(
             room,
             key: ValueKey('archived_${room.id}'),

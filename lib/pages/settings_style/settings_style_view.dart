@@ -39,6 +39,96 @@ class SettingsStyleView extends StatelessWidget {
     ),
   );
 
+  /// Миниатюра стиля списка: две строки в этом стиле и подпись; выбранная обведена
+  Widget _styleChip(BuildContext context, String mode, String label) {
+    final theme = Theme.of(context);
+    final selected = DvListStyle.mode == mode;
+    final on = theme.colorScheme.onSurface;
+    Widget miniRow() => Container(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: mode == DvListStyle.plates ? on.withAlpha(30) : null,
+        borderRadius: BorderRadius.circular(8),
+        border: mode == DvListStyle.frames
+            ? Border.all(color: on.withAlpha(100))
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.primary.withAlpha(140),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 4,
+                  width: 34,
+                  decoration: BoxDecoration(
+                    color: on.withAlpha(160),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: on.withAlpha(70),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => controller.setListStyle(mode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: selected
+                  ? theme.colorScheme.primary.withAlpha(24)
+                  : null,
+              border: Border.all(
+                color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                miniRow(),
+                miniRow(),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Круглый цветной значок темы; выбранный обведён
   Widget _themeChip(ThemeMode mode, IconData icon, Color color, String label) {
     final selected = controller.currentTheme == mode;
@@ -155,23 +245,11 @@ class SettingsStyleView extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: SegmentedButton<String>(
-                selected: {DvListStyle.mode},
-                onSelectionChanged: (selected) =>
-                    controller.setListStyle(selected.single),
-                segments: const [
-                  ButtonSegment(
-                    value: DvListStyle.plain,
-                    label: Text('Обычный'),
-                  ),
-                  ButtonSegment(
-                    value: DvListStyle.plates,
-                    label: Text('Плашки'),
-                  ),
-                  ButtonSegment(
-                    value: DvListStyle.frames,
-                    label: Text('Рамки'),
-                  ),
+              child: Row(
+                children: [
+                  _styleChip(context, DvListStyle.plain, 'Обычный'),
+                  _styleChip(context, DvListStyle.plates, 'Плашки'),
+                  _styleChip(context, DvListStyle.frames, 'Рамки'),
                 ],
               ),
             ),
@@ -282,68 +360,6 @@ class SettingsStyleView extends StatelessWidget {
             Divider(color: theme.dividerColor),
             ListTile(
               title: Text(
-                'Цвет фона чата',
-                style: TextStyle(
-                  color: theme.colorScheme.secondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  for (final c in <int>[
-                    0,
-                    // DVChat: спокойные светлые тона
-                    0xFFF2F2F2,
-                    0xFFE3E3E0,
-                    0xFFDCE1E6,
-                    0xFFE4E8DF,
-                    0xFFE8E0DA,
-                    // DVChat: спокойные тёмные тона
-                    0xFF2B2B2E,
-                    0xFF1F2429,
-                    0xFF2A3230,
-                    0xFF2D2F3A,
-                    0xFF35302E,
-                    0xFF121212,
-                  ])
-                    InkWell(
-                      borderRadius: BorderRadius.circular(colorPickerSize),
-                      onTap: () => controller.setChatBackground(c),
-                      child: Container(
-                        width: colorPickerSize,
-                        height: colorPickerSize,
-                        decoration: BoxDecoration(
-                          color: c == 0 ? theme.colorScheme.surface : Color(c),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppSettings.chatBackgroundColorInt.value == c
-                                ? theme.colorScheme.primary
-                                : theme.dividerColor,
-                            width: AppSettings.chatBackgroundColorInt.value == c
-                                ? 3
-                                : 1,
-                          ),
-                        ),
-                        child: c == 0
-                            ? Icon(
-                                Icons.format_color_reset_outlined,
-                                size: 16,
-                                color: theme.colorScheme.onSurface,
-                              )
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Divider(color: theme.dividerColor),
-            ListTile(
-              title: Text(
                 L10n.of(context).messagesStyle,
                 style: TextStyle(
                   color: theme.colorScheme.secondary,
@@ -376,15 +392,24 @@ class SettingsStyleView extends StatelessWidget {
                       child: AnimatedContainer(
                         duration: DvThemes.animationDuration,
                         curve: DvThemes.animationCurve,
-                        decoration: BoxDecoration(
-                          color: AppSettings.chatBackgroundColorInt.value == 0
-                              ? null
-                              : Color(AppSettings.chatBackgroundColorInt.value),
-                        ),
                         clipBehavior: Clip.hardEdge,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
+                            if (accountConfig.wallpaperUrl == null &&
+                                DvWallpapers.byId(
+                                      AppSettings.chatWallpaperPreset.value,
+                                    ) !=
+                                    null)
+                              // Те же обои и тот же рисунок, что будут в ленте чата
+                              Positioned.fill(
+                                child: DvWallpaperLayer(
+                                  preset: DvWallpapers.byId(
+                                    AppSettings.chatWallpaperPreset.value,
+                                  )!,
+                                  dark: theme.brightness == Brightness.dark,
+                                ),
+                              ),
                             if (accountConfig.wallpaperUrl != null)
                               Stack(
                                 children: [
@@ -398,28 +423,15 @@ class SettingsStyleView extends StatelessWidget {
                                   ),
                                   Positioned.fill(
                                     child: ColoredBox(
-                                      color:
-                                          (AppSettings
-                                                          .chatBackgroundColorInt
-                                                          .value ==
-                                                      0
-                                                  ? theme.colorScheme.surface
-                                                  : Color(
-                                                      AppSettings
-                                                          .chatBackgroundColorInt
-                                                          .value,
-                                                    ))
-                                              .withAlpha(
-                                                (255 *
-                                                        (1 -
-                                                            controller
-                                                                .wallpaperOpacity
-                                                                .clamp(
-                                                                  0.0,
-                                                                  1.0,
-                                                                )))
-                                                    .round(),
-                                              ),
+                                      color: theme.colorScheme.surface
+                                          .withAlpha(
+                                            (255 *
+                                                    (1 -
+                                                        controller
+                                                            .wallpaperOpacity
+                                                            .clamp(0.0, 1.0)))
+                                                .round(),
+                                          ),
                                     ),
                                   ),
                                 ],
@@ -446,7 +458,8 @@ class SettingsStyleView extends StatelessWidget {
                                   padding: EdgeInsets.only(
                                     left: 12 + 12 + Avatar.defaultSize,
                                     right: 12,
-                                    top: accountConfig.wallpaperUrl == null
+                                    top: (accountConfig.wallpaperUrl == null &&
+                                            AppSettings.chatWallpaperPreset.value.isEmpty)
                                         ? 0
                                         : 12,
                                     bottom: 12,
@@ -479,7 +492,8 @@ class SettingsStyleView extends StatelessWidget {
                                     padding: EdgeInsets.only(
                                       right: 12,
                                       left: 12,
-                                      top: accountConfig.wallpaperUrl == null
+                                      top: (accountConfig.wallpaperUrl == null &&
+                                              AppSettings.chatWallpaperPreset.value.isEmpty)
                                           ? 0
                                           : 12,
                                       bottom: 12,

@@ -141,14 +141,15 @@ List<DvShopItem> dvShoppingItems(Event event, Timeline timeline) {
   }
   final added = <DvShopItem>[
     for (final id in order)
-      DvShopItem(
-        id: id,
-        text: text[id] ?? '',
-        senderId: owner[id] ?? '',
-        initial: false,
-        events: evs[id] ?? const <Event>[],
-        at: at[id] ?? 0,
-      ),
+      if (!data.removed.contains(id))
+        DvShopItem(
+          id: id,
+          text: text[id] ?? '',
+          senderId: owner[id] ?? '',
+          initial: false,
+          events: evs[id] ?? const <Event>[],
+          at: at[id] ?? 0,
+        ),
   ]..sort((a, b) {
       final c = a.at.compareTo(b.at);
       return c != 0 ? c : a.id.compareTo(b.id);
@@ -440,16 +441,18 @@ class ShoppingListCard extends StatelessWidget {
                 child: Text(text),
               ),
             ),
-            // DVChat: убрать пункт может только тот, кто его добавил
+            // DVChat: убрать пункт может тот, кто его добавил, и автор списка (любой пункт)
             if (!checked &&
                 canTap &&
-                item.senderId == room.client.userID &&
+                (item.senderId == room.client.userID ||
+                    event.senderId == room.client.userID) &&
                 event.eventId.isNotEmpty)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () async {
                   try {
-                    if (item.initial) {
+                    if (item.initial || item.senderId != room.client.userID) {
+                      // автор списка убирает пункт записью в самом списке
                       await removeShoppingItem(event, index);
                     } else {
                       await removeShoppingAdded(room, item);
@@ -674,8 +677,10 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
       final items = [...data.items];
       final removed = {...data.removed};
       var baseChanged = false;
+      final me = widget.room.client.userID;
       for (final it in deleted) {
-        if (it.initial) {
+        if (it.initial || it.senderId != me) {
+          // начальный пункт или чужой (убирает автор списка): запись в самом списке
           removed.add(it.id);
           baseChanged = true;
         } else {
@@ -762,6 +767,13 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
               ],
             ),
           ),
+          // DVChat: автор списка может убрать и чужой неотмеченный пункт
+          if (!done && widget.list!.senderId == me && it.senderId != me)
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Убрать пункт',
+              onPressed: () => setState(() => _deleted.add(it)),
+            ),
         ],
       ),
     );
@@ -786,7 +798,9 @@ class _ShoppingListSheetState extends State<ShoppingListSheet> {
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         children: [
           for (final it in _all)
-            if (_edit[it.id] != null)
+            if (_deleted.any((d) => d.id == it.id))
+              const SizedBox.shrink()
+            else if (_edit[it.id] != null)
               _field(_edit[it.id]!, 'Пункт', () => _removeMine(it))
             else
               _readRow(it),

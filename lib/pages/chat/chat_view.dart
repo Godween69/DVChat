@@ -274,12 +274,11 @@ class ChatView extends StatelessWidget {
                               null)
                         // DVChat: готовые обои-градиент (своё фото важнее)
                         Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: DvWallpapers.byId(
-                                AppSettings.chatWallpaperPreset.value,
-                              )!.gradient(dark: theme.brightness == Brightness.dark),
-                            ),
+                          child: DvWallpaperLayer(
+                            preset: DvWallpapers.byId(
+                              AppSettings.chatWallpaperPreset.value,
+                            )!,
+                            dark: theme.brightness == Brightness.dark,
                           ),
                         ),
                       if (accountConfig.wallpaperUrl != null)

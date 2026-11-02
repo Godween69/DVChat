@@ -7,6 +7,7 @@
 // и очистке не подлежит.
 
 import 'package:dvchat/config/setting_keys.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:matrix/matrix.dart';
 
 class DvGameInvite {
@@ -61,7 +62,7 @@ class DvGameNet {
         (r) =>
             r.membership == Membership.join &&
             r.isDirectChat &&
-            r.isAbandonedDMRoom != true,
+            !r.isClosedChat,
       )
       .toList();
 

@@ -99,7 +99,7 @@ class _ShareScaffoldDialogState extends State<ShareScaffoldDialog> {
           (room) =>
               !room.isInArchive &&
               !room.isHiddenByUser &&
-              room.isAbandonedDMRoom != true,
+              !room.isClosedChat,
         )
         .toList();
     final filter = _filterController.text.trim().toLowerCase();

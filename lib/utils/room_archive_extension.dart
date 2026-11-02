@@ -14,6 +14,37 @@ const String _supportStateType = 'online.dvbstudio.dvchat.support';
 /// Комнаты, которые прямо сейчас возвращаются в список (защита от повторных вызовов)
 final Set<String> _returningRooms = {};
 
+/// Метка комнаты: чат закрыт насовсем (собеседник вышел). Ставится один раз и не снимается.
+const String _closedType = 'online.dvbstudio.dvchat.closed';
+
+/// Конец служебной записи, которую оставляет тот, кто удалил чат или друга
+const String _closedTail = 'Переписка закрыта.';
+
+extension DvLiveDirectChat on Client {
+  /// Живой личный чат с человеком: не закрытый, мы в нём. Если вдруг их несколько
+  /// (старый закрытый и новый), берём живой, а среди живых тот, где событие новее.
+  Room? dvLiveDirectChat(String userId, {bool withSupport = true}) {
+    final list = rooms
+        .where(
+          (r) =>
+              r.membership == Membership.join &&
+              r.isDirectChat &&
+              r.directChatMatrixID == userId &&
+              !r.isClosedChat &&
+              (withSupport || !r.isSupportRoom),
+        )
+        .toList();
+    if (list.isEmpty) return null;
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    list.sort(
+      (a, b) => (b.lastEvent?.originServerTs ?? epoch).compareTo(
+        a.lastEvent?.originServerTs ?? epoch,
+      ),
+    );
+    return list.first;
+  }
+}
+
 extension RoomArchiveExtension on Room {
   /// Чат лежит в архиве (виден только на экране «Архив»)
   bool get isInArchive => tags.containsKey(AppConfig.archiveTag);
@@ -21,8 +52,30 @@ extension RoomArchiveExtension on Room {
   /// Закрытый чат: собеседник вышел, мы тоже не в комнате. Только чтение истории:
   /// без выбора, копирования, пересылки, ответов, реакций и сохранения файлов.
   bool get isHistoryOnly =>
-      {Membership.leave, Membership.ban}.contains(membership) ||
-      isAbandonedDMRoom == true;
+      {Membership.leave, Membership.ban}.contains(membership) || isClosedChat;
+
+  /// Последнее событие в чате: служебная запись «Переписка закрыта»
+  bool get hasClosingNotice {
+    final last = lastEvent;
+    if (last == null || last.messageType != MessageTypes.Notice) return false;
+    return last.body.endsWith(_closedTail);
+  }
+
+  /// Чат закрыт насовсем: собеседник вышел, или в нём последняя запись о закрытии,
+  /// или он уже помечен закрытым. Закрытый чат живёт только в Архиве: в список он
+  /// не возвращается ни при каких сообщениях и состояниях, из Архива его можно только удалить.
+  bool get isClosedChat =>
+      isAbandonedDMRoom == true ||
+      roomAccountData.containsKey(_closedType) ||
+      hasClosingNotice;
+
+  /// Запомнить, что чат закрыт (на случай, если состав участников временно неизвестен)
+  Future<void> markClosed() async {
+    if (roomAccountData.containsKey(_closedType)) return;
+    await client.setAccountDataPerRoom(client.userID!, id, _closedType, {
+      'closed': true,
+    });
+  }
 
   /// Удалить чат у себя. Если собеседник ещё в комнате, ему остаётся служебная запись
   /// (тихая, без уведомления), а его чат уходит в Архив. Затем выходим и забываем комнату.
@@ -70,7 +123,7 @@ extension RoomArchiveExtension on Room {
   bool get hasNewMessages {
     if (membership == Membership.invite) return true;
     // Закрытый чат новых сообщений не получит: служебная запись о закрытии не должна вернуть его
-    if (isAbandonedDMRoom == true) return false;
+    if (isClosedChat) return false;
     final since = _archivedAtMs;
     final last = lastEvent;
     if (since == null || last == null) return false;
@@ -93,7 +146,11 @@ extension RoomArchiveExtension on Room {
     await addTag(AppConfig.archiveTag);
   }
 
-  Future<void> restoreFromArchive() => removeTag(AppConfig.archiveTag);
+  /// Закрытый чат из Архива в список не возвращается (только удалить)
+  Future<void> restoreFromArchive() async {
+    if (isClosedChat) return;
+    await removeTag(AppConfig.archiveTag);
+  }
 
   /// Удалить из архива: ставим скрытый тег, тег архива снимаем
   Future<void> hideForever() async {
@@ -104,6 +161,7 @@ extension RoomArchiveExtension on Room {
 
   /// Новое сообщение вернуло чат в список: снимаем оба тега
   Future<void> returnToList() async {
+    if (isClosedChat) return;
     if (!_returningRooms.add(id)) return;
     try {
       if (isInArchive) await removeTag(AppConfig.archiveTag);

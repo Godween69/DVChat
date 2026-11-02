@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:dvchat/utils/dv_api.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/resize_video.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show decodeImageFromList;
 import 'package:flutter/widgets.dart'
@@ -322,9 +323,8 @@ class DvStories {
       final last = _notified[u] ?? 0;
       if (now - last < 2 * 3600 * 1000) continue;
       try {
-        final roomId = client.getDirectChatFromUserId(u);
-        final room = roomId == null ? null : client.getRoomById(roomId);
-        if (room == null || room.membership != Membership.join) continue;
+        final room = client.dvLiveDirectChat(u);
+        if (room == null) continue;
         _notified[u] = now;
         await room.sendEvent({'kind': 'story'}, type: eventType);
       } catch (e) {

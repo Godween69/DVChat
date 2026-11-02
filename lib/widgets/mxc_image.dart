@@ -178,6 +178,16 @@ class _MxcImageState extends State<MxcImage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryLoad());
   }
 
+  /// DVChat: ширина раскрытия картинки в пикселях. Миниатюры раскрываются сразу в малом
+  /// размере (с запасом в полтора раза), а не в полном: иначе чат с десятками фото тормозит.
+  int? _decodeWidth(BuildContext context) {
+    final w = widget.width;
+    if (!widget.isThumbnail || widget.animated || w == null || !w.isFinite || w <= 0) {
+      return null;
+    }
+    return (w * MediaQuery.devicePixelRatioOf(context) * 1.5).round();
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _imageData;
@@ -220,6 +230,7 @@ class _MxcImageState extends State<MxcImage> {
                 )
               : Image.memory(
                   data,
+                  cacheWidth: _decodeWidth(context),
                   width: widget.width,
                   height: widget.height,
                   fit: widget.fit,

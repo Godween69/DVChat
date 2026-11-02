@@ -160,28 +160,15 @@ class SettingsStyleController extends State<SettingsStyle> {
     setState(() {});
   }
 
-  // DVChat: выбор цвета фона чата
-  Future<void> setChatBackground(int value) async {
-    await AppSettings.chatBackgroundColorInt.setItem(value);
-    setState(() {});
-  }
-
   ThemeMode get currentTheme => ThemeController.of(context).themeMode;
   Color? get currentColor => ThemeController.of(context).primaryColor;
 
-  void switchTheme(ThemeMode? newTheme) {
+  // DVChat: перерисовываем окно только ПОСЛЕ того, как тема записана. Раньше перерисовка шла
+  // сразу, значок оставался старым, и приходилось нажимать второй раз
+  Future<void> switchTheme(ThemeMode? newTheme) async {
     if (newTheme == null) return;
-    switch (newTheme) {
-      case ThemeMode.light:
-        ThemeController.of(context).setThemeMode(ThemeMode.light);
-        break;
-      case ThemeMode.dark:
-        ThemeController.of(context).setThemeMode(ThemeMode.dark);
-        break;
-      case ThemeMode.system:
-        ThemeController.of(context).setThemeMode(ThemeMode.system);
-        break;
-    }
+    await ThemeController.of(context).setThemeMode(newTheme);
+    if (!mounted) return;
     setState(() {});
   }
 

@@ -64,6 +64,14 @@ class SendFileDialogState extends State<SendFileDialog> {
   /// object avoids drift between the preview, the upload and the extension.
   late final List<XFile> _files = List<XFile>.of(widget.files);
 
+  /// DVChat: файл для показа читается один раз, а не при каждой перерисовке окна
+  final Map<int, Future<Uint8List>> _previewBytes = {};
+  Future<Uint8List> _previewOf(int i) =>
+      _previewBytes.putIfAbsent(i, () => _files[i].readAsBytes());
+
+  /// DVChat: общий размер считается один раз (и после правки картинки)
+  late Future<String> _sizeFuture = _calcCombinedFileSize();
+
   Future<void> _editImage(int index) async {
     final bytes = await _files[index].readAsBytes();
     if (!mounted) return;
@@ -82,6 +90,8 @@ class SendFileDialogState extends State<SendFileDialog> {
         name: '$baseName.png',
         length: result.length,
       );
+      _previewBytes.remove(index);
+      _sizeFuture = _calcCombinedFileSize();
     });
   }
 
@@ -135,6 +145,14 @@ class SendFileDialogState extends State<SendFileDialog> {
       }
 
       for (var i = 0; i < _files.length; i++) {
+        // DVChat: короткая пауза между файлами и счётчик, чтобы интерфейс не замирал
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        if (_files.length > 1) {
+          scaffoldMessenger.clearSnackBars();
+          scaffoldMessenger.showLoadingSnackBar(
+            'Отправляю ${i + 1} из ${_files.length}…',
+          );
+        }
         final xfile = _files[i];
         final MatrixFile file;
         MatrixImageFile? thumbnail;
@@ -217,9 +235,8 @@ class SendFileDialogState extends State<SendFileDialog> {
     } finally {
       if (ForegroundServices.platformSupported) {
         await ForegroundServices.stopService('send_files');
-      } else {
-        scaffoldMessenger.clearSnackBars();
       }
+      scaffoldMessenger.clearSnackBars();
     }
 
     return;
@@ -272,7 +289,7 @@ class SendFileDialogState extends State<SendFileDialog> {
         uniqueFileType != 'video' || PlatformInfos.isMobile;
 
     return FutureBuilder<String>(
-      future: _calcCombinedFileSize(),
+      future: _sizeFuture,
       builder: (context, snapshot) {
         final sizeString =
             snapshot.data ?? L10n.of(context).calculatingFileSize;
@@ -307,7 +324,7 @@ class SendFileDialogState extends State<SendFileDialog> {
                                     color: Colors.black,
                                     clipBehavior: Clip.hardEdge,
                                     child: FutureBuilder(
-                                      future: _files[i].readAsBytes(),
+                                      future: _previewOf(i),
                                       builder: (context, snapshot) {
                                         final bytes = snapshot.data;
                                         if (bytes == null) {
@@ -333,8 +350,10 @@ class SendFileDialogState extends State<SendFileDialog> {
                                             ),
                                           );
                                         }
+                                        // DVChat: картинка раскрывается сразу в малом размере, не в полном
                                         return Image.memory(
                                           bytes,
+                                          cacheHeight: 512,
                                           height: 256,
                                           width: _files.length == 1
                                               ? 256 - 36

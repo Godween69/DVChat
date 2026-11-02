@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dvchat/utils/dv_stories.dart';
+import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -363,9 +364,8 @@ class _DvStoryViewerState extends State<DvStoryViewer>
   }
   Future<void> _notifyAuthor(String emoji) async {
     try {
-      final roomId = widget.client.getDirectChatFromUserId(_g.userId);
-      final room = roomId == null ? null : widget.client.getRoomById(roomId);
-      if (room == null || room.membership != Membership.join) return;
+      final room = widget.client.dvLiveDirectChat(_g.userId);
+      if (room == null) return;
       await room.sendTextEvent('$emoji ${_storyLabel()}');
     } catch (e) {
       Logs().w('DVChat: не удалось уведомить автора о реакции', e);

@@ -371,7 +371,7 @@ class _ChatsIcon extends StatelessWidget {
                   r.notificationCount > 0 &&
                   !r.isInArchive &&
                   !r.isHiddenByUser &&
-                  r.isAbandonedDMRoom != true &&
+                  !r.isClosedChat &&
                   !r.isNewcomerPlaceholder,
             )
             .length;

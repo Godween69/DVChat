@@ -67,7 +67,7 @@ class ChatListViewBody extends StatelessWidget {
         final abandoned = allRooms
             .where(
               (room) =>
-                  room.isAbandonedDMRoom == true &&
+                  room.isClosedChat &&
                   !room.isInArchive &&
                   !room.isHiddenByUser &&
                   !_autoArchived.contains(room.id),
@@ -77,6 +77,7 @@ class ChatListViewBody extends StatelessWidget {
           _autoArchived.addAll(abandoned.map((room) => room.id));
           WidgetsBinding.instance.addPostFrameCallback((_) {
             for (final room in abandoned) {
+              if (room.hasClosingNotice) room.markClosed();
               room.moveToArchive();
             }
             if (context.mounted) {
@@ -87,7 +88,7 @@ class ChatListViewBody extends StatelessWidget {
         final rooms = allRooms
             .where((room) => !room.isNewcomerPlaceholder)
             // Закрытый чат живёт только в Архиве, метка для этого не нужна
-            .where((room) => room.isAbandonedDMRoom != true)
+            .where((room) => !room.isClosedChat)
             .where(
               (room) =>
                   !(room.isInArchive || room.isHiddenByUser) ||

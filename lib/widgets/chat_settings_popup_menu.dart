@@ -145,7 +145,7 @@ class ChatSettingsPopupMenu extends StatelessWidget {
           ),
           // Личный чат нельзя покинуть, его отправляют в архив
           if (room.isDirectChat)
-            if (room.isInArchive)
+            if (room.isInArchive && !room.isClosedChat)
               _item(
                 ChatPopupMenuActions.restore,
                 Icons.unarchive_outlined,
