@@ -516,11 +516,11 @@
         var r = s.result;
         if (r && r.id === id) {
           if (r.ok) { status.className = ''; status.textContent = ''; status.appendChild(h('span', { class: 'tag ok' }, 'готово')); status.appendChild(document.createTextNode(' ' + (r.message || 'Ключ заменён, Лиза перезапущена.') + (r.mask ? ' Новый ключ: ' + r.mask + '.' : '')));
-            status.appendChild(h('p', { class: 'muted small mt6' }, 'Напоминание для администратора сервера: после замены обновите снимок (bash ~/projects/infra/tools/collect-minipc.sh) и закоммитьте, иначе роль files вернёт прежний ключ из сейфа.')); btn.disabled = false; btn.textContent = 'Закрыть'; btn.onclick = function () { stopped = true; closeModal(); reload(); }; return; }
+            status.appendChild(h('p', { class: 'muted small mt6' }, 'Напоминание для администратора сервера: после замены сохраните новую конфигурацию в своём хранилище настроек сервера, иначе при следующей выкладке вернётся прежний ключ.')); btn.disabled = false; btn.textContent = 'Закрыть'; btn.onclick = function () { stopped = true; closeModal(); reload(); }; return; }
           status.className = 'err'; status.textContent = 'Не заменено: ' + (r.message || 'ключ не принят') + '. Прежний ключ остался.'; btn.disabled = false; return;
         }
         if (Date.now() - started > 90000) {
-          status.className = 'err'; status.textContent = 'Служба замены ключа на сервере не ответила за 90 секунд. Заявка отменена. Проверьте, что она установлена (роль minipc_lisa).';
+          status.className = 'err'; status.textContent = 'Служба замены ключа на сервере не ответила за 90 секунд. Заявка отменена. Проверьте, что служба замены ключа установлена на сервере.';
           post('/api/lisa/key-cancel').catch(function () {}); btn.disabled = false; return;
         }
         setTimeout(function () { poll(id, started); }, 2000);
