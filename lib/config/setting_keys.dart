@@ -7,6 +7,7 @@
 // через SharedPreferences. Старые ключи переносит legacy_migration.
 
 import 'package:async/async.dart';
+import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/utils/legacy_migration.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:matrix/matrix_api_lite/utils/logs.dart';
@@ -26,7 +27,7 @@ enum AppSettings<T> {
   showNoGoogle<bool>('dvchat.show_no_google', false),
   pushNotificationsGatewayUrl<String>(
     'pushNotificationsGatewayUrl',
-    'http://172.30.50.2:8080/_matrix/push/v1/notify',
+    AppConfig.pushGatewayUrl,
   ),
   pushNotificationsPusherFormat<String>(
     'pushNotificationsPusherFormat',
@@ -58,7 +59,7 @@ enum AppSettings<T> {
   applicationName<String>('dvchat.application_name', 'DVChat'),
   defaultHomeserver<String>(
     'dvchat.default_homeserver',
-    'chat.dvbstudio.online',
+    AppConfig.defaultHomeserver,
   ),
   // colorSchemeSeed stored as ARGB int
   colorSchemeSeedInt<int>('dvchat.color_scheme_seed', 0xFF5625BA),

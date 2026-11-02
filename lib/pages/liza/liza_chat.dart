@@ -206,7 +206,7 @@ class _LizaChatState extends State<LizaChat> {
     return null;
   }
 
-  /// Вопрос ставим к верхнему краю, ответ растёт под ним, как в ChatGPT
+  /// Вопрос ставим к верхнему краю, ответ растёт под ним
   void _follow() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;

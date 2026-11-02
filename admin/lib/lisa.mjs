@@ -1,3 +1,4 @@
+import { TZ_MS } from './tz.mjs';
 // Раздел «Лиза»: правка файла настроек сервиса Лизы (config.json) с проверкой значений и копией перед записью.
 import { readFileSync, writeFileSync, renameSync, copyFileSync, readdirSync, unlinkSync, existsSync, statSync } from 'node:fs';
 import { dirname, basename, join } from 'node:path';
@@ -31,7 +32,7 @@ export function summarizeGames(rows, now = Date.now()) {
   const names = new Map(GAMES);
   const games = GAMES.map(([id, name]) => ({ id, name, players: 0, played: 0, won: 0, lost: 0, drawn: 0, last: null, top: [] }));
   const byId = new Map(games.map((g) => [g.id, g]));
-  const dayKey = (ms) => new Date(ms + 3 * 3600e3).toISOString().slice(0, 10);
+  const dayKey = (ms) => new Date(ms + TZ_MS).toISOString().slice(0, 10);
   const perDay = new Map();
   const people = [];
   for (const r of rows) {

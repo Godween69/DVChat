@@ -5,7 +5,7 @@ services:
     image: dvchat-admin:latest
     container_name: dvchat-admin
     restart: unless-stopped
-    # Только на этом компьютере. Наружу не открывайте: заходите через туннель ssh.
+    # Только на этом компьютере. Наружу не открывайте: заходите через SSH-туннель или свой обратный прокси с авторизацией.
     ports:
       - "127.0.0.1:3101:3101"
     environment:
@@ -13,6 +13,8 @@ services:
       DVADMIN_SYNAPSE_URL: http://synapse:8008
       # Адреса, с которых разрешено открывать админку
       DVADMIN_ALLOWED_HOSTS: localhost,127.0.0.1
+        # Сдвиг от UTC в часах для подсчёта суток в панели (например 3 для Москвы)
+        DVADMIN_TZ_HOURS: "0"
     volumes:
       - ./data:/data   # каталог должен быть доступен на запись пользователю с номером 1000
     networks: [matrix]

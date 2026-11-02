@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // DVChat: Регистрация приложения на получение пушей: токен FCM отправляется на сервер Matrix
-// (pusher), дальше сообщение идёт Synapse → шлюз dvchatgate → FCM → телефон.
+// (pusher), дальше сообщение идёт Synapse → шлюз уведомлений Matrix → FCM → телефон.
 
 import 'dart:async';
 import 'dart:io';

@@ -19,11 +19,23 @@ abstract class AppConfig {
   static const bool enableRegistration = false;
   static const bool hideTypingUsernames = false;
 
-  // DVChat: захардкоженный homeserver (без схемы https://)
-  static const String defaultHomeserver = 'chat.dvbstudio.online';
+  // DVChat: сервер, к которому привязано приложение (без схемы https://).
+  // Задаётся при сборке из файла dvchat.env (DVCHAT_HOMESERVER), см. docs/DEPLOY.md
+  static const String defaultHomeserver = String.fromEnvironment(
+    'DVCHAT_HOMESERVER',
+    defaultValue: 'chat.example.org',
+  );
+
+  // DVChat: адрес шлюза уведомлений Matrix (его получает Synapse при регистрации push).
+  // Задаётся при сборке из файла dvchat.env (DVCHAT_PUSH_GATEWAY)
+  static const String pushGatewayUrl = String.fromEnvironment(
+    'DVCHAT_PUSH_GATEWAY',
+    defaultValue: 'https://push.example.org/_matrix/push/v1/notify',
+  );
 
   // DVChat: формат ссылки/QR для входа: dvchat://login#<base64url(JSON)>
-  // JSON: {"u":"логин","p":"пароль"}. Фрагмент после # по сети не уходит.
+  // JSON: {"c":"одноразовый код"}; данные для входа по коду выдаёт сервер.
+  // Фрагмент после # по сети не уходит.
   static const String loginLinkScheme = 'dvchat';
   static const String loginLinkHost = 'login';
 
@@ -57,8 +69,9 @@ abstract class AppConfig {
   static const String archiveTag = 'u.dvchat.archive';
   static const String hiddenTag = 'u.dvchat.hidden';
 
-  // DVChat: канал обновлений на московском сервере. Адрес (с секретом) подставляет сборка
-  // через --dart-define=DVCHAT_UPDATE_URL=..., в репозитории его нет
+  // DVChat: канал обновлений (веб-сервер с version.json и dvchat.apk).
+  // Адрес (с секретом) подставляет сборка
+  // из файла dvchat.env (DVCHAT_UPDATE_URL), в репозитории его нет
   static const String updateBaseUrl = String.fromEnvironment(
     'DVCHAT_UPDATE_URL',
   );

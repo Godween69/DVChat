@@ -1,3 +1,4 @@
+import { TZ_MS } from './tz.mjs';
 // Данные о людях без чтения переписки: друзья, заявки, уведомления (устройства и правила) и активность по заходам.
 // Всё берётся от имени самого человека временным входом (токен живёт минуты и сразу гасится), как в очистке комнат.
 
@@ -83,7 +84,7 @@ export async function activityOf(syn, users) {
 
 export function activitySummary(list, now = Date.now()) {
   const within = (ms) => list.filter((x) => x.last_seen && now - x.last_seen < ms).length;
-  const dayKey = (ms) => new Date(ms + 3 * 3600e3).toISOString().slice(0, 10);   // сутки по Москве
+  const dayKey = (ms) => new Date(ms + TZ_MS).toISOString().slice(0, 10);   // сутки по поясу DVADMIN_TZ_HOURS
   const byDay = new Map();
   for (const x of list) if (x.last_seen && now - x.last_seen < 14 * 86400e3) byDay.set(dayKey(x.last_seen), (byDay.get(dayKey(x.last_seen)) || 0) + 1);
   const series = [];
