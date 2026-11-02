@@ -153,6 +153,13 @@ class SettingsStyleController extends State<SettingsStyle> {
     ),
   );
 
+  // DVChat: готовые обои (пустая строка = убрать)
+  Future<void> setWallpaperPreset(String id) async {
+    await AppSettings.chatWallpaperPreset.setItem(id);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   // DVChat: выбор цвета фона чата
   Future<void> setChatBackground(int value) async {
     await AppSettings.chatBackgroundColorInt.setItem(value);

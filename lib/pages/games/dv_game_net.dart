@@ -84,10 +84,10 @@ class DvGameNet {
     final title = gameTitle('${c['game']}');
     switch (c['kind']) {
       case 'invite':
-        // Обычное приглашение уже сопровождается сообщением в чате; уведомляем о реванше
+        // В чат ничего не пишется: приглашение приходит только уведомлением (имя в заголовке)
         return c['silent'] == true
             ? '🎮 $title: предлагает сыграть ещё раз'
-            : null;
+            : '🎮 Приглашает вас сыграть: $title';
       case 'move':
         return c['fin'] == true
             ? '🎮 $title: партия окончена'
@@ -122,12 +122,6 @@ class DvGameNet {
       if (!announce) 'silent': true,
       ...?extra,
     }, type: eventType);
-    // Видимое сообщение в чат только при первом приглашении, не при реванше
-    if (announce) {
-      await room.sendTextEvent(
-        '🎮 Приглашение сыграть: $gameTitle. Откройте вкладку «Игры».',
-      );
-    }
     return id;
   }
 

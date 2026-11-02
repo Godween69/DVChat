@@ -85,8 +85,11 @@ class ImageViewerView extends StatelessWidget {
                 focusNode: controller.focusNode,
                 onKeyEvent: controller.onKeyEvent,
                 child: PointersListener(
-                  builder: (context, moreThanOnePointer) => PageView.builder(
-                    physics: !moreThanOnePointer
+                  builder: (context, moreThanOnePointer) => ValueListenableBuilder<bool>(
+                    valueListenable: controller.zoomed,
+                    builder: (context, zoomed, _) => PageView.builder(
+                    // DVChat: пока картинка приближена, сдвиг пальцем двигает её, а не листает
+                    physics: !moreThanOnePointer && !zoomed
                         ? BouncingScrollPhysics()
                         : NeverScrollableScrollPhysics(),
                     scrollDirection: Axis.horizontal,
@@ -110,6 +113,7 @@ class ImageViewerView extends StatelessWidget {
                         case MessageTypes.Sticker:
                         default:
                           return InteractiveViewer(
+                            transformationController: controller.zoomOf(i),
                             minScale: 1.0,
                             maxScale: 10.0,
                             onInteractionEnd: controller.onInteractionEnds,
@@ -132,6 +136,7 @@ class ImageViewerView extends StatelessWidget {
                           );
                       }
                     },
+                  ),
                   ),
                 ),
               ),

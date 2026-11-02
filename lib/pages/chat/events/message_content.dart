@@ -9,10 +9,12 @@ import 'dart:math';
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/pages/chat/events/album_bubble.dart';
 import 'package:dvchat/pages/chat/events/poll.dart';
 import 'package:dvchat/pages/chat/events/shopping_list.dart';
 import 'package:dvchat/pages/chat/events/video_player.dart';
 import 'package:dvchat/pages/image_viewer/image_viewer.dart';
+import 'package:dvchat/utils/dv_album.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -78,6 +80,16 @@ class MessageContent extends StatelessWidget {
           case MessageTypes.Image:
           case MessageTypes.Sticker:
             if (event.redacted) continue textmessage;
+            // DVChat: первое фото альбома показывает всю пачку одной сеткой
+            if (event.messageType == MessageTypes.Image &&
+                dvAlbumOf(event)?.index == 0) {
+              return AlbumBubble(
+                head: event,
+                timeline: timeline,
+                textColor: textColor,
+                borderRadius: borderRadius,
+              );
+            }
             final maxSize = event.messageType == MessageTypes.Sticker
                 ? 128.0
                 : 256.0;

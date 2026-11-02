@@ -60,6 +60,12 @@ extension MatrixFileExtension on MatrixFile {
     }
   }
 
+  /// Тихо кладёт фото или видео в галерею (только Android). true, если получилось.
+  Future<bool> saveToGalleryQuiet() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    return _saveToGallery();
+  }
+
   Future<void> save(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final l10n = L10n.of(context);

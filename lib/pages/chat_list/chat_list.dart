@@ -12,6 +12,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/chat_list_view.dart';
+import 'package:dvchat/pages/whats_new/dv_whats_new.dart';
 import 'package:dvchat/utils/dv_crypto_heal.dart';
 import 'package:dvchat/utils/dv_dm_rights.dart';
 import 'package:dvchat/utils/error_reporter.dart';
@@ -230,6 +231,8 @@ class ChatListController extends State<ChatList>
         Matrix.of(context).backgroundPush?.setupPush(context);
         // При каждом запуске приложения проверяем обновление без ограничения по времени
         DvUpdateChecker.check(context, startup: true);
+        // DVChat: после обновления один раз показываем страницу «Что нового»
+        unawaited(DvWhatsNew.maybeShow(context));
       }
 
       // Workaround for system UI overlay style not applied on app start

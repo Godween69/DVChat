@@ -6,10 +6,11 @@ import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/sign_in_flows/crypto_autosetup.dart';
+import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -74,24 +75,41 @@ Future<void> loginByLink(BuildContext context, String raw) async {
   // Пароль нужен серверу при первой настройке шифрования (запрос UIA)
   matrix.cachedPassword = data.password;
   Client? loggedClient;
-  final result = await showFutureLoadingDialog(
-    context: context,
-    future: () async {
-      final client = await matrix.getLoginClient();
-      // Сервер всегда наш, чужие адреса игнорируются
-      await client.checkHomeserver(Uri.https(AppConfig.defaultHomeserver, ''));
-      await client.login(
-        LoginType.mLoginPassword,
-        identifier: AuthenticationUserIdentifier(user: data.username),
-        password: data.password,
-        initialDeviceDisplayName: PlatformInfos.appDisplayName,
-      );
-      loggedClient = client;
-    },
-  );
-  // Ошибку (неверный пароль, нет сети) диалог показывает сам
-  if (result.error != null) {
+  // Окно входа на сервере: 60 секунд с момента обмена кода. Всё это время человек видит крутилку
+  final redeemedAt = DateTime.now();
+  final run = _LoginRun();
+  final outcome = await _loginWithProgress(context, redeemedAt, run, () async {
+    final client = await matrix.getLoginClient();
+    // Сервер всегда наш, чужие адреса игнорируются
+    await client.checkHomeserver(Uri.https(AppConfig.defaultHomeserver, ''));
+    await client.login(
+      LoginType.mLoginPassword,
+      identifier: AuthenticationUserIdentifier(user: data.username),
+      password: data.password,
+      initialDeviceDisplayName: PlatformInfos.appDisplayName,
+    );
+    if (run.timedOut) {
+      // Вход всё же прошёл, когда мы уже сказали «не получилось»: выходим, чтобы не остаться наполовину
+      unawaited(client.logout().catchError((_) {}));
+      return;
+    }
+    loggedClient = client;
+  });
+  if (outcome != null) {
     matrix.cachedPassword = null;
+    if (!context.mounted) return;
+    if (outcome is _LoginTimeout) {
+      await showOkAlertDialog(
+        context: context,
+        title: 'Не получилось войти за 60 секунд',
+        message:
+            'Скорее всего, слабый интернет. Эта ссылка уже использована: '
+            'запросите у администратора новую ссылку и попробуйте ещё раз.',
+        okLabel: 'Понятно',
+      );
+    } else {
+      _showLoginError(context, outcome.toLocalizedString(context));
+    }
     return;
   }
   final client = loggedClient;
@@ -108,6 +126,115 @@ Future<void> loginByLink(BuildContext context, String raw) async {
     matrix.cachedPassword = null;
   }
   if (context.mounted) context.go('/rooms');
+}
+
+/// Состояние одной попытки входа: флаг «время вышло»
+class _LoginRun {
+  bool timedOut = false;
+}
+
+class _LoginTimeout {
+  const _LoginTimeout();
+}
+
+/// Выполняет вход под крутилкой с отсчётом. Возвращает null при успехе, ошибку при сбое
+/// или _LoginTimeout, если за окно входа (60 секунд от обмена кода) войти не вышло.
+Future<Object?> _loginWithProgress(
+  BuildContext context,
+  DateTime redeemedAt,
+  _LoginRun run,
+  Future<void> Function() job,
+) async {
+  const window = Duration(seconds: 60);
+  final left = window - DateTime.now().difference(redeemedAt);
+  final done = Completer<Object?>();
+  unawaited(
+    job().then(
+      (_) {
+        if (!done.isCompleted) done.complete(null);
+      },
+      onError: (Object e) {
+        if (!done.isCompleted) done.complete(e);
+      },
+    ),
+  );
+  unawaited(
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: _LoginProgressDialog(redeemedAt: redeemedAt, window: window),
+      ),
+    ),
+  );
+  Object? result;
+  try {
+    result = await done.future.timeout(
+      left.isNegative ? Duration.zero : left,
+      onTimeout: () {
+        run.timedOut = true;
+        return const _LoginTimeout();
+      },
+    );
+  } finally {
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+  }
+  return result;
+}
+
+class _LoginProgressDialog extends StatefulWidget {
+  const _LoginProgressDialog({required this.redeemedAt, required this.window});
+
+  final DateTime redeemedAt;
+  final Duration window;
+
+  @override
+  State<_LoginProgressDialog> createState() => _LoginProgressDialogState();
+}
+
+class _LoginProgressDialogState extends State<_LoginProgressDialog> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.window.inSeconds;
+    final left = (total - DateTime.now().difference(widget.redeemedAt).inSeconds)
+        .clamp(0, total);
+    return AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator.adaptive(),
+          const SizedBox(height: 16),
+          Text('Идёт вход…', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const Text(
+            'Если интернет слабый, это может занять до минуты. Не закрывайте приложение.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(value: left / total),
+          const SizedBox(height: 6),
+          Text('Осталось $left с'),
+        ],
+      ),
+    );
+  }
 }
 
 void _showLoginError(BuildContext context, String text) {

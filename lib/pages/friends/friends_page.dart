@@ -227,12 +227,13 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
 
   Future<void> _answer(String userId, bool accept) async {
     final client = _client;
-    await showFutureLoadingDialog(
+    final result = await showFutureLoadingDialog(
       context: context,
       future: () => DvApi(
         client,
       ).post('requests/answer', {'user_id': userId, 'accept': accept}),
     );
+    if (result.error == null) _snack(accept ? 'Заявка принята' : 'Заявка отклонена');
     if (mounted) _reload();
   }
 
@@ -550,13 +551,17 @@ class _FriendsPageState extends State<FriendsPage> with WidgetsBindingObserver {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_outline),
+                          // DVChat: зелёная галочка принимает, красный крестик отклоняет
+                          IconButton.filledTonal(
+                            icon: const Icon(Icons.check),
+                            color: Colors.green.shade700,
                             tooltip: 'Принять',
                             onPressed: () => _answer(id, true),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined),
+                          const SizedBox(width: 4),
+                          IconButton.filledTonal(
+                            icon: const Icon(Icons.close),
+                            color: Theme.of(context).colorScheme.error,
                             tooltip: 'Отклонить',
                             onPressed: () => _answer(id, false),
                           ),

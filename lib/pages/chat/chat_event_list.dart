@@ -9,7 +9,6 @@ import 'package:collection/collection.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
-import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat.dart';
 import 'package:dvchat/pages/chat/events/message.dart';
 import 'package:dvchat/pages/chat/typing_indicators.dart';
@@ -79,15 +78,13 @@ class ChatEventList extends StatelessWidget {
             // Footer to display typing indicator and read receipts:
             if (i == 0) {
               if (timeline.canRequestFuture) {
-                return Center(
-                  child: TextButton.icon(
-                    onPressed: timeline.isRequestingFuture
-                        ? null
-                        : controller.requestFuture,
-                    icon: timeline.isRequestingFuture
+                // DVChat: вместо кнопки «Загрузить больше» крутилка, подгрузка идёт от прокрутки
+                return SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: timeline.isRequestingFuture
                         ? CircularProgressIndicator.adaptive(strokeWidth: 2)
-                        : const Icon(Icons.arrow_downward_outlined),
-                    label: Text(L10n.of(context).loadMore),
+                        : null,
                   ),
                 );
               }
@@ -104,7 +101,7 @@ class ChatEventList extends StatelessWidget {
                 return const SizedBox.shrink();
               }
               return Builder(
-                builder: (context) {
+                builder: (_) {
                   final visibleIndex = timeline.events.lastIndexWhere(
                     (event) =>
                         event.stateKey == null &&
@@ -116,15 +113,13 @@ class ChatEventList extends StatelessWidget {
                       controller.requestHistory,
                     );
                   }
-                  return Center(
-                    child: TextButton.icon(
-                      onPressed: timeline.isRequestingHistory
-                          ? null
-                          : controller.requestHistory,
-                      icon: timeline.isRequestingHistory
+                  // DVChat: вместо кнопки «Загрузить больше» крутилка, подгрузка идёт от прокрутки
+                  return SizedBox(
+                    height: 48,
+                    child: Center(
+                      child: timeline.isRequestingHistory
                           ? CircularProgressIndicator.adaptive(strokeWidth: 2)
-                          : const Icon(Icons.arrow_upward_outlined),
-                      label: Text(L10n.of(context).loadMore),
+                          : null,
                     ),
                   );
                 },

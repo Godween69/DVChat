@@ -62,6 +62,17 @@ class _DvMainShellState extends State<DvMainShell> {
   bool _animating = false;
   int _animToken = 0;
 
+  /// Адреса вкладок, которые мы сами поставили после свайпа (номер вкладки и время).
+  /// Когда такой адрес доходит до виджета, страница уже на месте: трогать её не надо.
+  /// Иначе запоздавший адрес прежней вкладки возвращал страницу назад, пока человек
+  /// листал несколько вкладок подряд.
+  final List<(int, DateTime)> _swipeGo = [];
+
+  void _pruneSwipeGo() {
+    final old = DateTime.now().subtract(const Duration(seconds: 3));
+    _swipeGo.removeWhere((e) => e.$2.isBefore(old));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -80,6 +91,16 @@ class _DvMainShellState extends State<DvMainShell> {
   void didUpdateWidget(DvMainShell old) {
     super.didUpdateWidget(old);
     final i = DvMainShell.indexFor(widget.path);
+    if (i != null) {
+      _pruneSwipeGo();
+      final k = _swipeGo.indexWhere((e) => e.$1 == i);
+      if (k >= 0) {
+        // Этот адрес мы поставили сами после свайпа. Он и всё, что поставлено раньше него,
+        // уже учтено: страницу не двигаем
+        _swipeGo.removeRange(0, k + 1);
+        return;
+      }
+    }
     if (i == null || i == _page) return;
     // Пока вкладки листают пальцем, запоздавший адрес не должен возвращать страницу:
     // после остановки адрес подтянется сам (см. _onScroll)
@@ -127,7 +148,13 @@ class _DvMainShellState extends State<DvMainShell> {
     if (DvMainShell.indexFor(widget.path) == null) return false;
     final p = (_controller.page ?? _page.toDouble()).round().clamp(0, 3);
     if (p != _page) setState(() => _page = p);
-    if (DvMainShell.indexFor(widget.path) != p) {
+    _pruneSwipeGo();
+    // Сравниваем с последним адресом, который мы уже поставили (он может ещё не дойти до виджета)
+    final current = _swipeGo.isNotEmpty
+        ? _swipeGo.last.$1
+        : DvMainShell.indexFor(widget.path);
+    if (current != p) {
+      _swipeGo.add((p, DateTime.now()));
       context.go(DvMainShell._paths[p]);
     }
     return false;

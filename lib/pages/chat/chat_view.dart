@@ -5,6 +5,7 @@
 
 // DVChat: Экран переписки (внешний вид): шапка, список сообщений, поле ввода. Логика — chat.dart.
 
+import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/chat.dart';
@@ -16,6 +17,7 @@ import 'package:dvchat/pages/chat/reply_display.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/chat_background.dart';
 import 'package:dvchat/utils/dv_admin.dart';
+import 'package:dvchat/utils/dv_wallpaper_presets.dart';
 import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
@@ -264,6 +266,21 @@ class ChatView extends StatelessWidget {
                       if (dvChatBackground != null)
                         Positioned.fill(
                           child: ColoredBox(color: dvChatBackground!),
+                        ),
+                      if (accountConfig.wallpaperUrl == null &&
+                          DvWallpapers.byId(
+                                AppSettings.chatWallpaperPreset.value,
+                              ) !=
+                              null)
+                        // DVChat: готовые обои-градиент (своё фото важнее)
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: DvWallpapers.byId(
+                                AppSettings.chatWallpaperPreset.value,
+                              )!.gradient(dark: theme.brightness == Brightness.dark),
+                            ),
+                          ),
                         ),
                       if (accountConfig.wallpaperUrl != null)
                         // DVChat: обои: готовая картинка без живых фильтров (раньше размытие пересчитывалось

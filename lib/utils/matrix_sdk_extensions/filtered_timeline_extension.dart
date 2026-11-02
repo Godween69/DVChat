@@ -7,6 +7,7 @@
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/utils/blocked_periods.dart';
+import 'package:dvchat/utils/dv_album.dart';
 import 'package:matrix/matrix.dart';
 
 extension VisibleInGuiExtension on List<Event> {
@@ -37,6 +38,8 @@ extension IsStateExtension on Event {
       }.contains(relationshipType) &&
       // DVChat: сообщения человека, отправленные пока он был заблокирован, не показываем
       !room.client.isHiddenByBlock(this) &&
+      // DVChat: фото альбома, кроме первого, показываются в сетке первого
+      !dvIsAlbumTail(this) &&
       // always filter out m.key.* and other known but unimportant events
       !isKnownHiddenStates &&
       // event types to hide: redaction and reaction events

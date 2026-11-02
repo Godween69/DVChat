@@ -111,6 +111,9 @@ class DvStoryWatcher {
 
 class DvStories {
   static const String prefix = 'dvs';
+
+  /// Скрытое событие в личном чате: друг опубликовал историю (в ленте чата не видно)
+  static const String eventType = 'dv.story';
   static const List<String> emojis = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
 
   /// Последний полученный список; null, пока не загружали
@@ -311,7 +314,7 @@ class DvStories {
 
   static final Map<String, int> _notified = {};
 
-  /// Друзьям уходит обычное сообщение в личный чат (оно шифруется и приходит уведомлением).
+  /// Друзьям уходит скрытое событие dv.story в личный чат (в ленте не видно, шифруется, приходит уведомлением).
   /// Одному и тому же другу не чаще раза в два часа, чтобы не засорять чаты.
   static Future<void> _notifyFriends(Client client, List<String> users) async {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -323,11 +326,7 @@ class DvStories {
         final room = roomId == null ? null : client.getRoomById(roomId);
         if (room == null || room.membership != Membership.join) continue;
         _notified[u] = now;
-        await room.sendEvent({
-          'msgtype': 'm.text',
-          'body': '📸 Новая сторис',
-          'dv.story': true,
-        });
+        await room.sendEvent({'kind': 'story'}, type: eventType);
       } catch (e) {
         Logs().w('DVChat: не удалось уведомить о сторис', e);
       }

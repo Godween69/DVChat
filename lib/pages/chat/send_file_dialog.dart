@@ -16,6 +16,7 @@ import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat/image_edit_geometry.dart';
 import 'package:dvchat/pages/chat/trust_user_key_dialog.dart';
+import 'package:dvchat/utils/dv_album.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
 import 'package:dvchat/utils/other_party_can_receive.dart';
 import 'package:dvchat/utils/platform_infos.dart';
@@ -111,6 +112,28 @@ class SendFileDialogState extends State<SendFileDialog> {
       final maxUploadSize =
           clientConfig.asValue?.value.mUploadSize ?? 100 * 1000 * 1000;
 
+      // DVChat: две и больше картинок уходят альбомом (до 30 в одном): у каждой метка
+      final albumInfo = <int, Map<String, Object>>{};
+      final imageIdx = <int>[
+        for (var k = 0; k < _files.length; k++)
+          if ((_files[k].mimeType ?? lookupMimeType(_files[k].path) ?? '')
+              .startsWith('image/'))
+            k,
+      ];
+      if (imageIdx.length >= 2) {
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        for (var s = 0; s < imageIdx.length; s += dvAlbumMax) {
+          final end = s + dvAlbumMax > imageIdx.length
+              ? imageIdx.length
+              : s + dvAlbumMax;
+          final part = imageIdx.sublist(s, end);
+          if (part.length < 2) continue;
+          for (var k = 0; k < part.length; k++) {
+            albumInfo[part[k]] = {'id': '$stamp-$s', 'i': k, 'n': part.length};
+          }
+        }
+      }
+
       for (var i = 0; i < _files.length; i++) {
         final xfile = _files[i];
         final MatrixFile file;
@@ -155,13 +178,20 @@ class SendFileDialogState extends State<SendFileDialog> {
         }
 
         final label = _labelTextController.text.trim();
+        // DVChat: подпись только у первого фото альбома, метка альбома у каждого
+        final album = albumInfo[i];
+        final extra = <String, dynamic>{
+          if (label.isNotEmpty && (album == null || album['i'] == 0))
+            'body': label,
+          if (album != null) dvAlbumKey: album,
+        };
 
         try {
           await widget.room.sendFileEvent(
             file,
             thumbnail: thumbnail,
             shrinkImageMaxDimension: compress ? 1600 : null,
-            extraContent: label.isEmpty ? null : {'body': label},
+            extraContent: extra.isEmpty ? null : extra,
             threadRootEventId: widget.threadRootEventId,
             threadLastEventId: widget.threadLastEventId,
           );
@@ -180,7 +210,7 @@ class SendFileDialogState extends State<SendFileDialog> {
             file,
             thumbnail: thumbnail,
             shrinkImageMaxDimension: compress ? 1600 : null,
-            extraContent: label.isEmpty ? null : {'body': label},
+            extraContent: extra.isEmpty ? null : extra,
           );
         }
       }

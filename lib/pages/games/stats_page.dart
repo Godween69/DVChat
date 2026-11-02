@@ -2,9 +2,12 @@
 
 // DVChat: общий экран статистики игр: против компьютера, против друзей, по каждому другу.
 
+import 'dart:async';
+
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/pages/games/dv_local_stats.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_stats_sync.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
@@ -54,6 +57,8 @@ class _DvStatsPageState extends State<DvStatsPage> {
     if (mounted) setState(() => _local = local);
     final friends = await _scan(client);
     if (mounted) setState(() => _friends = friends);
+    // свежие итоги уходят и в аккаунт (для панели и нового входа)
+    unawaited(DvStatsSync.maybeScan(client, force: true));
   }
 
   /// Читает итоги партий из чатов: каждая партия считается один раз

@@ -31,6 +31,13 @@ class DvLastEvent {
     return cached?.event;
   }
 
+  /// Найдено ли уже последнее настоящее сообщение (иначе поиск ещё идёт)
+  static bool resolved(Room room) {
+    final last = room.lastEvent;
+    if (last == null || !_hidden(last)) return true;
+    return _cache[room.id]?.id == last.eventId;
+  }
+
   static Future<void> _resolve(Room room, String lastId) async {
     final key = '${room.id}|$lastId';
     if (!_busy.add(key)) return;

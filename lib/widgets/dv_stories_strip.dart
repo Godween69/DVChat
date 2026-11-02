@@ -224,7 +224,7 @@ class _DvStoriesStripState extends State<DvStoriesStrip>
     unawaited(DvStories.refresh(widget.client));
     // Уведомление друга о новой сторис: сразу обновляем ленту
     _sub = widget.client.onTimelineEvent.stream.listen((e) {
-      if (e.senderId != widget.client.userID && e.content['dv.story'] == true) {
+      if (e.senderId != widget.client.userID && e.type == DvStories.eventType) {
         unawaited(DvStories.refresh(widget.client));
       }
     });

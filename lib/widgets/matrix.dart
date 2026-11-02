@@ -12,6 +12,8 @@ import 'package:collection/collection.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_recording_signal.dart';
+import 'package:dvchat/utils/dv_stats_sync.dart';
 import 'package:dvchat/utils/init_with_restore.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/uia_request_manager.dart';
@@ -274,6 +276,8 @@ class MatrixState extends State<Matrix> {
         });
     onUiaRequest[name] ??= c.onUiaRequest.stream.listen(uiaRequestHandler);
     onHiddenEventsSub[name] ??= attachHiddenEventCleaner(c);
+    DvStatsSync.watch(c);
+    DvRecordingSignal.attach(c);
     if (PlatformInfos.isWeb) {
       c.onSync.stream.first.then((s) {
         html.Notification.requestPermission();

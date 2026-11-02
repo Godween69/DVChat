@@ -17,8 +17,11 @@ import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/games/dv_game_net.dart';
 import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
+import 'package:dvchat/utils/dv_album.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
+import 'package:dvchat/utils/dv_shopping_keys.dart';
+import 'package:dvchat/utils/dv_stories.dart';
 import 'package:dvchat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:dvchat/utils/notification_avatar_extension.dart';
 import 'package:dvchat/utils/notification_background_handler.dart';
@@ -182,6 +185,7 @@ Future<void> _tryPushHelper(
   if (event.type != EventTypes.Reaction &&
       event.type != dvReadEventType &&
       event.type != DvGameNet.eventType &&
+      event.type != DvStories.eventType &&
       !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
@@ -190,6 +194,8 @@ Future<void> _tryPushHelper(
   // DVChat: уведомления о реакциях отключаются в настройках (в зашифрованных чатах
   // сервер не отличает реакцию от сообщения, поэтому решаем здесь, после расшифровки)
   if (event.type == EventTypes.Reaction) {
+    // DVChat: пункты списка покупок это служебные реакции: уведомления «реакция» о них не нужны
+    if (event.relationshipType == dvShopItemRel) return;
     if (!AppSettings.notifyAboutReactions.value) {
       Logs().i('Push helper: reaction notifications are turned off.');
       return;
@@ -207,6 +213,13 @@ Future<void> _tryPushHelper(
   }
 
   var customBody = '';
+
+  // DVChat: альбом фото: уведомление только о первом фото, остальные молча
+  final albumPush = dvAlbumOf(event);
+  if (albumPush != null) {
+    if (albumPush.index > 0) return;
+    customBody = '📷 Альбом: ${albumPush.count} фото';
+  }
 
   // DVChat: ход в игре с другом (скрытое событие dv.game): «ваш ход»
   if (event.type == DvGameNet.eventType) {
@@ -227,6 +240,12 @@ Future<void> _tryPushHelper(
     final text = DvGameNet.notificationText(event);
     if (text == null) return;
     customBody = text;
+  }
+
+  // DVChat: друг опубликовал историю (скрытое событие dv.story): имя в заголовке, текст ниже
+  if (event.type == DvStories.eventType) {
+    if (event.senderId == client.userID) return;
+    customBody = 'Опубликовал(а) новую историю';
   }
 
   // DVChat: «собеседник прочитал ваше сообщение» (скрытое событие dv.read)

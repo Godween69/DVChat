@@ -8,6 +8,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:dvchat/utils/dv_last_event.dart';
 import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,26 +46,58 @@ Future<void> sendReadNotice(Room room, Timeline timeline) async {
   }
 }
 
-/// Скрытые события (dv.read и ходы игр) сервер считает новыми уведомлениями и поднимает
-/// счётчик непрочитанных, хотя в чате ничего нового нет. Если все видимые сообщения уже
-/// прочитаны, счётчик сбрасывается личной отметкой на этом событии.
-StreamSubscription<Event> attachHiddenEventCleaner(Client client) => client
-    .onTimelineEvent
-    .stream
-    .where(
-      (e) =>
-          (e.type == dvReadEventType || e.type == 'dv.game') &&
-          e.senderId != client.userID,
-    )
-    .listen((e) async {
-      // Счётчик комнаты обновляется чуть позже самого события
-      await Future<void>.delayed(const Duration(seconds: 1));
-      final room = client.getRoomById(e.roomId ?? '');
-      if (room == null) return;
-      if (room.hasNewMessages || room.notificationCount == 0) return;
-      try {
-        await client.postReceipt(room.id, ReceiptType.mReadPrivate, e.eventId);
-      } catch (_) {
-        // Не получилось: счётчик сбросится при открытии чата
-      }
-    });
+bool _isHiddenType(String type) =>
+    type == dvReadEventType || type == 'dv.game' || type == 'dv.story';
+
+/// Скрытые события (dv.read, dv.story и ходы игр) сервер считает новыми уведомлениями и поднимает
+/// счётчик непрочитанных, хотя в чате ничего нового нет. Если настоящих непрочитанных сообщений
+/// нет, счётчик сбрасывается личной отметкой на этом событии. То же делается после синхронизации
+/// (не чаще раза в 20 секунд): события могли прийти, пока приложение было закрыто.
+StreamSubscription<Event> attachHiddenEventCleaner(Client client) {
+  var lastSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  // подписка живёт столько же, сколько клиент
+  client.onSync.stream.listen((_) {
+    final now = DateTime.now();
+    if (now.difference(lastSweep) < const Duration(seconds: 20)) return;
+    lastSweep = now;
+    unawaited(_sweepHiddenUnread(client));
+  });
+  return client.onTimelineEvent.stream
+      .where((e) => _isHiddenType(e.type) && e.senderId != client.userID)
+      .listen((e) async {
+        // Счётчик комнаты обновляется чуть позже самого события
+        await Future<void>.delayed(const Duration(seconds: 1));
+        final room = client.getRoomById(e.roomId ?? '');
+        if (room == null) return;
+        await _clearIfOnlyHidden(client, room);
+      });
+}
+
+Future<void> _sweepHiddenUnread(Client client) async {
+  for (final room in client.rooms) {
+    await _clearIfOnlyHidden(client, room);
+  }
+}
+
+/// Сбрасывает счётчик комнаты, если последнее событие служебное, а настоящих непрочитанных нет
+Future<void> _clearIfOnlyHidden(Client client, Room room) async {
+  if (room.membership != Membership.join || room.notificationCount == 0) {
+    return;
+  }
+  final last = room.lastEvent;
+  if (last == null || !last.type.startsWith('dv.')) return;
+  // Поиск настоящего последнего сообщения запускается здесь же; если он ещё идёт,
+  // комната будет проверена при следующей синхронизации
+  final real = DvLastEvent.of(room);
+  if (!DvLastEvent.resolved(room)) return;
+  if (real != null &&
+      real.senderId != client.userID &&
+      real.eventId != room.fullyRead) {
+    return;
+  }
+  try {
+    await client.postReceipt(room.id, ReceiptType.mReadPrivate, last.eventId);
+  } catch (_) {
+    // Не получилось: счётчик сбросится при открытии чата
+  }
+}

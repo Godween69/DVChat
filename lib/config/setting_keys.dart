@@ -72,7 +72,10 @@ enum AppSettings<T> {
   doubleTapToReact<bool>('dvchat.double_tap_to_react', false),
   // DVChat: цвет фона чата (ARGB, 0 = по умолчанию)
   chatBackgroundColorInt<int>('dvchat.chat_background_color', 0),
-  doubleTapReaction<String>('dvchat.double_tap_reaction', '❤️'),
+  // DVChat: реакция по двойному касанию по умолчанию: 👍
+  doubleTapReaction<String>('dvchat.double_tap_reaction', '👍'),
+  // DVChat: готовый градиентный фон чата (id из dv_wallpaper_presets.dart, пусто = нет)
+  chatWallpaperPreset<String>('dvchat.chat_wallpaper_preset', ''),
   // DVChat: оформление списков: plain (обычное), plates (плашки), frames (рамки)
   listStyle<String>('dvchat.list_style', 'plain'),
   // DVChat: контраст плашек и рамок с фоном (0..1)

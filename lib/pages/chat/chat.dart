@@ -200,33 +200,58 @@ class ChatController extends State<ChatPageWithRoom>
     selectedEvents.clear();
   });
 
+  bool _historyBusy = false;
+  bool _futureBusy = false;
+
+  /// DVChat: подгрузка старых сообщений без кнопки. Скрытые служебные события в чате не видны,
+  /// поэтому порция из одних скрытых событий ничего не добавляет: повторяем (не больше шести раз),
+  /// пока не появятся видимые сообщения или история не кончится.
   Future<void> requestHistory([_]) async {
-    Logs().v('Requesting history...');
-    await timeline?.requestHistory(historyCount: _loadHistoryCount);
+    final timeline = this.timeline;
+    if (timeline == null || _historyBusy) return;
+    _historyBusy = true;
+    try {
+      Logs().v('Requesting history...');
+      for (var i = 0; i < 6; i++) {
+        final before = timeline.events.filterByVisibleInGui().length;
+        await timeline.requestHistory(historyCount: _loadHistoryCount);
+        if (!mounted || !timeline.canRequestHistory) break;
+        if (timeline.events.filterByVisibleInGui().length > before) break;
+      }
+    } finally {
+      _historyBusy = false;
+    }
   }
 
   Future<void> requestFuture() async {
     final timeline = this.timeline;
-    if (timeline == null) return;
-    Logs().v('Requesting future...');
+    if (timeline == null || _futureBusy) return;
+    _futureBusy = true;
+    try {
+      Logs().v('Requesting future...');
 
-    final mostRecentEvent = timeline.events.filterByVisibleInGui().firstOrNull;
+      final mostRecentEvent = timeline.events
+          .filterByVisibleInGui()
+          .firstOrNull;
 
-    await timeline.requestFuture(historyCount: _loadHistoryCount);
+      await timeline.requestFuture(historyCount: _loadHistoryCount);
 
-    if (mostRecentEvent != null) {
-      setReadMarker(eventId: mostRecentEvent.eventId);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final index = timeline.events.filterByVisibleInGui().indexOf(
-          mostRecentEvent,
-        );
-        if (index >= 0) {
-          scrollController.scrollToIndex(
-            index,
-            preferPosition: AutoScrollPosition.begin,
+      if (mostRecentEvent != null) {
+        setReadMarker(eventId: mostRecentEvent.eventId);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final index = timeline.events.filterByVisibleInGui().indexOf(
+            mostRecentEvent,
           );
-        }
-      });
+          if (index >= 0) {
+            scrollController.scrollToIndex(
+              index,
+              preferPosition: AutoScrollPosition.begin,
+            );
+          }
+        });
+      }
+    } finally {
+      _futureBusy = false;
     }
   }
 
@@ -237,6 +262,21 @@ class ChatController extends State<ChatPageWithRoom>
       return;
     }
     if (!scrollController.hasClients) return;
+    // DVChat: у верхнего края (в перевёрнутом списке это конец прокрутки) подгружаем историю,
+    // у нижнего края старого окна подгружаем новые сообщения; кнопки «Загрузить больше» нет
+    final scrollPosition = scrollController.position;
+    final loadedTimeline = timeline;
+    if (loadedTimeline != null && activeThreadId == null) {
+      if (scrollPosition.maxScrollExtent - scrollPosition.pixels < 800 &&
+          loadedTimeline.canRequestHistory &&
+          !loadedTimeline.isRequestingHistory) {
+        unawaited(requestHistory());
+      } else if (scrollPosition.pixels < 200 &&
+          loadedTimeline.canRequestFuture &&
+          !loadedTimeline.isRequestingFuture) {
+        unawaited(requestFuture());
+      }
+    }
     // DVChat: плашку «перейти к последнему прочитанному» убираем, когда человек сам
     // прокрутил вверх и вернулся вниз; иначе она возвращалась бы при каждом входе
     if (scrollUpBannerEventId != null) {
@@ -1349,6 +1389,17 @@ class ChatController extends State<ChatPageWithRoom>
   void _startEditingEvent(Event event, {bool clearSelection = false}) {
     final timeline = this.timeline;
     if (timeline == null) return;
+
+    // DVChat: список покупок правится в своём окне, а не как обычный текст
+    if (dvShoppingOf(event) != null) {
+      if (clearSelection) {
+        setState(() {
+          selectedEvents.clear();
+        });
+      }
+      openShoppingEditor(context, event, timeline, focusNew: false);
+      return;
+    }
 
     final client = currentRoomBundle.firstWhere(
       (c) => c?.userID == event.senderId,

@@ -12,6 +12,7 @@ import 'package:dvchat/pages/chat/events/state_message.dart';
 import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/color_value.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
+import 'package:dvchat/utils/dv_wallpaper_presets.dart';
 import 'package:dvchat/widgets/avatar.dart';
 import 'package:dvchat/widgets/dv_list_card.dart';
 import 'package:dvchat/widgets/layouts/max_width_body.dart';
@@ -38,6 +39,81 @@ class SettingsStyleView extends StatelessWidget {
     ),
   );
 
+  /// Круглый цветной значок темы; выбранный обведён
+  Widget _themeChip(ThemeMode mode, IconData icon, Color color, String label) {
+    final selected = controller.currentTheme == mode;
+    return Expanded(
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => controller.switchTheme(mode),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withAlpha(selected ? 70 : 30),
+                  border: Border.all(
+                    color: selected ? color : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+                child: Icon(icon, color: color, size: 30),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Ряд готовых обоев: первый кружок «без обоев»
+  Widget _presetRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = AppSettings.chatWallpaperPreset.value;
+    Widget swatch(String id, Widget? inner, Gradient? g, String label) {
+      final selected = current == id;
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: () => controller.setWallpaperPreset(id),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: g,
+              color: g == null ? theme.colorScheme.surfaceContainerHighest : null,
+              border: Border.all(
+                color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                width: selected ? 3 : 1,
+              ),
+            ),
+            child: inner,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          swatch('', const Icon(Icons.block, size: 20), null, 'Без обоев'),
+          for (final p in DvWallpapers.all) swatch(p.id, null, p.swatch, p.name),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -57,26 +133,12 @@ class SettingsStyleView extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: SegmentedButton<ThemeMode>(
-                selected: {controller.currentTheme},
-                onSelectionChanged: (selected) =>
-                    controller.switchTheme(selected.single),
-                segments: [
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    label: Text(L10n.of(context).lightTheme),
-                    icon: const Icon(Icons.light_mode_outlined),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    label: Text(L10n.of(context).darkTheme),
-                    icon: const Icon(Icons.dark_mode_outlined),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    label: Text(L10n.of(context).systemTheme),
-                    icon: const Icon(Icons.auto_mode_outlined),
-                  ),
+              // DVChat: тема выбирается цветными значками (солнце, луна, авто)
+              child: Row(
+                children: [
+                  _themeChip(ThemeMode.light, Icons.light_mode, Colors.amber.shade700, L10n.of(context).lightTheme),
+                  _themeChip(ThemeMode.dark, Icons.dark_mode, Colors.indigo.shade400, L10n.of(context).darkTheme),
+                  _themeChip(ThemeMode.system, Icons.brightness_auto, Colors.teal, L10n.of(context).systemTheme),
                 ],
               ),
             ),
@@ -451,6 +513,18 @@ class SettingsStyleView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    Divider(color: theme.dividerColor),
+                    ListTile(
+                      title: Text(
+                        'Готовые обои',
+                        style: TextStyle(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text('Свою картинку можно поставить ниже, она важнее'),
+                    ),
+                    _presetRow(context),
                     Divider(color: theme.dividerColor),
                     ListTile(
                       title: TextButton.icon(

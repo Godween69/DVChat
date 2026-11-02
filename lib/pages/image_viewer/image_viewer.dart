@@ -60,6 +60,22 @@ class ImageViewerController extends State<ImageViewer> {
 
   late final PageController pageController;
 
+  /// Приближена ли сейчас картинка. Пока приближена, лента не листается:
+  /// сдвиг пальцем двигает саму картинку, а не переключает на соседнюю.
+  final ValueNotifier<bool> zoomed = ValueNotifier<bool>(false);
+  final Map<int, TransformationController> _zoomControllers = {};
+
+  TransformationController zoomOf(int i) {
+    return _zoomControllers.putIfAbsent(i, () {
+      final c = TransformationController();
+      c.addListener(() {
+        final z = c.value.getMaxScaleOnAxis() > 1.01;
+        if (z != zoomed.value) zoomed.value = z;
+      });
+      return c;
+    });
+  }
+
   late final List<Event> allEvents;
 
   void onKeyEvent(KeyEvent event) {
@@ -128,6 +144,10 @@ class ImageViewerController extends State<ImageViewer> {
   void dispose() {
     focusNode.dispose();
     pageController.dispose();
+    for (final c in _zoomControllers.values) {
+      c.dispose();
+    }
+    zoomed.dispose();
     super.dispose();
   }
 
