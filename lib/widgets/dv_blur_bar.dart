@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // DVChat: фон шапки экрана. Шапка прозрачная, а всё, что прокручивается под ней,
-// размывается и подкрашивается цветом страницы, чтобы заголовок читался.
+// подкрашивается цветом страницы (без размытия), чтобы заголовок читался.
 // Насколько шапка плотная, человек выбирает в «Оформлении» (ползунок «Непрозрачность шапки»):
 // слева стекло, справа сплошной цвет. Значение по умолчанию совпадает с прежним видом.
-
-import 'dart:ui' show ImageFilter;
 
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:material_ui/material_ui.dart';
@@ -38,12 +36,9 @@ class DvBlurBar extends StatelessWidget {
         final alpha = (255 * opacity).round();
         // Почти сплошная шапка: размытие под ней уже не видно, не тратим на него силы
         if (alpha >= 250) return ColoredBox(color: surface);
-        return ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: ColoredBox(color: surface.withAlpha(alpha)),
-          ),
-        );
+        // Без размытия (BackdropFilter): оно сильно нагружало видеоядро при прокрутке чата и давало тормоза.
+        // Одна полупрозрачная заливка даёт почти тот же вид и ничего не стоит.
+        return ColoredBox(color: surface.withAlpha(alpha));
       },
     );
   }

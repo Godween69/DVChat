@@ -113,7 +113,7 @@ Future<void> dvHideList(BuildContext context, Room room, DvList list) async {
 // =============================================================== лента «папочек»
 
 // Вкладки низкие, вплотную друг к другу и нижним краем заходят за панель ввода: будто воткнуты за неё.
-const double _tabHeight = 25; // было 22, выше примерно на 15%
+const double _tabHeight = 30; // было 22 -> 25 -> 30 (ещё выше на 20%)
 const double _tabTuck = 6; // насколько вкладка уходит за панель ввода
 const BorderRadius _tabShape = BorderRadius.vertical(top: Radius.circular(11));
 

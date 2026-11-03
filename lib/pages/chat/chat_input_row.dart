@@ -152,19 +152,22 @@ class ChatInputRow extends StatelessWidget {
                         onPressed: () async {
                           // Меню выезжает над полем ввода: сначала прячем клавиатуру и ждём, пока она уйдёт,
                           // иначе меню появляется на старом месте и ломается
-                          if (MediaQuery.viewInsetsOf(anchor).bottom > 0) {
+                          // Высоту клавиатуры берём у системы напрямую: внутри Scaffold MediaQuery её уже «съел»
+                          // и показывает 0, из-за чего раньше мы не ждали и меню появлялось раньше ухода клавиатуры
+                          final view =
+                              WidgetsBinding.instance.platformDispatcher.views.first;
+                          if (view.viewInsets.bottom > 0) {
                             FocusManager.instance.primaryFocus?.unfocus();
-                            for (var i = 0; i < 25; i++) {
+                            for (var i = 0;
+                                i < 20 && view.viewInsets.bottom > 0;
+                                i++) {
                               await Future<void>.delayed(
                                 const Duration(milliseconds: 40),
                               );
-                              if (!anchor.mounted) return;
-                              if (MediaQuery.viewInsetsOf(anchor).bottom == 0) {
-                                break;
-                              }
                             }
+                            // Ещё немного, чтобы поле ввода успело встать на место
                             await Future<void>.delayed(
-                              const Duration(milliseconds: 60),
+                              const Duration(milliseconds: 120),
                             );
                             if (!anchor.mounted) return;
                           }
