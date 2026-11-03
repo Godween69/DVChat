@@ -107,12 +107,8 @@ class ChatView extends StatelessWidget {
                           ? theme.colorScheme.secondaryContainer
                           : Colors.transparent
                     : theme.colorScheme.tertiaryContainer,
-                // Размытие под шапкой, пока не выбраны сообщения и нет ветки
-                flexibleSpace: DvBlurBar(
-                  enabled:
-                      controller.selectedEvents.isEmpty &&
-                      controller.activeThreadId == null,
-                ),
+                // Фон шапки в чате рисуется отдельным слоем в теле (см. ниже): так
+                // ползунок «Непрозрачность шапки» действует именно здесь.
                 automaticallyImplyLeading: false,
                 leading: controller.selectMode
                     ? IconButton(
@@ -328,6 +324,28 @@ class ChatView extends StatelessWidget {
                       GestureDetector(
                         onTap: controller.clearSingleSelectedEvent,
                         child: ChatEventList(controller: controller),
+                      ),
+                      // DVChat: фон шапки чата: статус-бар + панель + закреплённое
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: AnimatedContainer(
+                            duration: DvThemes.animationDuration,
+                            curve: DvThemes.animationCurve,
+                            height:
+                                MediaQuery.paddingOf(context).top +
+                                (theme.appBarTheme.toolbarHeight ??
+                                    kToolbarHeight) +
+                                appbarBottomHeight,
+                            child: DvBlurBar(
+                              enabled:
+                                  controller.selectedEvents.isEmpty &&
+                                  controller.activeThreadId == null,
+                            ),
+                          ),
+                        ),
                       ),
                       Positioned(
                         bottom: 0,
