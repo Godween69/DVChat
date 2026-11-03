@@ -48,11 +48,15 @@ class QrScannerModalState extends State<QrScannerModal> {
           QRView(
             key: qrKey,
             onQRViewCreated: _onQRViewCreated,
+            // Ищем только QR: сканер не тратит время на другие виды кодов
+            formatsAllowed: const [BarcodeFormat.qrcode],
             overlay: QrScannerOverlayShape(
               borderColor: Theme.of(context).colorScheme.primary,
               borderRadius: 10,
               borderLength: 30,
               borderWidth: 8,
+              // Крупная рамка (80% ширины): QR с экрана компьютера читается с большего расстояния
+              cutOutSize: MediaQuery.sizeOf(context).shortestSide * 0.8,
             ),
           ),
         ],

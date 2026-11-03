@@ -64,7 +64,8 @@ class ChatEventList extends StatelessWidget {
         padding: EdgeInsets.only(
           top: 8 + MediaQuery.paddingOf(context).top,
           bottom:
-              8 +
+              // В личном чате над панелью ввода лента «папочек»: даём лишний воздух под последним сообщением
+              (controller.room.isDirectChat ? 24 : 8) +
               (controller.inputBarHeight ??
                   (72 + (DvThemes.isColumnMode(context) ? 16 : 0))),
           left: horizontalPadding,

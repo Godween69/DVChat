@@ -45,9 +45,11 @@ Future<T?> showAdaptiveBottomSheet<T>({
     context: context,
     builder: (context) => ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.viewInsetsOf(context).bottom +
-            min(MediaQuery.sizeOf(context).height - 32, 600),
+        // Не выше видимой области: над клавиатурой остаётся (высота - клавиатура - 32), не больше 600
+        maxHeight: min(
+          MediaQuery.sizeOf(context).height - 32,
+          MediaQuery.viewInsetsOf(context).bottom + 600,
+        ),
       ),
       child: builder(context),
     ),

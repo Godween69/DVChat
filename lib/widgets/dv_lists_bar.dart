@@ -45,15 +45,31 @@ Future<void> dvCreateList(BuildContext context, Room room) async {
   }
 }
 
+/// Закрывает клавиатуру и ждёт, пока она уйдёт (до ~0,6 с). Без этого лист появлялся над
+/// ещё открытой клавиатурой, а потом «уезжал» за верх экрана, когда клавиатура пряталась.
+Future<void> _dvHideKeyboard(BuildContext context) async {
+  final view = WidgetsBinding.instance.platformDispatcher.views.first;
+  if (view.viewInsets.bottom <= 0) return;
+  FocusManager.instance.primaryFocus?.unfocus();
+  for (var i = 0; i < 12 && view.viewInsets.bottom > 0; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+}
+
 Future<void> dvOpenList(
   BuildContext context,
   Room room,
   String listId, {
   bool focusNew = false,
-}) => showAdaptiveBottomSheet<void>(
-  context: context,
-  builder: (_) => DvListSheet(room: room, listId: listId, focusNew: focusNew),
-);
+}) async {
+  // Если сразу ставим курсор в поле листа, клавиатура и так понадобится: ждать не нужно
+  if (!focusNew) await _dvHideKeyboard(context);
+  if (!context.mounted) return;
+  await showAdaptiveBottomSheet<void>(
+    context: context,
+    builder: (_) => DvListSheet(room: room, listId: listId, focusNew: focusNew),
+  );
+}
 
 /// Убрать список только у себя (после подтверждения). Убрать можно выполненный или пустой список.
 Future<void> dvHideList(BuildContext context, Room room, DvList list) async {
@@ -97,7 +113,7 @@ Future<void> dvHideList(BuildContext context, Room room, DvList list) async {
 // =============================================================== лента «папочек»
 
 // Вкладки низкие, вплотную друг к другу и нижним краем заходят за панель ввода: будто воткнуты за неё.
-const double _tabHeight = 22;
+const double _tabHeight = 25; // было 22, выше примерно на 15%
 const double _tabTuck = 6; // насколько вкладка уходит за панель ввода
 const BorderRadius _tabShape = BorderRadius.vertical(top: Radius.circular(11));
 

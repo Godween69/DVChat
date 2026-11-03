@@ -15,9 +15,9 @@ import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
-import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 
@@ -171,6 +171,99 @@ class DvAuth {
   }
 }
 
+/// Окно ввода числа с экрана входа: фиксированная вёрстка, крупные цифры, ничего не прыгает.
+class _NumberDialog extends StatefulWidget {
+  const _NumberDialog({required this.title, required this.where});
+
+  final String title;
+  final String where;
+
+  @override
+  State<_NumberDialog> createState() => _NumberDialogState();
+}
+
+class _NumberDialogState extends State<_NumberDialog> {
+  final TextEditingController _c = TextEditingController();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_c.text.length == 3) Navigator.of(context).pop(_c.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      scrollable: true,
+      title: Text(widget.title, style: const TextStyle(fontSize: 18)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.where.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withAlpha(120),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                widget.where,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          const SizedBox(height: 14),
+          const Text(
+            'Если это не вы, нажмите «Отмена». Иначе введите число с экрана входа.',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _c,
+            autofocus: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: 3,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 10,
+            ),
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: '000',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(
+          onPressed: _c.text.length == 3 ? _submit : null,
+          child: const Text('Подтвердить'),
+        ),
+      ],
+    );
+  }
+}
+
 /// Полный путь: ссылка → «куда входите?» → число с экрана → подтверждение.
 Future<void> confirmAuthLink(BuildContext context, String link) async {
   final messenger = ScaffoldMessenger.of(context);
@@ -196,18 +289,9 @@ Future<void> confirmAuthLink(BuildContext context, String link) async {
       if (info.ip.isNotEmpty) 'Адрес: ${info.ip}',
       if (info.agent.isNotEmpty) info.agent,
     ].join('\n');
-    final number = await showTextInputDialog(
+    final number = await showDialog<String>(
       context: context,
-      title: what,
-      message:
-          '${where.isEmpty ? '' : '$where\n\n'}Если это не вы, нажмите «Отмена». '
-          'Иначе введите число, которое показано на экране входа.',
-      okLabel: 'Подтвердить',
-      cancelLabel: 'Отмена',
-      hintText: 'Число с экрана',
-      keyboardType: TextInputType.number,
-      maxLength: 3,
-      autocorrect: false,
+      builder: (_) => _NumberDialog(title: what, where: where),
     );
     if (number == null || number.trim().isEmpty) return;
     if (!context.mounted) return;
