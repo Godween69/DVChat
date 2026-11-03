@@ -150,6 +150,24 @@ class ChatInputRow extends StatelessWidget {
                         icon: const Icon(Icons.add_circle_outline),
                         color: theme.colorScheme.onPrimaryContainer,
                         onPressed: () async {
+                          // Меню выезжает над полем ввода: сначала прячем клавиатуру и ждём, пока она уйдёт,
+                          // иначе меню появляется на старом месте и ломается
+                          if (MediaQuery.viewInsetsOf(anchor).bottom > 0) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            for (var i = 0; i < 25; i++) {
+                              await Future<void>.delayed(
+                                const Duration(milliseconds: 40),
+                              );
+                              if (!anchor.mounted) return;
+                              if (MediaQuery.viewInsetsOf(anchor).bottom == 0) {
+                                break;
+                              }
+                            }
+                            await Future<void>.delayed(
+                              const Duration(milliseconds: 60),
+                            );
+                            if (!anchor.mounted) return;
+                          }
                           final choice =
                               await showDvGlassMenu<AddPopupMenuActions>(
                                 anchor,

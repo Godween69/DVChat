@@ -19,6 +19,7 @@ import 'package:dvchat/utils/app_locale.dart';
 import 'package:dvchat/utils/client_manager.dart';
 import 'package:dvchat/utils/dv_album.dart';
 import 'package:dvchat/utils/dv_nicknames.dart';
+import 'package:dvchat/utils/dv_lists.dart';
 import 'package:dvchat/utils/dv_read_notice.dart';
 import 'package:dvchat/utils/dv_shopping_keys.dart';
 import 'package:dvchat/utils/dv_stories.dart';
@@ -186,6 +187,7 @@ Future<void> _tryPushHelper(
       event.type != dvReadEventType &&
       event.type != DvGameNet.eventType &&
       event.type != DvStories.eventType &&
+      event.type != dvListPingType &&
       !client.pushruleEvaluator.match(event).notify) {
     Logs().i('Push helper: filtered by client-side push rules.');
     return;
@@ -246,6 +248,18 @@ Future<void> _tryPushHelper(
   if (event.type == DvStories.eventType) {
     if (event.senderId == client.userID) return;
     customBody = 'Опубликовал(а) новую историю';
+  }
+
+  // DVChat: общий список: половина, остался один пункт, всё готово (скрытое событие dv.list)
+  if (event.type == dvListPingType) {
+    if (!AppSettings.notifyAboutLists.value) {
+      Logs().i('Push helper: list notifications are turned off.');
+      return;
+    }
+    if (event.senderId == client.userID) return;
+    final listText = DvLists.pingText(event.content);
+    if (listText == null) return;
+    customBody = listText;
   }
 
   // DVChat: «собеседник прочитал ваше сообщение» (скрытое событие dv.read)

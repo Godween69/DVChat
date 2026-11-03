@@ -104,6 +104,16 @@ class SettingsNotificationsView extends StatelessWidget {
                     onChanged: controller.setGameNotifications,
                   ),
                 ),
+                ListTile(
+                  title: const Text('Уведомления о списках'),
+                  subtitle: const Text(
+                    'Когда в общем списке отмечена половина, остался один пункт или всё готово',
+                  ),
+                  trailing: Switch.adaptive(
+                    value: AppSettings.notifyAboutLists.value,
+                    onChanged: controller.setListNotifications,
+                  ),
+                ),
               ],
             );
           },

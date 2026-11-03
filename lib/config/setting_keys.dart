@@ -45,6 +45,7 @@ enum AppSettings<T> {
   notifyAboutReadReceipts<bool>('dvchat.notify_read_receipts', true),
   // DVChat: уведомления от игр (ваш ход) и отключённые партии
   notifyAboutGames<bool>('dvchat.notify_games', true),
+  notifyAboutLists<bool>('dvchat.notify_lists', true),
   mutedGames<List<String>>('dvchat.muted_games', []),
   sendTypingNotifications<bool>('dvchat.send_typing_notifications', true),
   sendPublicReadReceipts<bool>('dvchat.send_public_read_receipts', true),

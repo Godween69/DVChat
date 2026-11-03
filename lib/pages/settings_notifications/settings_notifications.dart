@@ -98,6 +98,13 @@ class SettingsNotificationsController extends State<SettingsNotifications> {
     setState(() {});
   }
 
+  // DVChat: уведомления об общих списках
+  Future<void> setListNotifications(bool on) async {
+    await AppSettings.notifyAboutLists.setItem(on);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) => SettingsNotificationsView(this);
 }

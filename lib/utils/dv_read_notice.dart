@@ -47,7 +47,10 @@ Future<void> sendReadNotice(Room room, Timeline timeline) async {
 }
 
 bool _isHiddenType(String type) =>
-    type == dvReadEventType || type == 'dv.game' || type == 'dv.story';
+    type == dvReadEventType ||
+    type == 'dv.game' ||
+    type == 'dv.story' ||
+    type == 'dv.list';
 
 /// Скрытые события (dv.read, dv.story и ходы игр) сервер считает новыми уведомлениями и поднимает
 /// счётчик непрочитанных, хотя в чате ничего нового нет. Если настоящих непрочитанных сообщений

@@ -80,6 +80,66 @@ void main() {
     });
   });
 
+  group('правила списков', () {
+    const a = DvListItem(id: 'a', text: 'Молоко', by: '@x:s');
+    test('удалять можно только свои пункты', () {
+      expect(a.canRemove('@x:s'), isTrue);
+      expect(a.canRemove('@y:s'), isFalse);
+      expect(const DvListItem(id: 'o', text: 'старый').canRemove('@y:s'), isTrue);
+    });
+
+    test('снять отметку может только тот, кто её поставил', () {
+      final ticked = a.copyWith(done: true, doneBy: '@y:s');
+      expect(ticked.canUntick('@y:s'), isTrue);
+      expect(ticked.canUntick('@x:s'), isFalse);
+      expect(a.canUntick('@x:s'), isTrue);
+    });
+
+    test('убрать у себя можно выполненный или пустой список', () {
+      expect(_list().canHide, isTrue);
+      expect(_list(items: const [a]).canHide, isFalse);
+      expect(_list(items: [a.copyWith(done: true)]).canHide, isTrue);
+    });
+
+    test('переименовывает создатель, у старых списков любой', () {
+      expect(_list().canRename('@z:s'), isTrue);
+      final mine = _list().copyWith();
+      expect(mine.canRename('@z:s'), isTrue);
+    });
+
+    test('вехи: половина, остался один, готово, без повторов', () {
+      DvList build(int total, int done, [List<String> notified = const []]) =>
+          _list(
+            items: [
+              for (var i = 0; i < total; i++)
+                DvListItem(id: 'i$i', text: 'п$i', done: i < done),
+            ],
+          ).copyWith(notified: notified);
+      expect(DvLists.nextMilestone(build(4, 1)), isNull);
+      expect(DvLists.nextMilestone(build(4, 2))?.kind, 'half');
+      expect(DvLists.nextMilestone(build(4, 3))?.kind, 'one_left');
+      expect(DvLists.nextMilestone(build(4, 4))?.kind, 'done');
+      expect(DvLists.nextMilestone(build(4, 2, ['half'])), isNull);
+      expect(DvLists.nextMilestone(build(1, 1))?.kind, 'done');
+    });
+
+    test('тексты уведомлений', () {
+      expect(
+        DvLists.pingText({'kind': 'done', 'title': 'Покупки'}),
+        'Выполнил(а) список «Покупки»',
+      );
+      expect(
+        DvLists.pingText({'kind': 'one_left', 'title': 'Покупки'}),
+        'В списке «Покупки» остался один пункт',
+      );
+      expect(
+        DvLists.pingText({'kind': 'half', 'title': 'Покупки', 'done': 2, 'total': 4}),
+        'Список «Покупки»: отмечено 2 из 4',
+      );
+      expect(DvLists.pingText({'kind': 'half', 'title': ' '}), isNull);
+    });
+  });
+
   group('подтверждение входа', () {
     test('ссылка dvchat://auth# разбирается', () {
       expect(parseAuthLink('dvchat://auth#eyJjIjoiQWJDZDEyMzRfLXh5eiJ9'), 'AbCd1234_-xyz');

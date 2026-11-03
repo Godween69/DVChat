@@ -1,17 +1,38 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: общие списки в личном чате (покупки, дела). Над полем ввода торчат «папочки»: по одной на список,
-// с названием и счётчиком («3/8») или зелёной галочкой «Выполнен». Нажатие открывает панель со списком:
-// пункты с галочками, поле нового пункта. Оба участника видят изменения сразу.
-// Логика и хранение: utils/dv_lists.dart.
+// DVChat: общие списки в личном чате (покупки, дела). Над полем ввода торчат «папочки»: слева всегда
+// плюс (создать список), дальше по одной вкладке на список: цветная, полупрозрачная, с названием и счётчиком
+// («3/8»). Выполненный список становится серым с зелёной галочкой и надписью «Готово». Нажатие открывает
+// панель со списком, долгое нажатие на выполненный список убирает его у себя.
+// Логика, правила и хранение: utils/dv_lists.dart.
 
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_lists.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
 const Color _doneColor = Color(0xFF34B27B);
+
+// Цвета вкладок: спокойные, у каждого списка свой (по номеру списка, не меняется со временем).
+// Зелёный занят под «Готово».
+const List<Color> _tabColors = [
+  DvMenuColors.blue,
+  DvMenuColors.purple,
+  DvMenuColors.orange,
+  DvMenuColors.pink,
+  DvMenuColors.teal,
+  DvMenuColors.amber,
+];
+
+Color _colorOf(String listId) {
+  var sum = 0;
+  for (final c in listId.codeUnits) {
+    sum += c;
+  }
+  return _tabColors[sum % _tabColors.length];
+}
 
 /// Имя человека для подписей: «вы» или имя собеседника
 String _who(Room room, String userId) {
@@ -37,7 +58,7 @@ Future<void> dvCreateList(BuildContext context, Room room) async {
   final title = await showTextInputDialog(
     context: context,
     title: 'Новый список',
-    hintText: 'Например, Покупки',
+    hintText: 'Например, Покупки или Дела',
     okLabel: 'Создать',
     cancelLabel: 'Отмена',
     maxLength: DvLists.maxTitle,
@@ -62,7 +83,48 @@ Future<void> dvOpenList(
   builder: (_) => DvListSheet(room: room, listId: listId, focusNew: focusNew),
 );
 
+/// Убрать список только у себя (после подтверждения). Убрать можно выполненный или пустой список.
+Future<void> dvHideList(BuildContext context, Room room, DvList list) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (!list.canHide) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Убрать список можно, когда все пункты отмечены'),
+      ),
+    );
+    return;
+  }
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Убрать «${list.title}» у себя?'),
+      content: const Text(
+        'Список исчезнет только у вас, у собеседника он останется. '
+        'Он вернётся к вам, если в нём что-то изменят.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Отмена'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Убрать'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await DvLists.hide(room, list);
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+  }
+}
+
 // =============================================================== лента «папочек»
+
+const BorderRadius _tabShape = BorderRadius.vertical(top: Radius.circular(16));
 
 class DvListsBar extends StatelessWidget {
   const DvListsBar(this.room, {super.key});
@@ -71,25 +133,45 @@ class DvListsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return StreamBuilder<SyncUpdate>(
       stream: room.client.onSync.stream,
       builder: (context, snapshot) => ValueListenableBuilder<int>(
         valueListenable: DvLists.tick,
         builder: (context, tick, child) {
           final lists = DvLists.visible(room);
-          if (lists.isEmpty) return const SizedBox.shrink();
           return SizedBox(
-            height: 36,
+            height: 40,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(30, 0, 14, 0),
               children: [
-                for (final list in lists)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _ListTab(room: room, list: list),
+                // Плюс стоит слева всегда
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _AddTab(room),
                   ),
-                if (DvLists.canEdit(room)) _AddTab(room),
+                ),
+                if (lists.isEmpty)
+                  Center(
+                    child: Text(
+                      'Создай список дел или покупок',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface.withAlpha(105),
+                      ),
+                    ),
+                  ),
+                for (final list in lists)
+                  Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _ListTab(room: room, list: list),
+                    ),
+                  ),
               ],
             ),
           );
@@ -98,8 +180,6 @@ class DvListsBar extends StatelessWidget {
     );
   }
 }
-
-const BorderRadius _tabShape = BorderRadius.vertical(top: Radius.circular(14));
 
 class _ListTab extends StatelessWidget {
   const _ListTab({required this.room, required this.list});
@@ -111,48 +191,63 @@ class _ListTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final done = list.complete;
+    // Выполненный список серый, остальные цветные и полупрозрачные
+    final base = done ? theme.colorScheme.onSurface : _colorOf(list.id);
     return Material(
-      color: theme.colorScheme.surfaceContainer,
-      borderRadius: _tabShape,
-      child: InkWell(
+      color: base.withAlpha(done ? 18 : 40),
+      shape: RoundedRectangleBorder(
         borderRadius: _tabShape,
+        side: BorderSide(color: base.withAlpha(done ? 36 : 85)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: () => dvOpenList(context, room, list.id),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                done ? Icons.check_circle : Icons.checklist_rounded,
-                size: 17,
-                color: done ? _doneColor : theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 130),
-                child: Text(
-                  list.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+        onLongPress: () => dvHideList(context, room, list),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 116),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  done ? Icons.check_circle : Icons.checklist_rounded,
+                  size: 17,
+                  color: done ? _doneColor : base,
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                done
-                    ? 'Выполнен'
-                    : list.total == 0
-                    ? 'пусто'
-                    : '${list.doneCount}/${list.total}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: done ? FontWeight.bold : FontWeight.normal,
-                  color: done
-                      ? _doneColor
-                      : theme.colorScheme.onSurfaceVariant,
+                const SizedBox(width: 7),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    list.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: done
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 7),
+                Text(
+                  done
+                      ? 'Готово'
+                      : list.total == 0
+                      ? 'пусто'
+                      : '${list.doneCount}/${list.total}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: done ? FontWeight.bold : FontWeight.normal,
+                    color: done
+                        ? _doneColor
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -167,22 +262,21 @@ class _AddTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainer,
-      borderRadius: _tabShape,
-      child: InkWell(
-        borderRadius: _tabShape,
-        onTap: () => dvCreateList(context, room),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Tooltip(
-            message: 'Новый список',
-            child: Icon(
-              Icons.add,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+    final color = Theme.of(context).colorScheme.primary;
+    return Tooltip(
+      message: 'Новый список',
+      child: Material(
+        color: color.withAlpha(34),
+        shape: RoundedRectangleBorder(
+          borderRadius: _tabShape,
+          side: BorderSide(color: color.withAlpha(75)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => dvCreateList(context, room),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Icon(Icons.add, size: 20, color: color),
           ),
         ),
       ),
@@ -264,29 +358,43 @@ class _DvListSheetState extends State<DvListSheet> {
     await _run(() => DvLists.rename(widget.room, list.id, title));
   }
 
-  Future<void> _hide(DvList list) async {
-    final ok = await showDialog<bool>(
+  void _info() {
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Убрать список у себя?'),
-        content: const Text(
-          'Список исчезнет только у вас, у собеседника он останется. '
-          'Он вернётся к вам, если в нём что-то изменят.',
+        title: const Text('Как работает список'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InfoLine('Добавлять пункты может каждый из вас.'),
+              _InfoLine('Свой пункт можно удалить, чужой нельзя.'),
+              _InfoLine(
+                'Отметить пункт может любой, а снять отметку только тот, кто её поставил.',
+              ),
+              _InfoLine(
+                'Название меняет тот, кто создал список: нажмите на название.',
+              ),
+              _InfoLine(
+                'Придёт уведомление, когда отмечена половина, остался один пункт и когда всё готово. '
+                'Отключить его можно в настройках уведомлений.',
+              ),
+              _InfoLine(
+                'Когда всё отмечено, вкладка становится серой с пометкой «Готово». '
+                'Убрать её у себя можно кнопкой в списке или долгим нажатием на вкладку. '
+                'У собеседника список останется, пока он не уберёт его сам.',
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Убрать'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Понятно'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
-    await _run(() => DvLists.hide(widget.room, list));
   }
 
   @override
@@ -319,7 +427,9 @@ class _DvListSheetState extends State<DvListSheet> {
   Widget _body(BuildContext context, DvList list) {
     final room = widget.room;
     final theme = Theme.of(context);
+    final me = room.client.userID ?? '';
     final canEdit = DvLists.canEdit(room);
+    final canRename = canEdit && list.canRename(me);
     final complete = list.complete;
     return SafeArea(
       child: Padding(
@@ -333,61 +443,56 @@ class _DvListSheetState extends State<DvListSheet> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          list.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        Text(
-                          complete
-                              ? 'Выполнен'
-                              : list.total == 0
-                              ? 'Пока пусто'
-                              : 'Отмечено ${list.doneCount} из ${list.total}',
-                          style: TextStyle(
-                            color: complete
-                                ? _doneColor
-                                : theme.colorScheme.onSurfaceVariant,
-                            fontWeight: complete
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: canRename ? () => _rename(list) : null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  list.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                              ),
+                              if (canRename)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: Icon(
+                                    Icons.edit_outlined,
+                                    size: 15,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                            ],
                           ),
-                        ),
-                      ],
+                          Text(
+                            complete
+                                ? 'Готово'
+                                : list.total == 0
+                                ? 'Пока пусто'
+                                : 'Отмечено ${list.doneCount} из ${list.total}',
+                            style: TextStyle(
+                              color: complete
+                                  ? _doneColor
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: complete
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Действия со списком',
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'rename':
-                          _rename(list);
-                        case 'clear':
-                          _run(() => DvLists.clearDone(room, list.id));
-                        case 'hide':
-                          _hide(list);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (canEdit)
-                        const PopupMenuItem(
-                          value: 'rename',
-                          child: Text('Переименовать'),
-                        ),
-                      if (canEdit && list.doneCount > 0)
-                        const PopupMenuItem(
-                          value: 'clear',
-                          child: Text('Убрать выполненные'),
-                        ),
-                      const PopupMenuItem(
-                        value: 'hide',
-                        child: Text('Убрать список у меня'),
-                      ),
-                    ],
+                  IconButton(
+                    tooltip: 'Как работает список',
+                    icon: const Icon(Icons.info_outline),
+                    onPressed: _info,
                   ),
                 ],
               ),
@@ -403,6 +508,15 @@ class _DvListSheetState extends State<DvListSheet> {
                 ),
               ),
             ),
+            if (list.canHide)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: FilledButton.tonalIcon(
+                  onPressed: () => dvHideList(context, room, list),
+                  icon: const Icon(Icons.visibility_off_outlined),
+                  label: const Text('Убрать список у меня'),
+                ),
+              ),
             Flexible(
               child: list.items.isEmpty
                   ? Padding(
@@ -427,7 +541,7 @@ class _DvListSheetState extends State<DvListSheet> {
                         canEdit: canEdit,
                         onError: (e) => ScaffoldMessenger.of(
                           context,
-                        ).showSnackBar(SnackBar(content: Text('Не получилось: $e'))),
+                        ).showSnackBar(SnackBar(content: Text('$e'))),
                       ),
                     ),
             ),
@@ -478,6 +592,27 @@ class _DvListSheetState extends State<DvListSheet> {
   }
 }
 
+class _InfoLine extends StatelessWidget {
+  const _InfoLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 6, right: 8),
+          child: Icon(Icons.circle, size: 5),
+        ),
+        Expanded(child: Text(text)),
+      ],
+    ),
+  );
+}
+
 class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.room,
@@ -512,9 +647,13 @@ class _ItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final me = room.client.userID ?? '';
     final doneBy = _who(room, item.doneBy);
+    // Отметку чужого пункта-галочки снять нельзя: она неактивна, но видна
+    final canToggle = canEdit && item.canUntick(me);
+    final canRemove = canEdit && item.canRemove(me);
     return InkWell(
-      onTap: canEdit ? _toggle : null,
+      onTap: canToggle ? _toggle : null,
       child: Padding(
         padding: const EdgeInsets.only(left: 12, right: 4),
         child: Row(
@@ -522,7 +661,7 @@ class _ItemRow extends StatelessWidget {
             Checkbox(
               value: item.done,
               activeColor: _doneColor,
-              onChanged: canEdit ? (_) => _toggle() : null,
+              onChanged: canToggle ? (_) => _toggle() : null,
             ),
             Expanded(
               child: Padding(
@@ -551,13 +690,15 @@ class _ItemRow extends StatelessWidget {
                 ),
               ),
             ),
-            if (canEdit)
+            if (canRemove)
               IconButton(
                 tooltip: 'Убрать пункт',
                 icon: const Icon(Icons.close, size: 18),
                 color: theme.colorScheme.onSurfaceVariant,
                 onPressed: _remove,
-              ),
+              )
+            else
+              const SizedBox(width: 48),
           ],
         ),
       ),

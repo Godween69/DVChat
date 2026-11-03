@@ -631,37 +631,64 @@ final List<Color> _dvSeeds = [
     HSLColor.fromAHSL(1, h.toDouble(), 0.78, 0.5).toColor(),
 ];
 
-/// DVChat: образец шапки над несколькими строками текста: видно, как она ляжет на сообщения
+/// DVChat: образец шапки как в чате: обои, несколько сообщений и шапка поверх них
 class _HeaderSample extends StatelessWidget {
   const _HeaderSample();
+
+  Widget _bubble(BuildContext context, String text, {required bool mine}) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: mine
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: mine
+                ? theme.colorScheme.onPrimaryContainer
+                : theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final preset = DvWallpapers.byId(AppSettings.chatWallpaperPreset.value);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          height: 96,
+          height: 190,
           child: Stack(
             children: [
+              Positioned.fill(child: ColoredBox(color: theme.colorScheme.surface)),
+              if (preset != null)
+                Positioned.fill(
+                  child: DvWallpaperLayer(
+                    preset: preset,
+                    dark: theme.brightness == Brightness.dark,
+                  ),
+                ),
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                  padding: const EdgeInsets.fromLTRB(12, 50, 12, 8),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final line in const [
-                        'Купил молоко и хлеб, заеду через час',
-                        'Хорошо, не забудь яйца',
-                        'Уже в магазине, беру десяток',
-                        'Спасибо, жду дома',
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(line, style: theme.textTheme.bodyMedium),
-                        ),
+                      _bubble(context, 'Купил молоко и хлеб, заеду через час', mine: false),
+                      _bubble(context, 'Хорошо, не забудь яйца', mine: true),
+                      _bubble(context, 'Уже в магазине, беру десяток', mine: false),
                     ],
                   ),
                 ),
@@ -670,14 +697,14 @@ class _HeaderSample extends StatelessWidget {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 40,
+                height: 44,
                 child: Stack(
                   children: [
                     const Positioned.fill(child: DvBlurBar()),
                     Center(
                       child: Text(
-                        'Так выглядит шапка',
-                        style: theme.textTheme.titleSmall,
+                        'Собеседник',
+                        style: theme.textTheme.titleMedium,
                       ),
                     ),
                   ],

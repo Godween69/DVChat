@@ -6,11 +6,23 @@
 // комнаты online.dvbstudio.dvchat.lists_hidden и собеседника не касается: список возвращается,
 // если после того, как его убрали, в нём что-то изменили.
 //
+// Правила (проверяет приложение, сервер хранит список целиком):
+//   пункт добавляет любой; удалить пункт может только тот, кто его добавил;
+//   отметить пункт может любой; снять отметку может только тот, кто её поставил;
+//   переименовать список может только его создатель;
+//   убрать список у себя можно, когда все пункты отмечены (или список пуст).
+//
+// Уведомления: когда отмечено полсписка, остался один пункт или всё готово, собеседнику уходит
+// скрытое событие dv.list (в ленте не видно, приходит пушем, как dv.read и dv.story). Чтобы не
+// повторяться, достигнутые рубежи запоминаются в самом списке (поле notified).
+//
 // Содержимое списка (content состояния):
-//   title    название
-//   items    пункты: id, text, done, by (кто добавил), done_by (кто отметил), at (время добавления)
-//   created  время создания списка, мс
-//   updated  время последней правки, мс (растёт при каждой правке)
+//   title     название
+//   creator   кто создал (Matrix-идентификатор; у старых списков пусто)
+//   items     пункты: id, text, done, by (кто добавил), done_by (кто отметил), at (время добавления)
+//   notified  рубежи, о которых уже сообщили: half, one_left, done
+//   created   время создания списка, мс
+//   updated   время последней правки, мс (растёт при каждой правке)
 
 import 'dart:math';
 
@@ -19,6 +31,9 @@ import 'package:matrix/matrix.dart';
 
 const String dvListType = 'online.dvbstudio.dvchat.list';
 const String dvListsHiddenType = 'online.dvbstudio.dvchat.lists_hidden';
+
+/// Скрытое событие для пуша о ходе выполнения списка
+const String dvListPingType = 'dv.list';
 
 /// Ошибка с понятным человеку текстом.
 class DvListsException implements Exception {
@@ -60,6 +75,12 @@ class DvListItem {
     at: at,
   );
 
+  /// Удалить пункт может только тот, кто его добавил (у пункта без автора может любой)
+  bool canRemove(String me) => by.isEmpty || by == me;
+
+  /// Снять отметку может только тот, кто её поставил (без автора отметки может любой)
+  bool canUntick(String me) => !done || doneBy.isEmpty || doneBy == me;
+
   Map<String, Object?> toJson() => {
     'id': id,
     'text': text,
@@ -97,6 +118,8 @@ class DvList {
     required this.items,
     required this.created,
     required this.updated,
+    this.creator = '',
+    this.notified = const [],
   });
 
   final String id;
@@ -105,24 +128,44 @@ class DvList {
   final int created;
   final int updated;
 
+  /// Кто создал список (у списков из первых тестовых сборок пусто)
+  final String creator;
+
+  /// Рубежи, о которых собеседнику уже сообщили: half, one_left, done
+  final List<String> notified;
+
   int get total => items.length;
   int get doneCount => items.where((i) => i.done).length;
 
   /// Все пункты отмечены (у пустого списка «выполнен» не бывает)
   bool get complete => items.isNotEmpty && doneCount == items.length;
 
-  DvList copyWith({String? title, List<DvListItem>? items, int? updated}) =>
-      DvList(
-        id: id,
-        title: title ?? this.title,
-        items: items ?? this.items,
-        created: created,
-        updated: updated ?? this.updated,
-      );
+  /// Убрать у себя можно выполненный или пустой список
+  bool get canHide => complete || items.isEmpty;
+
+  /// Переименовать может создатель (если создатель неизвестен, любой из двоих)
+  bool canRename(String me) => creator.isEmpty || creator == me;
+
+  DvList copyWith({
+    String? title,
+    List<DvListItem>? items,
+    int? updated,
+    List<String>? notified,
+  }) => DvList(
+    id: id,
+    title: title ?? this.title,
+    items: items ?? this.items,
+    created: created,
+    updated: updated ?? this.updated,
+    creator: creator,
+    notified: notified ?? this.notified,
+  );
 
   Map<String, Object?> toJson() => {
     'title': title,
+    'creator': creator,
     'items': [for (final i in items) i.toJson()],
+    'notified': notified,
     'created': created,
     'updated': updated,
   };
@@ -137,18 +180,36 @@ class DvList {
     ];
     final created = content['created'];
     final updated = content['updated'];
+    final creator = content['creator'];
+    final notified = content['notified'];
     return DvList(
       id: id,
       title: title,
       items: items,
       created: created is int ? created : 0,
       updated: updated is int ? updated : 0,
+      creator: creator is String ? creator : '',
+      notified: notified is List
+          ? [for (final n in notified) if (n is String) n]
+          : const [],
     );
   }
 }
 
+/// Рубеж выполнения списка, о котором стоит сообщить собеседнику
+class DvListMilestone {
+  const DvListMilestone(this.kind, this.notified);
+
+  /// half, one_left или done
+  final String kind;
+
+  /// Новый набор запомненных рубежей (для записи в список)
+  final List<String> notified;
+}
+
 abstract class DvLists {
   static const int maxLists = 20;
+  static const int maxAll = 100;
   static const int maxItems = 100;
   static const int maxTitle = 40;
   static const int maxText = 200;
@@ -196,6 +257,48 @@ abstract class DvLists {
   static String _clip(String text, int max) {
     final t = text.trim();
     return t.length <= max ? t : t.substring(0, max);
+  }
+
+  // ---------------------------------------------------------------- рубежи и тексты пушей
+
+  /// Какой рубеж достигнут после отметки и ещё не был объявлен. Если достигнуто сразу
+  /// несколько, объявляется самый важный (готово, остался один, половина), а остальные
+  /// запоминаются молча.
+  static DvListMilestone? nextMilestone(DvList list) {
+    final t = list.total;
+    final d = list.doneCount;
+    if (t == 0) return null;
+    final reached = <String>[
+      if (d == t) 'done',
+      if (t >= 2 && d == t - 1) 'one_left',
+      if (t >= 2 && d * 2 >= t && d < t) 'half',
+    ];
+    final fresh = reached.where((k) => !list.notified.contains(k)).toList();
+    if (fresh.isEmpty) return null;
+    const order = ['done', 'one_left', 'half'];
+    final kind = order.firstWhere(fresh.contains);
+    return DvListMilestone(kind, {...list.notified, ...reached}.toList());
+  }
+
+  /// Текст уведомления по скрытому событию dv.list (имя того, кто отметил, стоит в заголовке)
+  static String? pingText(Map<String, Object?> content) {
+    final title = content['title'];
+    if (title is! String || title.trim().isEmpty) return null;
+    final name = _clip(title, maxTitle);
+    final done = content['done'];
+    final total = content['total'];
+    switch (content['kind']) {
+      case 'done':
+        return 'Выполнил(а) список «$name»';
+      case 'one_left':
+        return 'В списке «$name» остался один пункт';
+      case 'half':
+        if (done is int && total is int) {
+          return 'Список «$name»: отмечено $done из $total';
+        }
+        return 'В списке «$name» отмечена половина';
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------- чтение
@@ -299,7 +402,12 @@ abstract class DvLists {
     if (current == null) {
       return Future<void>.error(const DvListsException('Список не найден'));
     }
-    final next = change(current);
+    final DvList next;
+    try {
+      next = change(current);
+    } on DvListsException catch (e) {
+      return Future<void>.error(e);
+    }
     return _commit(room, next.copyWith(updated: _next(current.updated)));
   }
 
@@ -310,7 +418,9 @@ abstract class DvLists {
         'Пока нельзя создавать списки в этом чате. Откройте DVChat у того, кто создал чат: права выровняются сами.',
       );
     }
-    if (all(room).length >= maxLists) {
+    final lists = all(room).values;
+    if (lists.length >= maxAll ||
+        lists.where((l) => !l.complete).length >= maxLists) {
       throw const DvListsException('Слишком много списков в этом чате');
     }
     final name = _clip(title, maxTitle);
@@ -319,11 +429,19 @@ abstract class DvLists {
     final now = _now();
     await _commit(
       room,
-      DvList(id: id, title: name, items: const [], created: now, updated: now),
+      DvList(
+        id: id,
+        title: name,
+        items: const [],
+        created: now,
+        updated: now,
+        creator: room.client.userID ?? '',
+      ),
     );
     return id;
   }
 
+  /// Переименовать может создатель списка
   static Future<void> rename(Room room, String listId, String title) {
     final name = _clip(title, maxTitle);
     if (name.isEmpty) {
@@ -331,9 +449,18 @@ abstract class DvLists {
         const DvListsException('Нужно название списка'),
       );
     }
-    return _apply(room, listId, (l) => l.copyWith(title: name));
+    final me = room.client.userID ?? '';
+    return _apply(room, listId, (l) {
+      if (!l.canRename(me)) {
+        throw const DvListsException(
+          'Переименовать список может только тот, кто его создал',
+        );
+      }
+      return l.copyWith(title: name);
+    });
   }
 
+  /// Добавляет пункт. Рубежи уведомлений сбрасываются: в списке стало больше дел
   static Future<void> addItem(Room room, String listId, String text) {
     final t = _clip(text, maxText);
     if (t.isEmpty) return Future<void>.value();
@@ -347,15 +474,26 @@ abstract class DvLists {
           ...l.items,
           DvListItem(id: _newId(), text: t, by: me, at: _now()),
         ],
+        notified: const [],
       );
     });
   }
 
-  /// Ставит или снимает отметку; кто отметил, запоминается
-  static Future<void> toggle(Room room, String listId, String itemId) {
+  /// Ставит или снимает отметку. Снять отметку может только тот, кто её поставил.
+  /// Если достигнут рубеж (половина, остался один, готово), собеседнику уходит пуш.
+  static Future<void> toggle(Room room, String listId, String itemId) async {
     final me = room.client.userID ?? '';
-    return _apply(room, listId, (l) {
-      return l.copyWith(
+    DvListMilestone? milestone;
+    DvList? result;
+    await _apply(room, listId, (l) {
+      final item = l.items.where((i) => i.id == itemId).firstOrNull;
+      if (item == null) throw const DvListsException('Пункт не найден');
+      if (!item.canUntick(me)) {
+        throw const DvListsException(
+          'Снять отметку может только тот, кто её поставил',
+        );
+      }
+      var next = l.copyWith(
         items: [
           for (final i in l.items)
             if (i.id == itemId)
@@ -364,34 +502,57 @@ abstract class DvLists {
               i,
         ],
       );
+      if (!item.done) {
+        milestone = nextMilestone(next);
+        if (milestone != null) {
+          next = next.copyWith(notified: milestone!.notified);
+        }
+      }
+      result = next;
+      return next;
+    });
+    final m = milestone;
+    final r = result;
+    if (m == null || r == null) return;
+    try {
+      await room.sendEvent({
+        'kind': m.kind,
+        'list': r.id,
+        'title': r.title,
+        'done': r.doneCount,
+        'total': r.total,
+      }, type: dvListPingType);
+    } catch (_) {
+      // Пуш не ушёл: список уже сохранён, повторять не нужно
+    }
+  }
+
+  /// Удалить пункт может только тот, кто его добавил
+  static Future<void> removeItem(Room room, String listId, String itemId) {
+    final me = room.client.userID ?? '';
+    return _apply(room, listId, (l) {
+      final item = l.items.where((i) => i.id == itemId).firstOrNull;
+      if (item == null) return l;
+      if (!item.canRemove(me)) {
+        throw const DvListsException(
+          'Удалить пункт может только тот, кто его добавил',
+        );
+      }
+      return l.copyWith(items: [
+        for (final i in l.items)
+          if (i.id != itemId) i,
+      ]);
     });
   }
 
-  static Future<void> removeItem(Room room, String listId, String itemId) {
-    return _apply(
-      room,
-      listId,
-      (l) => l.copyWith(items: [
-        for (final i in l.items)
-          if (i.id != itemId) i,
-      ]),
-    );
-  }
-
-  /// Убирает из списка все выполненные пункты (у обоих)
-  static Future<void> clearDone(Room room, String listId) {
-    return _apply(
-      room,
-      listId,
-      (l) => l.copyWith(items: [
-        for (final i in l.items)
-          if (!i.done) i,
-      ]),
-    );
-  }
-
-  /// Убрать список только у себя: собеседник его по-прежнему видит
+  /// Убрать список только у себя: собеседник его по-прежнему видит.
+  /// Убрать можно выполненный или пустой список.
   static Future<void> hide(Room room, DvList list) async {
+    if (!list.canHide) {
+      throw const DvListsException(
+        'Убрать список можно, когда все пункты отмечены',
+      );
+    }
     final map = Map<String, int>.from(hiddenOf(room));
     final known = all(room);
     map.removeWhere((id, _) => !known.containsKey(id));
