@@ -11,6 +11,7 @@ import 'package:dvchat/config/routes.dart';
 import 'package:dvchat/config/setting_keys.dart';
 import 'package:dvchat/config/themes.dart';
 import 'package:dvchat/l10n/l10n.dart';
+import 'package:dvchat/utils/dv_auth.dart';
 import 'package:dvchat/utils/dv_dev_menu.dart';
 import 'package:dvchat/utils/sign_in_flows/link_login.dart';
 import 'package:dvchat/widgets/app_lock.dart';
@@ -53,6 +54,13 @@ class DvChatApp extends StatelessWidget {
       // Workaround for content sharings passed to go router:
       if ({'content', 'sharemedia-dvchat'}.contains(state.uri.scheme)) {
         Logs().d('Ignore content sharing handling in go router', state.uri);
+        return '/';
+      }
+
+      // DVChat: подтверждение входа в сервис dvchat://auth#... (DV Auth), URI не логируем
+      if (state.uri.scheme == AppConfig.loginLinkScheme &&
+          state.uri.host == AppConfig.authLinkHost) {
+        PendingAuthLink.set(state.uri.toString());
         return '/';
       }
 

@@ -13,6 +13,7 @@ import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/chat_list/chat_list_view.dart';
 import 'package:dvchat/pages/whats_new/dv_whats_new.dart';
+import 'package:dvchat/utils/dv_auth.dart';
 import 'package:dvchat/utils/dv_crypto_heal.dart';
 import 'package:dvchat/utils/dv_dm_rights.dart';
 import 'package:dvchat/utils/error_reporter.dart';
@@ -217,6 +218,10 @@ class ChatListController extends State<ChatList>
   void initState() {
     _initReceiveSharingIntent();
 
+    // DVChat: ссылка dvchat://auth#... из системы (подтверждение входа в сервис)
+    PendingAuthLink.notifier.addListener(_onPendingAuthLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPendingAuthLink());
+
     scrollController.addListener(_onScroll);
     _waitForFirstSync();
     DvDmRights.watch(Matrix.of(context).client);
@@ -273,8 +278,15 @@ class ChatListController extends State<ChatList>
     super.initState();
   }
 
+  void _onPendingAuthLink() {
+    if (!mounted) return;
+    final link = PendingAuthLink.take();
+    if (link != null) unawaited(confirmAuthLink(context, link));
+  }
+
   @override
   void dispose() {
+    PendingAuthLink.notifier.removeListener(_onPendingAuthLink);
     _intentDataStreamSubscription?.cancel();
     _intentFileStreamSubscription?.cancel();
     _onRoomTagUpdate?.cancel();

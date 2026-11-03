@@ -80,6 +80,8 @@ enum AppSettings<T> {
   listStyle<String>('dvchat.list_style', 'plain'),
   // DVChat: контраст плашек и рамок с фоном (0..1)
   listContrast<double>('dvchat.list_contrast', 0.4),
+  // DVChat: непрозрачность шапки экранов, 0..1 (0.43 = прежний вид: размытие с лёгкой подкраской)
+  headerOpacity<double>('dvchat.header_opacity', 0.43),
   // DVChat: звук в играх (по умолчанию включён) и его громкость
   gameSound<bool>('dvchat.game_sound', true),
   gameVolume<double>('dvchat.game_volume', 0.8),

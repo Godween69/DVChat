@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 ## Что есть только в DVChat (не из FluffyChat)
 
 - `utils/sign_in_flows/link_login.dart`: вход по ссылке или QR `dvchat://login#...`
+- `utils/dv_auth.dart`: подтверждение входа в другие сервисы через DV Auth (QR или `dvchat://auth#...`, число с экрана, токен OpenID)
 - `utils/dv_api.dart`: запросы к серверному модулю `dv_social` (ID, друзья, заявки, профиль)
 - `pages/friends/`: экран друзей и заявок
 - `widgets/dv_my_id.dart`: показ и копирование своего ID
@@ -33,6 +34,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 - `pages/games/`: игры на двоих и против компьютера, статистика (подробнее ниже)
 - `pages/liza/`: вкладка «Лиза» (подробнее ниже)
 - `widgets/dv_logo.dart`, `widgets/dv_splash.dart`: логотип и заставка
+- `utils/dv_lists.dart` и `widgets/dv_lists_bar.dart`: общие списки в личном чате (покупки, дела). Список это состояние комнаты `online.dvbstudio.dvchat.list`, над полем ввода «папочки» со счётчиком, нажатие открывает панель. «Убрать у себя» хранится в личных данных комнаты и собеседника не касается
+- `widgets/dv_blur_bar.dart`: фон шапки; насколько он плотный, задаёт ползунок «Шапка» в «Оформлении»
 - `utils/legacy_migration.dart`: перенос данных со старых имён (можно удалить, когда все установки обновились)
 
 ## Игры (`lib/pages/games/`)

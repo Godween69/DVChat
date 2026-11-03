@@ -39,6 +39,17 @@ abstract class AppConfig {
   static const String loginLinkScheme = 'dvchat';
   static const String loginLinkHost = 'login';
 
+  // DVChat: подтверждение входа в сервисы через DV Auth: dvchat://auth#<base64url(JSON {"c":"код"})>
+  static const String authLinkHost = 'auth';
+
+  // DVChat: адрес сервиса DV Auth (github.com/Godween69/DVAuth), его публичный порт.
+  // Задаётся при сборке (DVCHAT_AUTH_URL); пусто: подтверждение входа отключено.
+  // Адрес берётся только отсюда и никогда из QR-кода.
+  static const String authUrl = String.fromEnvironment(
+    'DVCHAT_AUTH_URL',
+    defaultValue: '',
+  );
+
   static const String inviteLinkPrefix = 'https://matrix.to/#/';
   static const String deepLinkPrefix = 'dvchat://chat/';
   static const String schemePrefix = 'matrix:';

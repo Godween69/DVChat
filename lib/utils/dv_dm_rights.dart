@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // DVChat: равные права в личных чатах. В личном чате нет «владельца»: закреплять сообщения
-// могут оба. Тот, кто создал чат (и потому может менять права), один раз выравнивает их.
+// могут оба, и так же общие списки (utils/dv_lists.dart). Тот, кто создал чат (и потому может менять права),
+// один раз выравнивает их.
 
 import 'dart:async';
 
+import 'package:dvchat/utils/dv_lists.dart';
 import 'package:matrix/matrix.dart';
 
 abstract class DvDmRights {
@@ -37,13 +39,15 @@ abstract class DvDmRights {
         final events = Map<String, Object?>.from(
           (content['events'] as Map?) ?? const <String, Object?>{},
         );
-        if (events[EventTypes.RoomPinnedEvents] == 0) {
+        if (events[EventTypes.RoomPinnedEvents] == 0 &&
+            events[dvListType] == 0) {
           _done.add(room.id);
           continue;
         }
         // Менять права может только тот, у кого они есть: остальные подождут создателя чата
         if (!room.canChangeStateEvent(EventTypes.RoomPowerLevels)) continue;
         events[EventTypes.RoomPinnedEvents] = 0;
+        events[dvListType] = 0;
         content['events'] = events;
         _done.add(room.id);
         try {

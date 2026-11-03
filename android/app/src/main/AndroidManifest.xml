@@ -89,6 +89,14 @@
                <data android:scheme="dvchat" android:host="login" />
             </intent-filter>
 
+            <!-- DVChat: подтверждение входа в сервис по ссылке dvchat://auth#... (DV Auth) -->
+            <intent-filter>
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="dvchat" android:host="auth" />
+            </intent-filter>
+
             <!-- DVChat: открытие чата по ссылке dvchat://chat/... -->
             <intent-filter>
                <action android:name="android.intent.action.VIEW" />

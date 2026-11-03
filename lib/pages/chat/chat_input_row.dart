@@ -174,6 +174,13 @@ class ChatInputRow extends StatelessWidget {
                                     title: 'Список покупок',
                                     color: DvMenuColors.green,
                                   ),
+                                  if (controller.room.isDirectChat)
+                                    const DvGlassMenuItem(
+                                      value: AddPopupMenuActions.lists,
+                                      icon: Icons.checklist_rounded,
+                                      title: 'Общий список',
+                                      color: DvMenuColors.amber,
+                                    ),
                                   if (PlatformInfos.isMobile) ...[
                                     const DvGlassMenuItem(
                                       value: AddPopupMenuActions.videoCamera,

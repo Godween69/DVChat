@@ -38,6 +38,7 @@ import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/show_scaffold_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/dv_lists_bar.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
@@ -1562,6 +1563,10 @@ class ChatController extends State<ChatPageWithRoom>
           builder: (context) => ShoppingListSheet(room: room),
         );
         return;
+      case AddPopupMenuActions.lists:
+        // DVChat: общий список в личном чате (панель под лентой, не сообщение)
+        dvCreateList(context, room);
+        return;
     }
   }
 
@@ -1773,4 +1778,5 @@ enum AddPopupMenuActions {
   videoCamera,
   location,
   shopping,
+  lists,
 }

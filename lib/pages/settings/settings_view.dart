@@ -8,6 +8,7 @@
 import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/l10n/l10n.dart';
 import 'package:dvchat/pages/profile/dv_profile_page.dart';
+import 'package:dvchat/utils/dv_auth.dart';
 import 'package:dvchat/utils/platform_infos.dart';
 import 'package:dvchat/utils/update_checker.dart';
 import 'package:dvchat/widgets/dv_settings_header.dart';
@@ -86,6 +87,12 @@ class _SettingsViewState extends State<SettingsView> {
                   ? theme.colorScheme.surfaceContainerHigh
                   : null,
               onTap: () => context.go('/rooms/settings/security'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner_outlined),
+              title: const Text('Подтвердить вход'),
+              subtitle: const Text('В другой сервис по QR-коду и числу'),
+              onTap: () => scanAndConfirmAuth(context),
             ),
             ListTile(
               leading: const Icon(Icons.notifications_outlined),

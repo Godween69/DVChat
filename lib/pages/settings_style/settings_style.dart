@@ -12,6 +12,7 @@ import 'package:dvchat/utils/account_config.dart';
 import 'package:dvchat/utils/dv_list_style.dart';
 import 'package:dvchat/utils/dv_wallpaper.dart';
 import 'package:dvchat/utils/file_selector.dart';
+import 'package:dvchat/widgets/dv_blur_bar.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/theme_builder.dart';
 import 'package:file_picker/file_picker.dart';
@@ -46,7 +47,23 @@ class SettingsStyleController extends State<SettingsStyle> {
   @override
   void dispose() {
     DvListStyle.previewContrast = null;
+    DvBlurBar.preview = null;
     super.dispose();
+  }
+
+  // Ползунок непрозрачности шапки: пока тянем, шапки меняются сразу, сохраняем в конце
+  void previewHeaderOpacity(double value) {
+    DvBlurBar.preview = value;
+    DvBlurBar.changed();
+    setState(() {});
+  }
+
+  Future<void> saveHeaderOpacity(double value) async {
+    await AppSettings.headerOpacity.setItem(value);
+    DvBlurBar.preview = null;
+    DvBlurBar.changed();
+    if (!mounted) return;
+    setState(() {});
   }
 
   // Ползунок контраста: пока тянем, показываем сразу, сохраняем в конце

@@ -23,6 +23,7 @@ import 'package:dvchat/utils/localized_exception_extension.dart';
 import 'package:dvchat/utils/room_archive_extension.dart';
 import 'package:dvchat/widgets/chat_settings_popup_menu.dart';
 import 'package:dvchat/widgets/dv_clear_banner.dart';
+import 'package:dvchat/widgets/dv_lists_bar.dart';
 import 'package:dvchat/widgets/future_loading_dialog.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:dvchat/widgets/mxc_image.dart';
@@ -368,23 +369,34 @@ class ChatView extends StatelessWidget {
                                   : controller.room.canSendDefaultMessages &&
                                         controller.room.membership ==
                                             Membership.join
-                                  ? Material(
-                                      clipBehavior: Clip.hardEdge,
-                                      color:
-                                          controller.selectedEvents.isNotEmpty
-                                          ? theme.colorScheme.tertiaryContainer
-                                          : theme.colorScheme.surfaceContainer,
-                                      borderRadius: BorderRadius.circular(32),
-                                      child: Column(
-                                        mainAxisSize: .min,
-                                        children: [
-                                          if (controller.room.isDirectChat)
-                                            DvClearBanner(controller.room),
-                                          ReplyDisplay(controller),
-                                          ChatInputRow(controller),
-                                          ChatEmojiPicker(controller),
-                                        ],
-                                      ),
+                                  ? Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        // DVChat: общие списки: «папочки» над полем ввода (только в личном чате)
+                                        if (controller.room.isDirectChat &&
+                                            controller.selectedEvents.isEmpty)
+                                          DvListsBar(controller.room),
+                                        Material(
+                                          clipBehavior: Clip.hardEdge,
+                                          color:
+                                              controller.selectedEvents.isNotEmpty
+                                              ? theme.colorScheme.tertiaryContainer
+                                              : theme.colorScheme.surfaceContainer,
+                                          borderRadius: BorderRadius.circular(32),
+                                          child: Column(
+                                            mainAxisSize: .min,
+                                            children: [
+                                              if (controller.room.isDirectChat)
+                                                DvClearBanner(controller.room),
+                                              ReplyDisplay(controller),
+                                              ChatInputRow(controller),
+                                              ChatEmojiPicker(controller),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     )
                                   : SizedBox.shrink(),
                             ),

@@ -236,6 +236,29 @@ class SettingsStyleView extends StatelessWidget {
             Divider(color: theme.dividerColor),
             ListTile(
               title: Text(
+                'Шапка',
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text(
+                'Верхняя полоса экранов. Слева прозрачное стекло, справа сплошной цвет: так шапка не сливается с сообщениями',
+              ),
+              trailing: Text('${(DvBlurBar.opacity * 100).round()}%'),
+            ),
+            const _HeaderSample(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Slider(
+                value: DvBlurBar.opacity,
+                onChanged: controller.previewHeaderOpacity,
+                onChangeEnd: controller.saveHeaderOpacity,
+              ),
+            ),
+            Divider(color: theme.dividerColor),
+            ListTile(
+              title: Text(
                 'Оформление списков',
                 style: TextStyle(
                   color: theme.colorScheme.secondary,
@@ -607,3 +630,63 @@ final List<Color> _dvSeeds = [
   ])
     HSLColor.fromAHSL(1, h.toDouble(), 0.78, 0.5).toColor(),
 ];
+
+/// DVChat: образец шапки над несколькими строками текста: видно, как она ляжет на сообщения
+class _HeaderSample extends StatelessWidget {
+  const _HeaderSample();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 96,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final line in const [
+                        'Купил молоко и хлеб, заеду через час',
+                        'Хорошо, не забудь яйца',
+                        'Уже в магазине, беру десяток',
+                        'Спасибо, жду дома',
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(line, style: theme.textTheme.bodyMedium),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 40,
+                child: Stack(
+                  children: [
+                    const Positioned.fill(child: DvBlurBar()),
+                    Center(
+                      child: Text(
+                        'Так выглядит шапка',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
