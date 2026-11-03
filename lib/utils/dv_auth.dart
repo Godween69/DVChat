@@ -15,6 +15,7 @@ import 'dart:convert';
 
 import 'package:dvchat/config/app_config.dart';
 import 'package:dvchat/pages/new_private_chat/qr_scanner_modal.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:dvchat/widgets/matrix.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -198,10 +199,9 @@ class _NumberDialogState extends State<_NumberDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
-      scrollable: true,
-      title: Text(widget.title, style: const TextStyle(fontSize: 18)),
-      content: Column(
+    return DvGlassDialog(
+      title: widget.title,
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -209,7 +209,7 @@ class _NumberDialogState extends State<_NumberDialog> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(120),
+                color: theme.colorScheme.onSurface.withAlpha(18),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

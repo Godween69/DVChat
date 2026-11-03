@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// DVChat: «стеклянные» панели. Полупрозрачная панель размывает то, что лежит под ней
-// (современный «воздушный» вид), плюс стеклянное меню, которое открывается у кнопки.
-
-import 'dart:ui' show ImageFilter;
+// DVChat: полупрозрачные панели и меню в одном стиле: прозрачность 40%, БЕЗ размытия
+// (размытие нагружало видеоядро и давало тормоза). Меню открывается у кнопки.
 
 import 'package:material_ui/material_ui.dart';
 
-/// Стеклянная панель: размывает всё, что под ней, и слегка подкрашивает цветом страницы.
+/// Прозрачность панелей: 40% прозрачности = 60% непрозрачности (alpha 153 из 255). Один стиль на всё приложение.
+const int kDvGlassAlpha = 153;
+
+/// Полупрозрачная панель (без размытия): заливка цвета страницы, лёгкая светлая кромка.
 class DvGlass extends StatelessWidget {
   const DvGlass({
     required this.child,
@@ -23,7 +24,7 @@ class DvGlass extends StatelessWidget {
   final double radius;
   final EdgeInsetsGeometry padding;
 
-  /// Сила размытия (сигма гауссова размытия, в точках)
+  /// Не используется: размытия больше нет. Параметр оставлен, чтобы не менять вызовы.
   final double blur;
 
   /// Цвет подкраски (по умолчанию цвет страницы)
@@ -37,35 +38,19 @@ class DvGlass extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final base = tint ?? theme.colorScheme.surface;
-    final surface = AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      padding: padding,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            base.withAlpha(opaque ? (dark ? 238 : 244) : (dark ? 160 : 200)),
-            base.withAlpha(opaque ? (dark ? 228 : 236) : (dark ? 115 : 150)),
-          ],
-        ),
-        border: Border.all(
-          color: Colors.white.withAlpha(dark ? 38 : 140),
-          width: 1,
-        ),
-      ),
-      child: child,
-    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      // blur <= 0: без размытия под панелью (нужно на время анимации, когда оно тормозит)
-      child: blur <= 0
-          ? surface
-          : BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: surface,
-            ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          color: base.withAlpha(opaque ? (dark ? 238 : 244) : kDvGlassAlpha),
+          border: Border.all(
+            color: Colors.white.withAlpha(dark ? 38 : 140),
+            width: 1,
+          ),
+        ),
+        child: Padding(padding: padding, child: child),
+      ),
     );
   }
 }
@@ -156,8 +141,6 @@ class DvMenuColors {
 const double _menuWidth = 260;
 
 /// Стеклянное меню у кнопки [anchor]. Возвращает выбранное значение или null, если меню закрыли.
-/// Размытие включается, когда анимация закончилась: пока меню движется, размывать то, что под
-/// ним (ленту чата), слишком дорого и меню тормозит.
 Future<T?> showDvGlassMenu<T>(
   BuildContext anchor, {
   required List<DvGlassMenuItem<T>> items,
@@ -224,10 +207,7 @@ Future<T?> showDvGlassMenu<T>(
                 child: Material(
                   type: MaterialType.transparency,
                   child: RepaintBoundary(
-                    child: _GlassMenuBody<T>(
-                      items: items,
-                      animation: animation,
-                    ),
+                    child: _GlassMenuBody<T>(items: items),
                   ),
                 ),
               ),
@@ -239,44 +219,17 @@ Future<T?> showDvGlassMenu<T>(
   );
 }
 
-/// Панель меню: на время движения без размытия, потом с размытием
-class _GlassMenuBody<T> extends StatefulWidget {
-  const _GlassMenuBody({required this.items, required this.animation});
+/// Панель меню
+class _GlassMenuBody<T> extends StatelessWidget {
+  const _GlassMenuBody({required this.items});
 
   final List<DvGlassMenuItem<T>> items;
-  final Animation<double> animation;
-
-  @override
-  State<_GlassMenuBody<T>> createState() => _GlassMenuBodyState<T>();
-}
-
-class _GlassMenuBodyState<T> extends State<_GlassMenuBody<T>> {
-  bool _settled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.animation.addStatusListener(_onStatus);
-  }
-
-  @override
-  void dispose() {
-    widget.animation.removeStatusListener(_onStatus);
-    super.dispose();
-  }
-
-  void _onStatus(AnimationStatus status) {
-    final done = status == AnimationStatus.completed;
-    if (done != _settled && mounted) setState(() => _settled = done);
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DvGlass(
       radius: 24,
-      blur: _settled ? 18 : 0,
-      opaque: !_settled,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SizedBox(
         width: _menuWidth,
@@ -284,15 +237,15 @@ class _GlassMenuBodyState<T> extends State<_GlassMenuBody<T>> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var i = 0; i < widget.items.length; i++) ...[
-              if (i > 0 && widget.items[i].dividerBefore)
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0 && items[i].dividerBefore)
                 Divider(
                   height: 9,
                   indent: 62,
                   endIndent: 16,
                   color: scheme.outlineVariant.withAlpha(110),
                 ),
-              _GlassMenuRow<T>(item: widget.items[i]),
+              _GlassMenuRow<T>(item: items[i]),
             ],
           ],
         ),
@@ -338,6 +291,62 @@ class _GlassMenuRow<T> extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Окно (диалог) в том же стиле: полупрозрачная панель без размытия, заголовок, содержимое, кнопки.
+/// Клавиатура поднимает окно сама (его сдвигает Dialog), содержимое прокручивается.
+class DvGlassDialog extends StatelessWidget {
+  const DvGlassDialog({
+    required this.title,
+    required this.child,
+    required this.actions,
+    super.key,
+  });
+
+  final String title;
+  final Widget child;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: DvGlass(
+          radius: 24,
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(child: SingleChildScrollView(child: child)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    actions[i],
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

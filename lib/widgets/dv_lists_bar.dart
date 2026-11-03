@@ -8,7 +8,7 @@
 
 import 'package:dvchat/utils/adaptive_bottom_sheet.dart';
 import 'package:dvchat/utils/dv_lists.dart';
-import 'package:dvchat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:dvchat/widgets/dv_glass.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:matrix/matrix.dart';
 
@@ -27,13 +27,13 @@ Future<void> dvCreateList(BuildContext context, Room room) async {
     );
     return;
   }
-  final title = await showTextInputDialog(
+  final title = await showDialog<String>(
     context: context,
-    title: 'Новый список',
-    hintText: 'Например, Покупки или Дела',
-    okLabel: 'Создать',
-    cancelLabel: 'Отмена',
-    maxLength: DvLists.maxTitle,
+    builder: (_) => const _NameDialog(
+      title: 'Новый список',
+      hint: 'Например, Покупки или Дела',
+      okLabel: 'Создать',
+    ),
   );
   if (title == null || title.trim().isEmpty) return;
   try {
@@ -108,6 +108,69 @@ Future<void> dvHideList(BuildContext context, Room room, DvList list) async {
   } catch (e) {
     messenger.showSnackBar(SnackBar(content: Text('Не получилось: $e')));
   }
+}
+
+/// Окно с одним полем (название списка): в общем полупрозрачном стиле, кнопка активна, когда поле не пустое.
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({
+    required this.title,
+    required this.okLabel,
+    this.hint,
+    this.initial = '',
+  });
+
+  final String title;
+  final String okLabel;
+  final String? hint;
+  final String initial;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _c = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final t = _c.text.trim();
+    if (t.isNotEmpty) Navigator.of(context).pop(t);
+  }
+
+  @override
+  Widget build(BuildContext context) => DvGlassDialog(
+    title: widget.title,
+    child: TextField(
+      controller: _c,
+      autofocus: true,
+      maxLength: DvLists.maxTitle,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        counterText: '',
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (_) => setState(() {}),
+      onSubmitted: (_) => _submit(),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Отмена'),
+      ),
+      FilledButton(
+        onPressed: _c.text.trim().isEmpty ? null : _submit,
+        child: Text(widget.okLabel),
+      ),
+    ],
+  );
 }
 
 // =============================================================== лента «папочек»
@@ -339,13 +402,13 @@ class _DvListSheetState extends State<DvListSheet> {
   }
 
   Future<void> _rename(DvList list) async {
-    final title = await showTextInputDialog(
+    final title = await showDialog<String>(
       context: context,
-      title: 'Название списка',
-      initialText: list.title,
-      okLabel: 'Сохранить',
-      cancelLabel: 'Отмена',
-      maxLength: DvLists.maxTitle,
+      builder: (_) => _NameDialog(
+        title: 'Название списка',
+        initial: list.title,
+        okLabel: 'Сохранить',
+      ),
     );
     if (title == null || title.trim().isEmpty) return;
     await _run(() => DvLists.rename(widget.room, list.id, title));
